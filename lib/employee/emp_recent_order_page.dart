@@ -61,11 +61,13 @@ class _RecentOrdersScreenState extends State<RecentOrdersScreen> {
             final status = (order['status'] ?? '').toString().toLowerCase();
             final customerName = (order['customer_name'] ?? '').toString().toLowerCase();
             final orderId = (order['id'] ?? '').toString().toLowerCase();
+            final orderNumber = (order['order_number'] ?? '').toString().toLowerCase();
             final searchLower = _query.toLowerCase();
             
             return status == 'pending' && 
                    (customerName.contains(searchLower) || 
-                    orderId.contains(searchLower));
+                    orderId.contains(searchLower) ||
+                    orderNumber.contains(searchLower));
           }).toList();
 
           // Group orders by date
@@ -108,11 +110,12 @@ class _RecentOrdersScreenState extends State<RecentOrdersScreen> {
                 ),
               ),
 
-              // Orders List
+              // Main Content Area
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // Search Box
                       Container(
@@ -131,10 +134,10 @@ class _RecentOrdersScreenState extends State<RecentOrdersScreen> {
                         child: TextField(
                           controller: _searchCtrl,
                           onChanged: (v) {
-                            setState(() => _query = v);
+                            setState(() => _query = v.toLowerCase());
                           },
                           decoration: InputDecoration(
-                            hintText: "Search by order ID or customer...",
+                            hintText: "Search by order number or customer...",
                             prefixIcon: const Icon(Icons.search,
                                 color: GlobalColors.primaryBlue),
                             filled: true,
@@ -174,7 +177,7 @@ class _RecentOrdersScreenState extends State<RecentOrdersScreen> {
                       const SizedBox(height: 12),
 
                       // Orders List
-                      Expanded(
+                      Flexible(
                         child: ListView.separated(
                           physics: const BouncingScrollPhysics(),
                           itemCount: visibleOrders.length,
@@ -209,8 +212,8 @@ class _RecentOrdersScreenState extends State<RecentOrdersScreen> {
 
                       // Load More Button
                       if (_visibleCount < pendingOrders.length)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        Container(
+                          margin: const EdgeInsets.only(top: 16),
                           child: SizedBox(
                             width: double.infinity,
                             child: OutlinedButton.icon(
@@ -241,132 +244,153 @@ class _RecentOrdersScreenState extends State<RecentOrdersScreen> {
       ),
     );
   }
-Widget _buildOrderCard(Map<String, dynamic> order) {
-  final status = (order['status'] ?? 'pending').toString().toLowerCase();
-  final disabled = status == 'cancelled';
-  final statusColor = _getStatusColor(status);
-  final statusText = status.toUpperCase();
-  
-  // Get category - try multiple field names
-  final category = order['category'] ?? 
-                  order['feed_category'] ?? 
-                  'N/A';
-  
-  // Get price - use 'total_price' column name
-  final price = order['total_price'] ?? order['price'] ?? 0;
-  final priceValue = price is num ? price : 
-                    (int.tryParse(price.toString()) ?? 0);
 
-  return InkWell(
-    onTap: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => TrackOrderScreen(orderId: order['id']),
+  Widget _buildOrderCard(Map<String, dynamic> order) {
+    final displayId = order['order_number'] ??
+                   order['display_id'] ??
+                   '#${order['id']?.toString().substring(0, 8).toUpperCase() ?? 'N/A'}';
+    final status = (order['status'] ?? 'pending').toString().toLowerCase();
+    final disabled = status == 'cancelled';
+    final statusColor = _getStatusColor(status);
+    final statusText = status.toUpperCase();
+    
+    // Get category - try multiple field names
+    final category = order['category'] ?? 
+                    order['feed_category'] ?? 
+                    'N/A';
+    
+    // Get price - use 'total_price' column name
+    final price = order['total_price'] ?? order['price'] ?? 0;
+    final priceValue = price is num ? price : 
+                      (int.tryParse(price.toString()) ?? 0);
+
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => TrackOrderScreen(orderId: order['id']),
+          ),
+        );
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Card(
+        elevation: 3,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: AppColors.borderGrey,
+            width: 1,
+          ),
         ),
-      );
-    },
-    borderRadius: BorderRadius.circular(12),
-    child: Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: AppColors.borderGrey,
-          width: 1,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Order ID and Customer
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "#${order['id'] ?? 'N/A'}",
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primaryText,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Order ID and Customer
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          displayId,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primaryText,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        order['customer_name'] ?? 'No Name',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: disabled
-                              ? AppColors.secondaryText
-                              : AppColors.primaryText,
+                        const SizedBox(height: 4),
+                        Flexible(
+                          child: Text(
+                            order['customer_name'] ?? 'No Name',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: disabled
+                                  ? AppColors.secondaryText
+                                  : AppColors.primaryText,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                // Status badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: statusColor.withOpacity(0.3),
-                      width: 1,
+                      ],
                     ),
                   ),
-                  child: Text(
-                    statusText,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: statusColor,
+                  // Status badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: statusColor.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      statusText,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: statusColor,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
+                ],
+              ),
+              const SizedBox(height: 16),
 
-            // Order Details - Show Price and Category
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildDetailColumn(
-                  "Bags", 
-                  "${order['bags'] ?? 0} Bags", 
-                  Icons.scale
-                ),
-                _buildDetailColumn(
-                  "Price", 
-                  "₹${priceValue.toString()}", 
-                  Icons.currency_rupee
-                ),
-                _buildDetailColumn(
-                  "Category", 
-                  category.toString(), 
-                  Icons.category
-                ),
-              ],
-            ),
-          ],
+              // Order Details
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    child: _buildDetailColumn(
+                      "Bags", 
+                      "${order['bags'] ?? 0}",
+                      Icons.scale,
+                      "Bags"
+                    ),
+                  ),
+                  Flexible(
+                    child: _buildDetailColumn(
+                      "Price", 
+                      "₹${priceValue.toString()}",
+                      Icons.currency_rupee,
+                      "Total"
+                    ),
+                  ),
+                  Flexible(
+                    child: _buildDetailColumn(
+                      "Category", 
+                      category.toString(),
+                      Icons.category,
+                      ""
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
-  Widget _buildDetailColumn(String title, String value, IconData icon) {
+  Widget _buildDetailColumn(String title, String value, IconData icon, String unit) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
           icon,
@@ -380,15 +404,20 @@ Widget _buildOrderCard(Map<String, dynamic> order) {
             fontSize: 11,
             color: AppColors.secondaryText,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 2),
         Text(
-          value,
+          unit.isEmpty ? value : "$value $unit",
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
             color: AppColors.primaryText,
           ),
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
         ),
       ],
     );

@@ -67,7 +67,7 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
           ),
         ),
       ),
-      body: orderProvider.loading // FIXED: Changed from isLoading to loading
+      body: orderProvider.loading
           ? const Center(
               child: CircularProgressIndicator(
                 color: GlobalColors.primaryBlue,
@@ -185,19 +185,23 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                      color: GlobalColors.primaryBlue.withOpacity(0.3)),
+                                    color: Colors.grey,
+                                    width: 1,
+                                  ),
                                 ),
                                 child: DropdownButtonFormField<String>(
                                   value: selectedCategory,
                                   decoration: InputDecoration(
                                     filled: true,
-                                    fillColor: GlobalColors.white,
+                                    fillColor: Colors.white,
                                     contentPadding: const EdgeInsets.symmetric(
                                         horizontal: 16, vertical: 14),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                       borderSide: BorderSide.none,
                                     ),
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
                                     prefixIcon: Icon(
                                       Icons.category_outlined,
                                       color: GlobalColors.primaryBlue,
@@ -256,7 +260,7 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                                           labelStyle: TextStyle(
                                             color: selectedBags == bags
                                                 ? GlobalColors.white
-                                                : Colors.grey[700],
+                                                : Colors.black,
                                             fontWeight: FontWeight.w500,
                                           ),
                                           onSelected: (selected) {
@@ -278,6 +282,10 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                                   decoration: BoxDecoration(
                                     color: GlobalColors.primaryBlue.withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: GlobalColors.primaryBlue.withOpacity(0.3),
+                                      width: 1,
+                                    ),
                                   ),
                                   child: Row(
                                     children: [
@@ -302,9 +310,12 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                                 Container(
                                   padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
-                                    color: GlobalColors.white,
+                                    color: Colors.white,
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.grey[300]!),
+                                    border: Border.all(
+                                      color: Colors.grey,
+                                      width: 1,
+                                    ),
                                   ),
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -315,7 +326,7 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                                           Text(
                                             "Total Quantity",
                                             style: TextStyle(
-                                              color: Colors.grey[700],
+                                              color: Colors.black,
                                               fontSize: 14,
                                             ),
                                           ),
@@ -323,7 +334,7 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                                           Text(
                                             "Weight",
                                             style: TextStyle(
-                                              color: Colors.grey[700],
+                                              color: Colors.black,
                                               fontSize: 12,
                                             ),
                                           ),
@@ -434,187 +445,214 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
 
     return Scaffold(
       backgroundColor: GlobalColors.primaryBlue,
+      appBar: AppBar(
+        backgroundColor: GlobalColors.primaryBlue,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: const Text(
+          "Order Confirmed",
+          style: TextStyle(
+            color: GlobalColors.white,
+            fontWeight: FontWeight.w600,
+            fontSize: 20,
+          ),
+        ),
+      ),
       body: Column(
         children: [
           Expanded(
-            child: Center(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Success Icon
-                    Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        color: GlobalColors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: GlobalColors.primaryBlue.withOpacity(0.3),
-                            blurRadius: 20,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      ),
-                      child: Icon(
-                        Icons.check_circle,
-                        color: GlobalColors.primaryBlue,
-                        size: 70,
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Success Icon
+                  Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: GlobalColors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: GlobalColors.primaryBlue.withOpacity(0.3),
+                          blurRadius: 20,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      Icons.check_circle,
+                      color: GlobalColors.primaryBlue,
+                      size: 70,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Success Message
+                  const Text(
+                    "Order Placed Successfully!",
+                    style: TextStyle(
+                      color: GlobalColors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    "Order will appear in production orders",
+                    style: TextStyle(
+                      color: GlobalColors.white.withOpacity(0.9),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+
+                  // Order Details Card
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 10,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                      border: Border.all(
+                        color: Colors.grey,
+                        width: 1,
                       ),
                     ),
-                    const SizedBox(height: 32),
-
-                    // Success Message
-                    const Text(
-                      "Order Placed Successfully!",
-                      style: TextStyle(
-                        color: GlobalColors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      "Order will appear in production orders",
-                      style: TextStyle(
-                        color: GlobalColors.white.withOpacity(0.9),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-
-                    // Order Details Card
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: GlobalColors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: GlobalColors.primaryBlue.withOpacity(0.2),
-                            blurRadius: 30,
-                            spreadRadius: 2,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Order Summary",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
                           ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Order Summary",
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
+                        ),
+                        const SizedBox(height: 20),
 
-                          // Customer Info
-                          _successDetailRow("Customer", _orderDetails!['customer_name']),
-                          const SizedBox(height: 12),
-                          _successDetailRow("Mobile", _orderDetails!['customer_mobile']),
-                          const SizedBox(height: 12),
-                          _successDetailRow(
-                              "Address", _orderDetails!['customer_address']),
-                          const Divider(height: 24),
+                        // Customer Info
+                        _successDetailRow("Customer", _orderDetails!['customer_name']),
+                        const SizedBox(height: 12),
+                        _successDetailRow("Mobile", _orderDetails!['customer_mobile']),
+                        const SizedBox(height: 12),
+                        _successDetailRow("Address", _orderDetails!['customer_address']),
+                        const Divider(height: 24),
 
-                          // Order Info
-                          _successDetailRow("Category", _orderDetails!['feed_category']),
-                          const SizedBox(height: 12),
-                          _successDetailRow("Bags", "${_orderDetails!['bags']} Bags"),
-                          const SizedBox(height: 12),
-                          _successDetailRow("Weight", "$totalWeight $unit"),
-                          const SizedBox(height: 12),
-                          _successDetailRow("Price per Bag", "₹$pricePerBag"),
-                          const Divider(height: 24),
+                        // Order Info
+                        _successDetailRow("Category", _orderDetails!['feed_category']),
+                        const SizedBox(height: 12),
+                        _successDetailRow("Bags", "${_orderDetails!['bags']} Bags"),
+                        const SizedBox(height: 12),
+                        _successDetailRow("Weight", "$totalWeight $unit"),
+                        const SizedBox(height: 12),
+                        _successDetailRow("Price per Bag", "₹$pricePerBag"),
+                        const Divider(height: 24),
 
-                          // Total Price
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                "Total Amount",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black,
-                                ),
+                        // Total Price
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "Total Amount",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
                               ),
-                              Text(
-                                "₹$totalPrice",
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: GlobalColors.primaryBlue,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            "Payment: To be collected on delivery",
-                            style: TextStyle(
-                              color: Colors.grey[700],
-                              fontSize: 13,
-                              fontStyle: FontStyle.italic,
                             ),
+                            Text(
+                              "₹$totalPrice",
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: GlobalColors.primaryBlue,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Payment: To be collected on delivery",
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 13,
+                            fontStyle: FontStyle.italic,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 30),
+                  ),
+                  const SizedBox(height: 30),
 
-                    // Instructions
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: GlobalColors.white.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.info_outline, color: GlobalColors.white, size: 18),
-                              const SizedBox(width: 8),
-                              Text(
-                                "What's Next?",
-                                style: TextStyle(
-                                  color: GlobalColors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            "Our production team will process this order. You can track the order status in the Production Orders section.",
-                            style: TextStyle(
-                              color: GlobalColors.white.withOpacity(0.7),
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
+                  // Instructions
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.3),
+                        width: 1,
                       ),
                     ),
-                  ],
-                ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.info_outline, color: GlobalColors.white, size: 18),
+                            const SizedBox(width: 8),
+                            Text(
+                              "What's Next?",
+                              style: TextStyle(
+                                color: GlobalColors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          "Our production team will process this order. You can track the order status in the Production Orders section.",
+                          style: TextStyle(
+                            color: GlobalColors.white.withOpacity(0.7),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                ],
               ),
             ),
           ),
 
-          // Action Buttons
+          // Action Buttons - Fixed at bottom
           Container(
             padding: const EdgeInsets.all(20),
-            color: GlobalColors.white,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(
+                top: BorderSide(
+                  color: Colors.grey,
+                  width: 1,
+                ),
+              ),
+            ),
             child: Row(
               children: [
                 Expanded(
@@ -626,17 +664,21 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                       });
                     },
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: GlobalColors.primaryBlue),
+                      side: BorderSide(
+                        color: GlobalColors.primaryBlue,
+                        width: 2,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
                     child: Text(
-                      "New Order",
+                      "NEW ORDER",
                       style: TextStyle(
                         color: GlobalColors.primaryBlue,
                         fontWeight: FontWeight.w600,
+                        fontSize: 16,
                       ),
                     ),
                   ),
@@ -655,10 +697,11 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
                     child: Text(
-                      "Back to Home",
+                      "BACK TO HOME",
                       style: TextStyle(
                         color: GlobalColors.white,
                         fontWeight: FontWeight.w600,
+                        fontSize: 16,
                       ),
                     ),
                   ),
@@ -678,7 +721,7 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
         Text(
           label,
           style: TextStyle(
-            color: Colors.grey[700],
+            color: Colors.black,
             fontSize: 15,
           ),
         ),
@@ -723,7 +766,7 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: GlobalColors.white,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
@@ -732,6 +775,10 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
               offset: const Offset(0, 4),
             ),
           ],
+          border: Border.all(
+            color: Colors.grey,
+            width: 1,
+          ),
         ),
         child: child,
       ),
@@ -744,7 +791,7 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
       style: TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.w500,
-        color: Colors.grey[700],
+        color: Colors.black,
       ),
     );
   }
@@ -771,11 +818,35 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
           decoration: InputDecoration(
             hintText: hintText,
             filled: true,
-            fillColor: GlobalColors.white,
+            fillColor: Colors.white,
             prefixIcon: Icon(icon, color: GlobalColors.primaryBlue),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
+              borderSide: BorderSide(
+                color: Colors.grey,
+                width: 1,
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: Colors.grey,
+                width: 1,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: GlobalColors.primaryBlue,
+                width: 1,
+              ),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(
+                color: Colors.red,
+                width: 1,
+              ),
             ),
             contentPadding: EdgeInsets.symmetric(
               horizontal: 16,
@@ -871,7 +942,6 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
     );
   }
 }
-
 
 
 

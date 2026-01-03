@@ -94,33 +94,42 @@ class OrderProvider with ChangeNotifier {
   // FETCH ORDERS (Updated for emp_mar_orders)
   // ========================
   Future<void> fetchOrders() async {
-    try {
-      loading = true;
-      notifyListeners();
-
-      final user = supabase.auth.currentUser;
-      if (user == null) return;
-
-      orders = List<Map<String, dynamic>>.from(
-        await supabase
-            .from('emp_mar_orders')
-            .select()
-            .eq('employee_id', user.id)
-            .order('created_at', ascending: false),
-      );
-
-      // Update counts based on fetched orders
-      _updateCountsFromOrders();
-
-      notifyListeners();
-    } catch (e) {
-      debugPrint("❌ Fetch orders failed: $e");
-    } finally {
-      loading = false;
-      notifyListeners();
-    }
+  try {
+    final data = await supabase
+        .from('emp_mar_orders')
+        .select('*')
+        .order('created_at', ascending: false);
+    
+    // Process orders to ensure they have display IDs
+    orders = data.map((order) {
+      return {
+        ...order,
+        'display_id': _getDisplayOrderId(order), // Add a display ID field
+      };
+    }).toList();
+    
+    notifyListeners();
+  } catch (e) {
+    print('Error fetching orders: $e');
   }
+}
 
+String _getDisplayOrderId(Map<String, dynamic> order) {
+  // Priority 1: Use the auto-generated order_number
+  if (order['order_number'] != null && 
+      order['order_number'].toString().isNotEmpty) {
+    return order['order_number'].toString();
+  }
+  
+  // Priority 2: Use short UUID (for existing orders before trigger)
+  if (order['id'] != null) {
+    final uuid = order['id'].toString();
+    return '#${uuid.substring(0, 8).toUpperCase()}';
+  }
+  
+  // Fallback
+  return '#N/A';
+}
   // Helper method to update counts from orders list
   void _updateCountsFromOrders() {
     totalOrders = orders.length;

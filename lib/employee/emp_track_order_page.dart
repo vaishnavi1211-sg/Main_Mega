@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mega_pro/global/global_variables.dart';
 import 'package:mega_pro/providers/emp_order_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 
 class TrackOrderScreen extends StatefulWidget {
   final String orderId;
@@ -78,6 +79,9 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
           }
 
           final order = _order!;
+          final displayId = order['order_number'] ??
+                         order['display_id'] ??
+                         '#${order['id']?.toString().substring(0, 8).toUpperCase() ?? 'N/A'}';
           final status = (order['status'] ?? 'pending').toString().toLowerCase();
           final customerName = order['customer_name'] ?? 'Customer';
           final category = order['category'] ?? order['feed_category'] ?? 'N/A';
@@ -96,7 +100,7 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
 
           return Column(
             children: [
-              // Order Info Card
+              // Blue Curved Header with Order ID
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
@@ -111,37 +115,27 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Order ID: #${order['id'] ?? widget.orderId}",
-                      style: const TextStyle(
-                        color: GlobalColors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      customerName,
-                      style: const TextStyle(
-                        color: GlobalColors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "$bags Bags • $category",
+                      "Order ID",
                       style: TextStyle(
                         color: GlobalColors.white.withOpacity(0.9),
                         fontSize: 14,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     Text(
-                      "₹$totalPrice",
+                      displayId,
                       style: const TextStyle(
                         color: GlobalColors.white,
-                        fontSize: 20,
+                        fontSize: 22,
                         fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "$bags Bags • $category",
+                      style: TextStyle(
+                        color: GlobalColors.white.withOpacity(0.9),
+                        fontSize: 14,
                       ),
                     ),
                   ],
@@ -150,135 +144,150 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
 
               // Order Tracking
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Current Status Card with Order Info
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: GlobalColors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.shadowGrey.withOpacity(0.1),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Status Header
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      "Current Status",
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Current Status Card with Order Info
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: GlobalColors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.shadowGrey.withOpacity(0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Status Header
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        "Current Status",
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.secondaryText,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        currentStatusText,
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: statusColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: isOnTime 
+                                          ? GlobalColors.success.withOpacity(0.1)
+                                          : GlobalColors.warning.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Text(
+                                      isOnTime ? "On Time" : "Delayed",
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: AppColors.secondaryText,
+                                        fontWeight: FontWeight.w600,
+                                        color: isOnTime 
+                                            ? GlobalColors.success
+                                            : GlobalColors.warning,
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      currentStatusText,
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: statusColor,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: isOnTime 
-                                        ? GlobalColors.success.withOpacity(0.1)
-                                        : GlobalColors.warning.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(20),
                                   ),
-                                  child: Text(
-                                    isOnTime ? "On Time" : "Delayed",
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: isOnTime 
-                                          ? GlobalColors.success
-                                          : GlobalColors.warning,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
 
-                            // Divider
-                            Container(
-                              height: 1,
-                              color: AppColors.borderGrey,
-                            ),
-                            const SizedBox(height: 16),
+                              // Divider
+                              Container(
+                                height: 1,
+                                color: AppColors.borderGrey,
+                              ),
+                              const SizedBox(height: 16),
 
-                            // Order Information
-                            Column(
-                              children: [
-                                _buildInfoRow("Order Date", _formatDate(createdAt)),
-                                const SizedBox(height: 12),
-                                _buildInfoRow("Customer", customerName),
-                                const SizedBox(height: 12),
-                                _buildInfoRow("Mobile", mobile),
-                                const SizedBox(height: 12),
-                                _buildInfoRow("Delivery Address", address),
-                                const SizedBox(height: 12),
-                                _buildInfoRow("Weight", "$weight kg"),
-                                const SizedBox(height: 12),
-                                _buildInfoRow("Total Amount", "₹$totalPrice"),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Title
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: Text(
-                          "Order Timeline",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primaryText,
+                              // Order Information
+                              Column(
+                                children: [
+                                  _buildInfoRow("Order Date", _formatDate(createdAt)),
+                                  const SizedBox(height: 12),
+                                  _buildInfoRow("Customer", customerName),
+                                  const SizedBox(height: 12),
+                                  _buildInfoRow("Mobile", mobile),
+                                  const SizedBox(height: 12),
+                                  _buildInfoRow("Delivery Address", address),
+                                  const SizedBox(height: 12),
+                                  _buildInfoRow("Weight", "$weight kg"),
+                                  const SizedBox(height: 12),
+                                  _buildInfoRow("Total Amount", "₹$totalPrice"),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 12),
+                        const SizedBox(height: 20),
 
-                      // Timeline
-                      Expanded(
-                        child: ListView(
-                          physics: const BouncingScrollPhysics(),
-                          children: timelineSteps.map((step) {
-                            return _buildTimelineStep(
-                              step['title'],
-                              step['description'],
-                              step['time'],
-                              isCompleted: step['isCompleted'],
-                              isActive: step['isActive'],
-                            );
-                          }).toList(),
+                        // Title
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            "Order Timeline",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primaryText,
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 12),
+
+                        // Timeline
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: GlobalColors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.shadowGrey.withOpacity(0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: timelineSteps.map((step) {
+                              return _buildTimelineStep(
+                                step['title'],
+                                step['description'],
+                                step['time'],
+                                isCompleted: step['isCompleted'],
+                                isActive: step['isActive'],
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -418,42 +427,81 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
   }
 
   Widget _buildErrorState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.error_outline,
-            size: 80,
-            color: AppColors.secondaryText.withOpacity(0.5),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            "Order Not Found",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: AppColors.primaryText,
+    return Column(
+      children: [
+        // Blue Header (still shown even in error state)
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+          decoration: BoxDecoration(
+            color: GlobalColors.primaryBlue,
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(20),
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            "Unable to load order details",
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.secondaryText,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Order ID",
+                style: TextStyle(
+                  color: GlobalColors.white.withOpacity(0.9),
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                widget.orderId.substring(0, 8),
+                style: const TextStyle(
+                  color: GlobalColors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 80,
+                  color: AppColors.secondaryText.withOpacity(0.5),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  "Order Not Found",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primaryText,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Unable to load order details",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.secondaryText,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: _fetchOrderDetails,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: GlobalColors.primaryBlue,
+                  ),
+                  child: const Text("Retry"),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: _fetchOrderDetails,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: GlobalColors.primaryBlue,
-            ),
-            child: const Text("Retry"),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -463,14 +511,16 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
         return 'Order Confirmed';
       case 'processing':
         return 'Processing';
-      case 'packed':
-        return 'Packed';
+      case 'packing':
+        return 'Packing';
+      case 'ready_for_dispatch':
+        return 'Ready for Dispatch';
       case 'dispatched':
         return 'Dispatched';
-      case 'in_transit':
-        return 'In Transit';
       case 'delivered':
         return 'Delivered';
+      case 'completed':
+        return 'Completed';
       case 'cancelled':
         return 'Cancelled';
       default:
@@ -482,13 +532,13 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
     switch (status) {
       case 'pending':
         return GlobalColors.warning;
-      case 'processing':
-      case 'packed':
-        return GlobalColors.primaryBlue;
-      case 'dispatched':
-      case 'in_transit':
+      case 'packing':
+      case 'ready_for_dispatch':
         return Colors.orange;
+      case 'dispatched':
+        return GlobalColors.primaryBlue;
       case 'delivered':
+      case 'completed':
         return GlobalColors.success;
       case 'cancelled':
         return GlobalColors.danger;
@@ -499,7 +549,7 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
 
   bool _isDeliveryOnTime(String status) {
     // Simple logic - pending/processing orders are on time
-    return status == 'pending' || status == 'processing' || status == 'packed';
+    return status == 'pending' || status == 'packing' || status == 'ready_for_dispatch';
   }
 
   List<Map<String, dynamic>> _getTimelineSteps(String currentStatus) {
@@ -511,20 +561,20 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
         'status': 'pending',
       },
       {
-        'title': 'Processing',
-        'description': 'Order is being prepared',
+        'title': 'Packing',
+        'description': 'Feed bags are being packed',
         'time': _getTimeForStep(1),
-        'status': 'processing',
+        'status': 'packing',
       },
       {
-        'title': 'Packed',
-        'description': 'Feed bags packed and ready',
+        'title': 'Ready for Dispatch',
+        'description': 'Order packed and ready for dispatch',
         'time': _getTimeForStep(2),
-        'status': 'packed',
+        'status': 'ready_for_dispatch',
       },
       {
         'title': 'Dispatched',
-        'description': 'Out for delivery',
+        'description': 'Order has been dispatched',
         'time': _getTimeForStep(3),
         'status': 'dispatched',
       },
@@ -542,20 +592,41 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
       },
     ];
 
-    // Find the current step index
-    int currentIndex = steps.indexWhere((step) => step['status'] == currentStatus);
-    if (currentIndex == -1) {
-      currentIndex = 0; // Default to first step if status not found
+    // Find the current step index based on actual status
+    int currentIndex = 0;
+    switch (currentStatus) {
+      case 'pending':
+        currentIndex = 0;
+        break;
+      case 'packing':
+        currentIndex = 1;
+        break;
+      case 'ready_for_dispatch':
+        currentIndex = 2;
+        break;
+      case 'dispatched':
+        currentIndex = 3;
+        break;
+      case 'delivered':
+      case 'completed':
+        currentIndex = 5;
+        break;
+      case 'cancelled':
+        currentIndex = 0; // Show all steps as not completed for cancelled
+        break;
+      default:
+        currentIndex = 0;
     }
 
     return steps.map((step) {
       final stepIndex = steps.indexOf(step);
+      final isCancelled = currentStatus == 'cancelled';
       return {
         'title': step['title'],
         'description': step['description'],
         'time': step['time'],
-        'isCompleted': stepIndex < currentIndex,
-        'isActive': stepIndex == currentIndex,
+        'isCompleted': !isCancelled && stepIndex <= currentIndex,
+        'isActive': !isCancelled && stepIndex == currentIndex,
       };
     }).toList();
   }
@@ -563,12 +634,12 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
   String _getTimeForStep(int step) {
     final now = DateTime.now();
     final times = [
-      '${now.hour.toString().padLeft(2, '0')}:${(now.minute - 30).toString().padLeft(2, '0')} AM',
-      '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} AM',
-      '${now.hour.toString().padLeft(2, '0')}:${(now.minute + 15).toString().padLeft(2, '0')} AM',
-      '${now.hour.toString().padLeft(2, '0')}:${(now.minute + 30).toString().padLeft(2, '0')} AM',
+      DateFormat('hh:mm a').format(now.subtract(const Duration(minutes: 30))),
+      DateFormat('hh:mm a').format(now),
+      DateFormat('hh:mm a').format(now.add(const Duration(minutes: 15))),
+      DateFormat('hh:mm a').format(now.add(const Duration(minutes: 30))),
       'Now',
-      '${(now.hour + 2).toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} PM',
+      DateFormat('hh:mm a').format(now.add(const Duration(hours: 2))),
     ];
     return step < times.length ? times[step] : '';
   }
@@ -578,15 +649,12 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
     
     try {
       final date = DateTime.parse(dateString);
-      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      return '${date.day} ${months[date.month - 1]}, ${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+      return DateFormat('dd MMM yyyy, hh:mm a').format(date);
     } catch (e) {
       return dateString;
     }
   }
 }
-
-
 // import 'package:flutter/material.dart';
 // import 'package:mega_pro/global/global_variables.dart';
 
