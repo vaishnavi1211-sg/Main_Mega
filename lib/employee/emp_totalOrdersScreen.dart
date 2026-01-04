@@ -47,14 +47,14 @@ class _TotalOrdersPageState extends State<TotalOrdersPage> {
         ),
       ),
       body: Consumer<OrderProvider>(
-        builder: (context, orderProvider, _) {
-          if (orderProvider.orders.isEmpty && !orderProvider.loading) {
-            return _buildEmptyState();
-          }
+      builder: (context, orderProvider, _) {
+        if (orderProvider.loading) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-          if (orderProvider.loading) {
-            return const Center(child: CircularProgressIndicator());
-          }
+        if (orderProvider.orders.isEmpty) {
+          return _buildEmptyState();
+        }
 
           // Filter orders based on search query
           final filtered = orderProvider.orders.where((order) {

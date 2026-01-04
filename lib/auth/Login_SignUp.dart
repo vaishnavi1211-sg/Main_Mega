@@ -215,37 +215,47 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  void _navigateToDashboard(String role, PostgrestMap employee) {
-    final r = role.toLowerCase();
-
-    if (r.contains('marketing')) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const MarketingManagerDashboard(userData: {}),
-        ),
-      );
-    } else if (r.contains('production')) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const ProductionDashboard(userData: {}),
-        ),
-      );
-    } else if (r.contains('owner')) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const OwnerDashboard(userData: {}),
-        ),
-      );
-    } else {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const EmployeeDashboard(userData: {}),
-        ),
-      );
+  // FIXED: Better role detection with exact matching
+  void _navigateToDashboard(Map<String, dynamic> employee) {
+    final role = employee['role']?.toString().trim() ?? 'Employee';
+    
+    print('Navigating with role: $role');
+    print('Employee data: $employee');
+    
+    switch (role) {
+      case 'Marketing Manager':
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => MarketingManagerDashboard(userData: employee),
+          ),
+        );
+        break;
+      case 'Production Manager':
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProductionDashboard(userData: employee),
+          ),
+        );
+        break;
+      case 'Owner':
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OwnerDashboard(userData: employee),
+          ),
+        );
+        break;
+      case 'Employee':
+      default:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => EmployeeDashboard(userData: employee),
+          ),
+        );
+        break;
     }
   }
 
@@ -270,28 +280,47 @@ class _AuthScreenState extends State<AuthScreen> {
       }
 
       final user = supabase.auth.currentUser;
-      if (user == null) return;
+      if (user == null) {
+        throw 'Authentication failed. Please try again.';
+      }
 
       // 1️⃣ Find employee row by email
-      final employee = await supabase
+      final response = await supabase
           .from('emp_profile')
           .select()
           .eq('email', user.email!)
           .maybeSingle();
 
-      if (employee == null) {
-        throw 'Employee not found. Contact admin.';
+      if (response == null) {
+        throw 'Employee not found. Contact admin to create your profile.';
       }
+
+      // Convert to Map for easier handling
+      final employee = Map<String, dynamic>.from(response);
 
       // 2️⃣ Attach user_id ONLY ONCE
       if (employee['user_id'] == null) {
         await supabase.from('emp_profile').update({
           'user_id': user.id,
         }).eq('email', user.email!);
+        
+        // Refresh employee data with updated user_id
+        final updatedResponse = await supabase
+            .from('emp_profile')
+            .select()
+            .eq('email', user.email!)
+            .maybeSingle();
+            
+        if (updatedResponse != null) {
+          // Navigate with updated data
+          _navigateToDashboard(Map<String, dynamic>.from(updatedResponse));
+        } else {
+          _navigateToDashboard(employee);
+        }
+      } else {
+        // Navigate with existing data
+        _navigateToDashboard(employee);
       }
-
-      // ================= NAVIGATE WITH USER DATA =================
-      _navigateToDashboard(employee['role'], employee);
 
     } catch (e) {
       setState(() {
@@ -300,6 +329,320 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 }
+
+
+
+
+
+
+
+
+
+
+//working properly for all roles with user data passing
+
+// import 'package:flutter/material.dart';
+// import 'package:google_fonts/google_fonts.dart';
+// import 'package:supabase_flutter/supabase_flutter.dart';
+
+// import 'package:mega_pro/dashboards/emp_dashboard.dart';
+// import 'package:mega_pro/dashboards/mar_dashboard.dart';
+// import 'package:mega_pro/dashboards/pro_dashboard.dart';
+// import 'package:mega_pro/dashboards/own_dashboard.dart';
+
+// class AuthScreen extends StatefulWidget {
+//   const AuthScreen({super.key, required String selectedRole});
+
+//   @override
+//   State<AuthScreen> createState() => _AuthScreenState();
+// }
+
+// class _AuthScreenState extends State<AuthScreen> {
+//   bool isLogin = true;
+//   final _formKey = GlobalKey<FormState>();
+//   String? errorMessage;
+
+//   final _emailController = TextEditingController();
+//   final _passwordController = TextEditingController();
+//   final _confirmPasswordController = TextEditingController();
+//   final _fullNameController = TextEditingController();
+
+//   @override
+//   void dispose() {
+//     _emailController.dispose();
+//     _passwordController.dispose();
+//     _confirmPasswordController.dispose();
+//     _fullNameController.dispose();
+//     super.dispose();
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       backgroundColor: const Color(0xFFF1F5F9),
+//       body: Center(
+//         child: SingleChildScrollView(
+//           padding: const EdgeInsets.all(24),
+//           child: Container(
+//             width: 400,
+//             padding: const EdgeInsets.all(32),
+//             decoration: BoxDecoration(
+//               color: Colors.white,
+//               borderRadius: BorderRadius.circular(24),
+//               boxShadow: [
+//                 BoxShadow(
+//                   color: Colors.black.withOpacity(0.08),
+//                   blurRadius: 20,
+//                   offset: const Offset(0, 8),
+//                 ),
+//               ],
+//             ),
+//             child: Column(
+//               mainAxisSize: MainAxisSize.min,
+//               children: [
+//                 Text(
+//                   isLogin ? "Welcome Back!" : "Create Account",
+//                   style: GoogleFonts.poppins(
+//                     fontSize: 26,
+//                     fontWeight: FontWeight.w600,
+//                     color: const Color(0xFF2563EB),
+//                   ),
+//                 ),
+//                 const SizedBox(height: 10),
+//                 Text(
+//                   isLogin
+//                       ? "Login to access your dashboard"
+//                       : "Sign up after admin creates your profile",
+//                   style: GoogleFonts.poppins(
+//                     fontSize: 14,
+//                     color: Colors.grey[600],
+//                   ),
+//                   textAlign: TextAlign.center,
+//                 ),
+//                 const SizedBox(height: 30),
+
+//                 /// FORM
+//                 Form(
+//                   key: _formKey,
+//                   child: Column(
+//                     children: [
+//                       _inputField(
+//                         label: "Email",
+//                         icon: Icons.email_outlined,
+//                         controller: _emailController,
+//                       ),
+//                       const SizedBox(height: 16),
+
+//                       _inputField(
+//                         label: "Password",
+//                         icon: Icons.lock_outline,
+//                         controller: _passwordController,
+//                         isPassword: true,
+//                       ),
+//                       const SizedBox(height: 16),
+
+//                       if (!isLogin)
+//                         _inputField(
+//                           label: "Confirm Password",
+//                           icon: Icons.lock_outline,
+//                           controller: _confirmPasswordController,
+//                           isPassword: true,
+//                         ),
+
+//                       const SizedBox(height: 24),
+
+//                       SizedBox(
+//                         width: double.infinity,
+//                         height: 55,
+//                         child: ElevatedButton(
+//                           onPressed: _handleAuth,
+//                           style: ElevatedButton.styleFrom(
+//                             backgroundColor: const Color(0xFF2563EB),
+//                             shape: RoundedRectangleBorder(
+//                               borderRadius: BorderRadius.circular(16),
+//                             ),
+//                           ),
+//                           child: Text(
+//                             isLogin ? "Log In" : "Create Account",
+//                             style: GoogleFonts.poppins(
+//                               fontSize: 16,
+//                               fontWeight: FontWeight.w600,
+//                               color: Colors.white,
+//                             ),
+//                           ),
+//                         ),
+//                       ),
+//                     ],
+//                   ),
+//                 ),
+
+//                 if (errorMessage != null) ...[
+//                   const SizedBox(height: 12),
+//                   Text(
+//                     errorMessage!,
+//                     style: const TextStyle(color: Colors.red),
+//                   ),
+//                 ],
+
+//                 const SizedBox(height: 20),
+
+//                 GestureDetector(
+//                   onTap: () {
+//                     setState(() {
+//                       isLogin = !isLogin;
+//                       errorMessage = null;
+//                       _confirmPasswordController.clear();
+//                     });
+//                   },
+//                   child: Text.rich(
+//                     TextSpan(
+//                       text: isLogin
+//                           ? "Don't have an account? "
+//                           : "Already have an account? ",
+//                       style: GoogleFonts.poppins(
+//                         fontSize: 14,
+//                         color: Colors.grey[700],
+//                       ),
+//                       children: [
+//                         TextSpan(
+//                           text: isLogin ? "Sign Up" : "Login",
+//                           style: const TextStyle(
+//                             color: Color(0xFF2563EB),
+//                             fontWeight: FontWeight.w600,
+//                           ),
+//                         ),
+//                       ],
+//                     ),
+//                   ),
+//                 ),
+//               ],
+//             ),
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _inputField({
+//     required String label,
+//     required IconData icon,
+//     required TextEditingController controller,
+//     bool isPassword = false,
+//   }) {
+//     return TextFormField(
+//       controller: controller,
+//       obscureText: isPassword,
+//       validator: (value) {
+//         if (value == null || value.isEmpty) return "This field is required";
+//         if (label == "Email" && !value.contains("@")) {
+//           return "Enter valid email";
+//         }
+//         if (label == "Password" && value.length < 6) {
+//           return "Minimum 6 characters";
+//         }
+//         if (label == "Confirm Password" &&
+//             value != _passwordController.text) {
+//           return "Passwords do not match";
+//         }
+//         return null;
+//       },
+//       decoration: InputDecoration(
+//         labelText: label,
+//         prefixIcon: Icon(icon, color: const Color(0xFF2563EB)),
+//         filled: true,
+//         fillColor: const Color(0xFFF8FAFC),
+//         border: OutlineInputBorder(
+//           borderRadius: BorderRadius.circular(14),
+//         ),
+//       ),
+//     );
+//   }
+
+//   void _navigateToDashboard(String role, PostgrestMap employee) {
+//     final r = role.toLowerCase();
+
+//     if (r.contains('marketing')) {
+//       Navigator.pushReplacement(
+//         context,
+//         MaterialPageRoute(
+//           builder: (_) => const MarketingManagerDashboard(userData: {}),
+//         ),
+//       );
+//     } else if (r.contains('production')) {
+//       Navigator.pushReplacement(
+//         context,
+//         MaterialPageRoute(
+//           builder: (_) => const ProductionDashboard(userData: {}),
+//         ),
+//       );
+//     } else if (r.contains('owner')) {
+//       Navigator.pushReplacement(
+//         context,
+//         MaterialPageRoute(
+//           builder: (_) => const OwnerDashboard(userData: {}),
+//         ),
+//       );
+//     } else {
+//       Navigator.pushReplacement(
+//         context,
+//         MaterialPageRoute(
+//           builder: (_) => const EmployeeDashboard(userData: {}),
+//         ),
+//       );
+//     }
+//   }
+
+//   Future<void> _handleAuth() async {
+//     if (!_formKey.currentState!.validate()) return;
+
+//     setState(() => errorMessage = null);
+//     final supabase = Supabase.instance.client;
+
+//     try {
+//       // ================= AUTH =================
+//       if (isLogin) {
+//         await supabase.auth.signInWithPassword(
+//           email: _emailController.text.trim(),
+//           password: _passwordController.text.trim(),
+//         );
+//       } else {
+//         await supabase.auth.signUp(
+//           email: _emailController.text.trim(),
+//           password: _passwordController.text.trim(),
+//         );
+//       }
+
+//       final user = supabase.auth.currentUser;
+//       if (user == null) return;
+
+//       // 1️⃣ Find employee row by email
+//       final employee = await supabase
+//           .from('emp_profile')
+//           .select()
+//           .eq('email', user.email!)
+//           .maybeSingle();
+
+//       if (employee == null) {
+//         throw 'Employee not found. Contact admin.';
+//       }
+
+//       // 2️⃣ Attach user_id ONLY ONCE
+//       if (employee['user_id'] == null) {
+//         await supabase.from('emp_profile').update({
+//           'user_id': user.id,
+//         }).eq('email', user.email!);
+//       }
+
+//       // ================= NAVIGATE WITH USER DATA =================
+//       _navigateToDashboard(employee['role'], employee);
+
+//     } catch (e) {
+//       setState(() {
+//         errorMessage = e.toString().replaceAll('Exception:', '').trim();
+//       });
+//     }
+//   }
+// }
 
 
 
@@ -1551,347 +1894,3 @@ class _AuthScreenState extends State<AuthScreen> {
 
 
 
-
-
-// import 'package:flutter/material.dart';
-// import 'package:google_fonts/google_fonts.dart';
-// import 'package:supabase_flutter/supabase_flutter.dart';
-
-// import 'package:mega_pro/dashboards/emp_dashboard.dart';
-// import 'package:mega_pro/dashboards/mar_dashboard.dart';
-// import 'package:mega_pro/dashboards/pro_dashboard.dart';
-// import 'package:mega_pro/dashboards/own_dashboard.dart';
-// import 'package:mega_pro/global/global_variables.dart';
-
-// class AuthScreen extends StatefulWidget {
-//   const AuthScreen({super.key, required String selectedRole});
-
-//   @override
-//   State<AuthScreen> createState() => _AuthScreenState();
-// }
-
-// class _AuthScreenState extends State<AuthScreen> {
-//   bool isLogin = true;
-//   final _formKey = GlobalKey<FormState>();
-//   String? errorMessage;
-
-//   final TextEditingController _emailController = TextEditingController();
-//   final TextEditingController _passwordController = TextEditingController();
-//   final TextEditingController _confirmPasswordController =
-//       TextEditingController();
-//   final TextEditingController _fullNameController = TextEditingController();
-
-//   @override
-//   void dispose() {
-//     _emailController.dispose();
-//     _passwordController.dispose();
-//     _confirmPasswordController.dispose();
-//     super.dispose();
-//   }
-
-//   // ===============================================================
-//   // UI (OLD STYLE)
-//   // ===============================================================
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       backgroundColor: AppColors.scaffoldBg,
-//       body: Center(
-//         child: SingleChildScrollView(
-//           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-//           child: Container(
-//             width: MediaQuery.of(context).size.width > 420
-//                 ? 400
-//                 : MediaQuery.of(context).size.width * 0.9,
-//             padding: const EdgeInsets.all(32),
-//             decoration: BoxDecoration(
-//               color: GlobalColors.white,
-//               borderRadius: BorderRadius.circular(24),
-//               boxShadow: [
-//                 BoxShadow(
-//                   color: Colors.black.withOpacity(0.08),
-//                   blurRadius: 20,
-//                   offset: const Offset(0, 8),
-//                 ),
-//               ],
-//             ),
-//             child: Column(
-//               mainAxisSize: MainAxisSize.min,
-//               children: [
-//                 /// TITLE
-//                 Text(
-//                   isLogin ? "Welcome Back" : "Create Account",
-//                   style: GoogleFonts.poppins(
-//                     fontSize: 26,
-//                     fontWeight: FontWeight.w600,
-//                     color: AppColors.primaryBlue,
-//                   ),
-//                 ),
-//                 const SizedBox(height: 10),
-//                 Text(
-//                   isLogin
-//                       ? "Login to continue"
-//                       : "Sign up to create your account",
-//                   style: GoogleFonts.poppins(
-//                     fontSize: 14,
-//                     color: AppColors.secondaryText,
-//                   ),
-//                   textAlign: TextAlign.center,
-//                 ),
-//                 const SizedBox(height: 32),
-
-//                 /// FORM
-//                 Form(
-//                   key: _formKey,
-//                   child: Column(
-//                     children: [
-//                       if (!isLogin) ...[
-//                         _textField(
-//                           label: "Full Name",
-//                           icon: Icons.person_outline,
-//                           controller: _fullNameController,
-//                         ),
-//                         const SizedBox(height: 16),
-//                       ],
-                      
-//                       _textField(
-//                         label: "Email",
-//                         icon: Icons.email_outlined,
-//                         controller: _emailController,
-//                       ),
-//                       const SizedBox(height: 16),
-
-//                       _textField(
-//                         label: "Password",
-//                         icon: Icons.lock_outline,
-//                         controller: _passwordController,
-//                         isPassword: true,
-//                       ),
-
-//                       if (!isLogin) ...[
-//                         const SizedBox(height: 16),
-//                         _confirmPasswordField(),
-//                       ],
-                      
-
-//                       const SizedBox(height: 24),
-
-//                       SizedBox(
-//                         width: double.infinity,
-//                         height: 56,
-//                         child: ElevatedButton(
-//                           onPressed: _handleAuth,
-//                           style: ElevatedButton.styleFrom(
-//                             backgroundColor: AppColors.primaryBlue,
-//                             shape: RoundedRectangleBorder(
-//                               borderRadius: BorderRadius.circular(16),
-//                             ),
-//                           ),
-//                           child: Text(
-//                             isLogin ? "Login" : "Sign Up",
-//                             style: GoogleFonts.poppins(
-//                               fontSize: 16,
-//                               fontWeight: FontWeight.w600,
-//                               color: Colors.white,
-//                             ),
-//                           ),
-//                         ),
-//                       ),
-//                     ],
-//                   ),
-//                 ),
-
-//                 /// ERROR MESSAGE
-//                 if (errorMessage != null) ...[
-//                   const SizedBox(height: 20),
-//                   Container(
-//                     padding: const EdgeInsets.all(10),
-//                     decoration: BoxDecoration(
-//                       color: GlobalColors.danger.withOpacity(0.1),
-//                       borderRadius: BorderRadius.circular(12),
-//                     ),
-//                     child: Text(
-//                       errorMessage!,
-//                       textAlign: TextAlign.center,
-//                       style: TextStyle(
-//                         color: GlobalColors.danger,
-//                         fontSize: 13,
-//                       ),
-//                     ),
-//                   ),
-//                 ],
-
-//                 const SizedBox(height: 20),
-
-//                 /// TOGGLE
-//                 GestureDetector(
-//                   onTap: () {
-//                     setState(() {
-//                       isLogin = !isLogin;
-//                       errorMessage = null;
-//                       _confirmPasswordController.clear();
-//                     });
-//                   },
-//                   child: Text.rich(
-//                     TextSpan(
-//                       text: isLogin
-//                           ? "Don't have an account? "
-//                           : "Already have an account? ",
-//                       style: GoogleFonts.poppins(
-//                         fontSize: 14,
-//                         color: AppColors.secondaryText,
-//                       ),
-//                       children: [
-//                         TextSpan(
-//                           text: isLogin ? "Sign Up" : "Login",
-//                           style: TextStyle(
-//                             color: AppColors.primaryBlue,
-//                             fontWeight: FontWeight.w600,
-//                           ),
-//                         ),
-//                       ],
-//                     ),
-//                   ),
-//                 ),
-//               ],
-//             ),
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-
-//   // ===============================================================
-//   // INPUTS
-//   // ===============================================================
-
-//   Widget _textField({
-//     required String label,
-//     required IconData icon,
-//     required TextEditingController controller,
-//     bool isPassword = false,
-//   }) {
-//     return TextFormField(
-//       controller: controller,
-//       obscureText: isPassword,
-//       validator: (value) {
-//         if (value == null || value.isEmpty) return "This field is required";
-//         if (label == "Email" && !value.contains('@')) {
-//           return "Enter a valid email";
-//         }
-//         if (label == "Password" && value.length < 6) {
-//           return "Password must be at least 6 characters";
-//         }
-//         return null;
-//       },
-//       decoration: InputDecoration(
-//         labelText: label,
-//         prefixIcon: Icon(icon, color: AppColors.primaryBlue),
-//         filled: true,
-//         fillColor: AppColors.softGreyBg,
-//         border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-//       ),
-//     );
-//   }
-
-//   Widget _confirmPasswordField() {
-//     return TextFormField(
-//       controller: _confirmPasswordController,
-//       obscureText: true,
-//       validator: (value) {
-//         if (value != _passwordController.text) {
-//           return "Passwords do not match";
-//         }
-//         return null;
-//       },
-//       decoration: InputDecoration(
-//         labelText: "Confirm Password",
-//         prefixIcon: Icon(Icons.lock_outline, color: AppColors.primaryBlue),
-//         filled: true,
-//         fillColor: AppColors.softGreyBg,
-//         border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-//       ),
-//     );
-//   }
-
-//   // ===============================================================
-//   // AUTH LOGIC (UNCHANGED)
-//   // ===============================================================
-
-//   Future<void> _handleAuth() async {
-//     if (!_formKey.currentState!.validate()) return;
-
-//     setState(() => errorMessage = null);
-
-//     final supabase = Supabase.instance.client;
-
-//     try {
-//       if (isLogin) {
-//         // LOGIN
-//         await supabase.auth.signInWithPassword(
-//           email: _emailController.text.trim(),
-//           password: _passwordController.text.trim(),
-//         );
-//       } else {
-//         // SIGN UP
-//         final res = await supabase.auth.signUp(
-//           email: _emailController.text.trim(),
-//           password: _passwordController.text.trim(),
-//           data: {'full_name': _fullNameController.text.trim()},
-//         );
-
-//         if (res.user == null) {
-//           throw 'Signup failed';
-//         }
-
-//         // ⚠ TEMP: AUTO-REGISTER AS EMPLOYEE
-//         await supabase.from('employees').insert({
-//           'user_id': res.user!.id,
-//           'email': res.user!.email,
-//           'full_name': _fullNameController.text.trim(),
-//           'role': 'Employee', // default for now
-//         });
-//       }
-
-//       final user = supabase.auth.currentUser;
-//       if (user == null) throw 'Auth failed';
-
-//       final employee = await supabase
-//           .from('employees')
-//           .select()
-//           .eq('user_id', user.id)
-//           .single();
-
-//       _navigateToDashboard(employee['role']);
-//     } catch (e) {
-//       setState(() {
-//         errorMessage = e.toString().replaceAll('AuthApiException:', '').trim();
-//       });
-//     }
-//   }
-
-//   // ===============================================================
-//   // ROLE → DASHBOARD
-//   // ===============================================================
-
-//   void _navigateToDashboard(String role) {
-//     Widget page;
-
-//     switch (role) {
-//       case 'Marketing Manager':
-//         page = const MarketingManagerDashboard();
-//         break;
-//       case 'Production Manager':
-//         page = const ProductionManagerDashboard();
-//         break;
-//       case 'Owner':
-//         page = const OwnerDashboardClean();
-//         break;
-//       default:
-//         page = const EmployeeDashboard();
-//     }
-
-//     Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => page));
-//   }
-// }

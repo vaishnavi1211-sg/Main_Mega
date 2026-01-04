@@ -21,21 +21,40 @@ class EmployeeProvider with ChangeNotifier {
         return;
       }
 
+      // ✅ FIXED TABLE NAME + explicit fields
       final data = await supabase
-          .from('emp_profiles')
-          .select()
+          .from('emp_profile') // ✅ CORRECT (singular)
+          .select(
+            'emp_id, full_name, email, phone, position, branch, role, user_id',
+          )
           .eq('user_id', user.id)
-          .maybeSingle(); // ❗ avoid crash
+          .maybeSingle();
 
-      _profile = data;
+      if (data == null) {
+        debugPrint('❌ No emp_profile row found for user ${user.id}');
+        _profile = null;
+      } else {
+        debugPrint('✅ Employee profile loaded: $data');
+        _profile = data;
+      }
     } catch (e) {
       debugPrint("EmployeeProvider error: $e");
     } finally {
-      loading = false; // ✅ ALWAYS reached
+      loading = false;
       notifyListeners();
     }
   }
 }
+
+
+
+
+
+
+
+
+
+
 // import 'package:flutter/material.dart';
 // import 'package:supabase_flutter/supabase_flutter.dart';
 

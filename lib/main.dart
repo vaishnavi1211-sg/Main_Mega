@@ -10,6 +10,7 @@ import 'package:mega_pro/providers/emp_attendance_provider.dart';
 import 'package:mega_pro/providers/emp_mar_target_provider.dart';
 import 'package:mega_pro/providers/emp_order_provider.dart';
 import 'package:mega_pro/providers/emp_provider.dart';
+import 'package:mega_pro/providers/mar_own_target_provider.dart';
 import 'package:mega_pro/providers/own_dashboard_provider.dart';
 import 'package:mega_pro/providers/pro_inventory_provider.dart';
 import 'package:mega_pro/providers/pro_orders_provider.dart';
@@ -38,10 +39,11 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => EmployeeProvider()),
     ChangeNotifierProvider(create: (_) => OrderProvider()),
     ChangeNotifierProvider(create: (_) => AttendanceProvider()),
-            ChangeNotifierProvider(create: (_) => TargetProvider()),
+            ChangeNotifierProvider(create: (_) => TargetProvider()),//marketing target provider
     ChangeNotifierProvider(create: (_) => InventoryProvider()),
         ChangeNotifierProvider(create: (_) => ProductionOrdersProvider()),
                 ChangeNotifierProvider(create: (_) => DashboardProvider()),
+                ChangeNotifierProvider(create: (_) => TargetProvider()),//marketing own target provider
 
 
       ],
