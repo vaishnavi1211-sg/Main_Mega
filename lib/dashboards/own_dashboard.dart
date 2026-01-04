@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:mega_pro/models/own_dashboard_model.dart';
+import 'package:mega_pro/owner/own_quick_action.dart';
+import 'package:mega_pro/providers/own_dashboard_provider.dart';
+import 'package:provider/provider.dart';
 import 'package:mega_pro/global/global_variables.dart';
 import 'package:intl/intl.dart';
 
@@ -17,87 +20,148 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
   String _selectedFilter = 'Today';
   final List<String> _filters = ['Today', 'This Week', 'This Month', 'This Year'];
 
-  // Mock data - In real app, fetch from API
-  final Map<String, dynamic> _dashboardData = {
-    'totalRevenue': 2458000,
-    'totalOrders': 128,
-    'activeEmployees': 24,
-    'pendingOrders': 18,
-    'revenueGrowth': 12.5,
-    'orderGrowth': 8.2,
-    'employeeGrowth': 3.5,
-    'topProducts': [
-      {'name': 'Premium Feed', 'sales': 450, 'revenue': 675000},
-      {'name': 'Organic Feed', 'sales': 320, 'revenue': 480000},
-      {'name': 'Starter Feed', 'sales': 280, 'revenue': 420000},
-    ],
-    'recentActivities': [
-      {'title': 'New Order Received', 'time': '10 mins ago', 'icon': Icons.shopping_cart, 'color': Colors.green},
-      {'title': 'Payment Received', 'time': '30 mins ago', 'icon': Icons.payment, 'color': Colors.blue},
-      {'title': 'Stock Updated', 'time': '1 hour ago', 'icon': Icons.inventory, 'color': Colors.orange},
-      {'title': 'New Employee Added', 'time': '2 hours ago', 'icon': Icons.person_add, 'color': Colors.purple},
-    ],
-  };
+  @override
+  void initState() {
+    super.initState();
+    // The provider will auto-initialize in its constructor
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: GlobalColors.background,
-      appBar: AppBar(
-        backgroundColor: GlobalColors.primaryBlue,
-        elevation: 0,
-        title: const Text(
-          'Owner Dashboard',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.calendar_today_outlined, color: Colors.white),
-            onPressed: () {},
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Date and Filter Row
-              _buildDateFilterRow(),
-              const SizedBox(height: 20),
-
-              // Key Metrics Grid
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _buildMetricsGrid(),
+    return ChangeNotifierProvider(
+      create: (_) => DashboardProvider(),
+      child: Consumer<DashboardProvider>(
+        builder: (context, provider, child) {
+          return Scaffold(
+            backgroundColor: GlobalColors.background,
+            appBar: AppBar(
+              backgroundColor: GlobalColors.primaryBlue,
+              elevation: 0,
+              iconTheme: const IconThemeData(color: Colors.white),
+              title: const Text(
+                'Owner Dashboard',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
               ),
-              const SizedBox(height: 24),
-
-              // Revenue Chart Section
-              _buildRevenueChart(),
-              const SizedBox(height: 24),
-
-              // Top Products Section
-              _buildTopProducts(),
-              const SizedBox(height: 24),
-
-              // Recent Activities
-              _buildRecentActivities(),
-              const SizedBox(height: 24),
-            ],
-          ),
-        ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.person, color: Colors.white, size: 30),
+                  onPressed: () {},
+                ),
+                if (provider.isLoading)
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white.withOpacity(0.8)),
+                      ),
+                    ),
+                  ),
+                IconButton(
+                  icon: const Icon(Icons.refresh, color: Colors.white),
+                  onPressed: () => provider.refresh(),
+                ),
+              ],
+            ),
+            body: _buildBody(context, provider),
+            floatingActionButton: FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AssignTargetPage(),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Quick action - Add new order
+    );
+              },
+              backgroundColor: GlobalColors.primaryBlue,
+              child: const Icon(Icons.add, color: Colors.white),
+            ),
+          );
         },
-        backgroundColor: GlobalColors.primaryBlue,
-        child: const Icon(Icons.add, color: Colors.white),
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, DashboardProvider provider) {
+    if (provider.isLoading && provider.dashboardData.totalRevenue == 0) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text(
+              'Loading Dashboard...',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (provider.error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red, size: 48),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                'Error: ${provider.error}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red),
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => provider.refresh(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: GlobalColors.primaryBlue,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              child: const Text('Retry', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: SafeArea(
+        child: Column(
+          children: [
+            // Date and Filter Row
+            _buildDateFilterRow(),
+            const SizedBox(height: 16),
+
+            // Key Metrics Grid
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _buildMetricsGrid(provider.dashboardData),
+            ),
+            const SizedBox(height: 20),
+
+            // Revenue Chart Section
+            _buildRevenueChart(provider.dashboardData, provider.revenueChartData),
+            const SizedBox(height: 20),
+
+            // Top Products Section
+            _buildTopProducts(provider.dashboardData),
+            const SizedBox(height: 20),
+
+            // Recent Activities
+            _buildRecentActivities(provider.dashboardData),
+            const SizedBox(height: 24),
+          ],
+        ),
       ),
     );
   }
@@ -131,7 +195,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
             ],
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
               color: GlobalColors.primaryBlue.withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
@@ -163,42 +227,47 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
     );
   }
 
-  Widget _buildMetricsGrid() {
+  Widget _buildMetricsGrid(DashboardData dashboardData) {
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisCount: 2,
-      childAspectRatio: 1.2,
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
+      childAspectRatio: 0.9, // Better aspect ratio
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+      padding: const EdgeInsets.all(0),
       children: [
         _buildMetricCard(
           title: 'Total Revenue',
-          value: '₹${NumberFormat('#,##,###').format(_dashboardData['totalRevenue'])}',
+          value: '₹${NumberFormat('#,##,###').format(dashboardData.totalRevenue)}',
           icon: Icons.currency_rupee,
           color: Colors.green,
-          growth: _dashboardData['revenueGrowth'],
+          growth: dashboardData.revenueGrowth,
+          subtitle: 'Completed orders',
         ),
         _buildMetricCard(
           title: 'Total Orders',
-          value: _dashboardData['totalOrders'].toString(),
+          value: dashboardData.totalOrders.toString(),
           icon: Icons.shopping_cart,
           color: Colors.blue,
-          growth: _dashboardData['orderGrowth'],
+          growth: dashboardData.orderGrowth,
+          subtitle: 'All orders',
         ),
         _buildMetricCard(
           title: 'Active Employees',
-          value: _dashboardData['activeEmployees'].toString(),
+          value: dashboardData.activeEmployees.toString(),
           icon: Icons.people,
           color: Colors.purple,
-          growth: _dashboardData['employeeGrowth'],
+          growth: dashboardData.employeeGrowth,
+          subtitle: 'Current staff',
         ),
         _buildMetricCard(
           title: 'Pending Orders',
-          value: _dashboardData['pendingOrders'].toString(),
+          value: dashboardData.pendingOrders.toString(),
           icon: Icons.pending_actions,
           color: Colors.orange,
           isWarning: true,
+          subtitle: 'Needs attention',
         ),
       ],
     );
@@ -209,16 +278,18 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
     required String value,
     required IconData icon,
     required Color color,
-    double? growth,
+    double growth = 0,
     bool isWarning = false,
+    String subtitle = '',
   }) {
     return Card(
-      elevation: 2,
+      elevation: 3,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
+      color: Colors.white,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -230,31 +301,38 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(icon, size: 24, color: color),
+                  child: Icon(icon, size: 22, color: color),
                 ),
-                if (growth != null)
+                if (growth != 0 || isWarning)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: growth >= 0 ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
+                      color: isWarning 
+                        ? Colors.orange.withOpacity(0.1)
+                        : growth >= 0 
+                          ? Colors.green.withOpacity(0.1) 
+                          : Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
                       children: [
                         Icon(
-                          growth >= 0 ? Icons.arrow_upward : Icons.arrow_downward,
+                          isWarning ? Icons.warning : 
+                          (growth >= 0 ? Icons.arrow_upward : Icons.arrow_downward),
                           size: 12,
-                          color: growth >= 0 ? Colors.green : Colors.red,
+                          color: isWarning ? Colors.orange :
+                          (growth >= 0 ? Colors.green : Colors.red),
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '${growth.abs()}%',
+                          isWarning ? '!' : '${growth.abs().toStringAsFixed(1)}%',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: growth >= 0 ? Colors.green : Colors.red,
+                            color: isWarning ? Colors.orange :
+                            (growth >= 0 ? Colors.green : Colors.red),
                           ),
                         ),
                       ],
@@ -266,34 +344,63 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
             Text(
               value,
               style: const TextStyle(
-                fontSize: 22, // Reduced from 24 for better fit
+                fontSize: 20,
                 fontWeight: FontWeight.w700,
                 color: Colors.black87,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               title,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade600,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
               ),
             ),
+            if (subtitle.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildRevenueChart() {
+  Widget _buildRevenueChart(DashboardData dashboardData, List<Map<String, dynamic>> chartData) {
+    // Calculate max revenue for scaling
+    int maxRevenue = 0;
+    bool hasData = false;
+    
+    for (var data in chartData) {
+      final revenue = data['revenue'] as int;
+      if (revenue > 0) hasData = true;
+      if (revenue > maxRevenue) {
+        maxRevenue = revenue;
+      }
+    }
+
+    // If all revenues are 0, use a small default max
+    if (maxRevenue == 0) {
+      maxRevenue = 100000;
+    }
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
+      color: Colors.white,
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -311,63 +418,110 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                 TextButton(
                   onPressed: () {},
                   child: Text(
-                    'View Details',
+                    'Details',
                     style: TextStyle(
                       color: GlobalColors.primaryBlue,
                       fontWeight: FontWeight.w600,
+                      fontSize: 13,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            // Simple bar chart simulation
-            Container(
-              height: 180, // Reduced from 200 for better fit
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildBar(160, 'Mon', Colors.blue),
-                  _buildBar(200, 'Tue', Colors.blue),
-                  _buildBar(240, 'Wed', GlobalColors.primaryBlue),
-                  _buildBar(280, 'Thu', GlobalColors.primaryBlue),
-                  _buildBar(220, 'Fri', Colors.blue),
-                  _buildBar(180, 'Sat', Colors.blue),
-                  _buildBar(120, 'Sun', Colors.blue),
-                ],
+            const SizedBox(height: 4),
+            Text(
+              'Last 7 days',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey.shade600,
               ),
             ),
-            const SizedBox(height: 8),
-            const Divider(),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              alignment: WrapAlignment.spaceBetween,
+            const SizedBox(height: 16),
+            
+            // Chart Container
+            SizedBox(
+              height: 140,
+              child: !hasData
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.bar_chart,
+                            color: Colors.grey.shade400,
+                            size: 40,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'No revenue data',
+                            style: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: chartData.map((data) {
+                        final day = data['day'] as String;
+                        final revenue = data['revenue'] as int;
+                        // Scale height (max bar height = 90)
+                        final height = maxRevenue > 0 ? (revenue / maxRevenue) * 90 : 0;
+                        
+                        return _buildBar(
+                          height.toDouble(),
+                          day,
+                          revenue > 0 
+                            ? (day == 'Wed' || day == 'Thu' ? GlobalColors.primaryBlue : Colors.blue)
+                            : Colors.grey.withOpacity(0.2),
+                          revenue > 0 ? revenue : null,
+                        );
+                      }).toList(),
+                    ),
+            ),
+            
+            const SizedBox(height: 16),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Total Revenue: ₹${NumberFormat('#,##,###').format(_dashboardData['totalRevenue'])}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Total Revenue',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '₹${NumberFormat('#,##,###').format(dashboardData.totalRevenue)}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(Icons.arrow_upward, size: 14, color: Colors.green),
                       const SizedBox(width: 4),
                       Text(
-                        '+${_dashboardData['revenueGrowth']}% from last week',
+                        '+${dashboardData.revenueGrowth.toStringAsFixed(1)}%',
                         style: const TextStyle(
                           fontSize: 12,
                           color: Colors.green,
@@ -385,42 +539,63 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
     );
   }
 
-  Widget _buildBar(double height, String label, Color color) {
+  Widget _buildBar(double height, String label, Color color, [int? revenue]) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         Container(
-          width: 28, // Reduced from 32 for better fit
-          height: height / 4,
+          width: 22,
+          height: height,
+          margin: const EdgeInsets.symmetric(horizontal: 2),
           decoration: BoxDecoration(
             color: color,
             borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(8),
-              topRight: Radius.circular(8),
+              topLeft: Radius.circular(4),
+              topRight: Radius.circular(4),
             ),
           ),
+          child: revenue != null && revenue > 0
+              ? Tooltip(
+                  message: '₹${NumberFormat('#,##,###').format(revenue)}',
+                  child: Container(),
+                )
+              : null,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Text(
           label,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 11,
             color: Colors.grey.shade600,
           ),
         ),
+        if (revenue != null && revenue > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              '₹${NumberFormat.compact().format(revenue)}',
+              style: TextStyle(
+                fontSize: 9,
+                color: Colors.grey.shade500,
+              ),
+            ),
+          ),
       ],
     );
   }
 
-  Widget _buildTopProducts() {
+  Widget _buildTopProducts(DashboardData dashboardData) {
+    final topProducts = dashboardData.topProducts;
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
+      color: Colors.white,
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -432,78 +607,156 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                 color: Colors.black87,
               ),
             ),
+            const SizedBox(height: 4),
+            Text(
+              'By revenue',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey.shade600,
+              ),
+            ),
             const SizedBox(height: 16),
-            ..._dashboardData['topProducts'].map((product) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: GlobalColors.primaryBlue.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
+            
+            if (topProducts.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(
                         Icons.inventory,
-                        color: GlobalColors.primaryBlue,
-                        size: 20,
+                        color: Colors.grey.shade400,
+                        size: 40,
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            product['name'],
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${product['sales']} sales • ₹${NumberFormat('#,##,###').format(product['revenue'])}',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        '₹${NumberFormat('#,##,###').format(product['revenue'])}',
-                        style: const TextStyle(
+                      const SizedBox(height: 8),
+                      Text(
+                        'No product data',
+                        style: TextStyle(
+                          color: Colors.grey.shade500,
                           fontSize: 14,
-                          color: Colors.green,
-                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              );
-            }).toList(),
+              )
+            else
+              ...topProducts.asMap().entries.map((entry) {
+                final index = entry.key;
+                final product = entry.value;
+                final rankColors = [
+                  Colors.amber.shade700,
+                  Colors.grey.shade600,
+                  Colors.orange.shade700,
+                ];
+
+                return Container(
+                  margin: EdgeInsets.only(bottom: index == topProducts.length - 1 ? 0 : 12),
+                  child: Row(
+                    children: [
+                      // Rank Badge
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: rankColors[index].withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${index + 1}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: rankColors[index],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      
+                      // Product Info
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              product['name'] as String,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    '${product['sales']} sales',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.blue.shade700,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '₹${NumberFormat('#,##,###').format(product['revenue'])}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.green.shade700,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      // Growth Indicator
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '₹${NumberFormat.compact().format(product['revenue'])}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.green,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            
             const SizedBox(height: 8),
             Center(
               child: TextButton(
                 onPressed: () {},
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                ),
                 child: Text(
-                  'View All Products',
+                  'View All Products →',
                   style: TextStyle(
                     color: GlobalColors.primaryBlue,
                     fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                    fontSize: 13,
                   ),
                 ),
               ),
@@ -514,15 +767,18 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
     );
   }
 
-  Widget _buildRecentActivities() {
+  Widget _buildRecentActivities(DashboardData dashboardData) {
+    final recentActivities = dashboardData.recentActivities;
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
+      color: Colors.white,
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -534,67 +790,129 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                 color: Colors.black87,
               ),
             ),
+            const SizedBox(height: 4),
+            Text(
+              'Latest updates',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey.shade600,
+              ),
+            ),
             const SizedBox(height: 16),
-            ..._dashboardData['recentActivities'].map((activity) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: activity['color'].withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
+            
+            if (recentActivities.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.notifications_none,
+                        color: Colors.grey.shade400,
+                        size: 40,
                       ),
-                      child: Icon(
-                        activity['icon'],
-                        color: activity['color'],
-                        size: 20,
+                      const SizedBox(height: 8),
+                      Text(
+                        'No recent activities',
+                        style: TextStyle(
+                          color: Colors.grey.shade500,
+                          fontSize: 14,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            activity['title'],
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            activity['time'],
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                      Icons.chevron_right,
-                      color: Colors.grey.shade400,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              );
-            }).toList(),
+              )
+            else
+              Column(
+                children: recentActivities.map((activity) {
+                  final icon = activity['icon'] as IconData;
+                  final color = activity['color'] as Color;
+                  
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Activity Icon
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: color.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            icon,
+                            color: color,
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        
+                        // Activity Details
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      activity['title'] as String,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black87,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  Text(
+                                    activity['time'] as String,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey.shade500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              if (activity['description'] != null)
+                                Text(
+                                  activity['description'] as String,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            
             const SizedBox(height: 8),
             Center(
               child: TextButton(
                 onPressed: () {},
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                ),
                 child: Text(
-                  'View All Activities',
+                  'View All Activities →',
                   style: TextStyle(
                     color: GlobalColors.primaryBlue,
                     fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                    fontSize: 13,
                   ),
                 ),
               ),
@@ -609,391 +927,761 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
 
 
 
-// import 'package:flutter/material.dart';
-// import 'package:fl_chart/fl_chart.dart';
-// import 'package:mega_pro/global/global_variables.dart';
-// import 'package:mega_pro/owner/own_quick_action.dart';
 
-// class OwnerDashboardClean extends StatelessWidget {
-//   const OwnerDashboardClean({super.key, required Map<String, dynamic> userData});
+
+
+
+
+// import 'package:flutter/material.dart';
+// import 'package:mega_pro/models/own_dashboard_model.dart';
+// import 'package:mega_pro/providers/own_dashboard_provider.dart';
+// import 'package:provider/provider.dart';
+// import 'package:mega_pro/global/global_variables.dart';
+// import 'package:intl/intl.dart';
+
+// class OwnerDashboard extends StatefulWidget {
+//   final Map<String, dynamic> userData;
+  
+//   const OwnerDashboard({super.key, required this.userData});
+
+//   @override
+//   State<OwnerDashboard> createState() => _OwnerDashboardState();
+// }
+
+// class _OwnerDashboardState extends State<OwnerDashboard> {
+//   final DateTime _selectedDate = DateTime.now();
+//   String _selectedFilter = 'Today';
+//   final List<String> _filters = ['Today', 'This Week', 'This Month', 'This Year'];
+
+//   @override
+//   void initState() {
+//     super.initState();
+//     // The provider will auto-initialize in its constructor
+//   }
 
 //   @override
 //   Widget build(BuildContext context) {
-//     return Scaffold(
-//       backgroundColor: GlobalColors.background,
-//       appBar: AppBar(
-//         backgroundColor: const Color(0xFF2563EB),
-//         elevation: 0,
-//         iconTheme: const IconThemeData(color: Colors.white),
-//         title: const Text(
-//           "Owner Dashboard",
-//           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-//         ),
-//       ),
-
-//       /// Floating Quick Action
-//       floatingActionButton: FloatingActionButton(
-//         backgroundColor: GlobalColors.primaryBlue,
-//         child: const Icon(Icons.flash_on, color: Colors.white),
-//         onPressed: () {
-//           Navigator.push(
-//             context,
-//             MaterialPageRoute(builder: (_) => OwnerQuickActionsPage()),
+//     return ChangeNotifierProvider(
+//       create: (_) => DashboardProvider(),
+//       child: Consumer<DashboardProvider>(
+//         builder: (context, provider, child) {
+//           return Scaffold(
+//             backgroundColor: GlobalColors.background,
+//             appBar: AppBar(
+//               backgroundColor: GlobalColors.primaryBlue,
+//               elevation: 0,
+//               iconTheme: const IconThemeData(color: Colors.white),
+//               title: const Text(
+//                 'Owner Dashboard',
+//                 style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+//               ),
+//               actions: [
+//                 IconButton(
+//                   icon: const Icon(Icons.person, color: Colors.white, size: 30),
+//                   onPressed: () {},
+//                 ),
+//                 if (provider.isLoading)
+//                   Padding(
+//                     padding: const EdgeInsets.all(8.0),
+//                     child: SizedBox(
+//                       width: 20,
+//                       height: 20,
+//                       child: CircularProgressIndicator(
+//                         strokeWidth: 2,
+//                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white.withOpacity(0.8)),
+//                       ),
+//                     ),
+//                   ),
+//                 IconButton(
+//                   icon: const Icon(Icons.refresh, color: Colors.white),
+//                   onPressed: () => provider.refresh(),
+//                 ),
+//               ],
+//             ),
+//             body: _buildBody(provider),
+//             floatingActionButton: FloatingActionButton(
+//               onPressed: () {
+//                 // Quick action - Add new order
+//               },
+//               backgroundColor: GlobalColors.primaryBlue,
+//               child: const Icon(Icons.add, color: Colors.white),
+//             ),
 //           );
 //         },
 //       ),
+//     );
+//   }
 
-//       body: SingleChildScrollView(
-//         padding: const EdgeInsets.all(16),
+//   Widget _buildBody(DashboardProvider provider) {
+//     if (provider.isLoading && provider.dashboardData.totalRevenue == 0) {
+//       return const Center(
+//         child: CircularProgressIndicator(),
+//       );
+//     }
+
+//     if (provider.error != null) {
+//       return Center(
 //         child: Column(
-//           crossAxisAlignment: CrossAxisAlignment.start,
+//           mainAxisAlignment: MainAxisAlignment.center,
 //           children: [
-//             _kpiGrid(),
+//             const Icon(Icons.error_outline, color: Colors.red, size: 48),
+//             const SizedBox(height: 16),
+//             Text(
+//               'Error: ${provider.error}',
+//               textAlign: TextAlign.center,
+//               style: const TextStyle(color: Colors.red),
+//             ),
+//             const SizedBox(height: 20),
+//             ElevatedButton(
+//               onPressed: () => provider.refresh(),
+//               child: const Text('Retry'),
+//             ),
+//           ],
+//         ),
+//       );
+//     }
+
+//     return SingleChildScrollView(
+//       physics: const BouncingScrollPhysics(),
+//       child: SafeArea(
+//         child: Column(
+//           children: [
+//             // Date and Filter Row
+//             _buildDateFilterRow(),
+//             const SizedBox(height: 20),
+
+//             // Key Metrics Grid
+//             Padding(
+//               padding: const EdgeInsets.symmetric(horizontal: 16),
+//               child: _buildMetricsGrid(provider.dashboardData),
+//             ),
 //             const SizedBox(height: 24),
 
-//             _sectionHeader("Revenue Trend", "Last 6 months"),
-//             const SizedBox(height: 12),
-//             _revenueTrendChart(),
-
+//             // Revenue Chart Section
+//             _buildRevenueChart(provider.dashboardData, provider.revenueChartData),
 //             const SizedBox(height: 24),
-//             _sectionHeader("Production by Product", "This month (tons)"),
-//             const SizedBox(height: 12),
-//             _productionBarChart(),
 
+//             // Top Products Section
+//             _buildTopProducts(provider.dashboardData),
 //             const SizedBox(height: 24),
-//             _sectionHeader("Branch Performance", "View All"),
-//             const SizedBox(height: 12),
-//             _branchTile("Mumbai Branch", "₹18.5L", "1.5K tons", "₹15.2L"),
-//             _branchTile("Delhi Branch", "₹15.2L", "1.2K tons", "₹12.8L"),
-//             _branchTile("Bangalore Branch", "₹13.8L", "1.1K tons", "₹11.6L"),
+
+//             // Recent Activities
+//             _buildRecentActivities(provider.dashboardData),
+//             const SizedBox(height: 24),
 //           ],
 //         ),
 //       ),
 //     );
 //   }
 
-//   /// ---------------- KPI GRID ----------------
-//   Widget _kpiGrid() {
+//   Widget _buildDateFilterRow() {
+//     return Container(
+//       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+//       color: Colors.white,
+//       child: Row(
+//         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//         children: [
+//           Column(
+//             crossAxisAlignment: CrossAxisAlignment.start,
+//             children: [
+//               Text(
+//                 DateFormat('EEEE, MMMM d').format(_selectedDate),
+//                 style: const TextStyle(
+//                   fontSize: 16,
+//                   fontWeight: FontWeight.w600,
+//                   color: Colors.black87,
+//                 ),
+//               ),
+//               const SizedBox(height: 2),
+//               Text(
+//                 'Business Overview',
+//                 style: TextStyle(
+//                   fontSize: 14,
+//                   color: Colors.grey.shade600,
+//                 ),
+//               ),
+//             ],
+//           ),
+//           Container(
+//             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+//             decoration: BoxDecoration(
+//               color: GlobalColors.primaryBlue.withOpacity(0.1),
+//               borderRadius: BorderRadius.circular(20),
+//               border: Border.all(color: GlobalColors.primaryBlue.withOpacity(0.3)),
+//             ),
+//             child: DropdownButtonHideUnderline(
+//               child: DropdownButton<String>(
+//                 value: _selectedFilter,
+//                 icon: Icon(Icons.arrow_drop_down, color: GlobalColors.primaryBlue),
+//                 items: _filters.map((String value) {
+//                   return DropdownMenuItem<String>(
+//                     value: value,
+//                     child: Text(
+//                       value,
+//                       style: TextStyle(color: GlobalColors.primaryBlue, fontSize: 16),
+//                     ),
+//                   );
+//                 }).toList(),
+//                 onChanged: (String? newValue) {
+//                   setState(() {
+//                     _selectedFilter = newValue!;
+//                   });
+//                 },
+//               ),
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   Widget _buildMetricsGrid(DashboardData dashboardData) {
 //     return GridView.count(
-//       crossAxisCount: 2,
 //       shrinkWrap: true,
 //       physics: const NeverScrollableScrollPhysics(),
-//       crossAxisSpacing: 12,
-//       mainAxisSpacing: 12,
-//       children: const [
-//         _KpiCard(
+//       crossAxisCount: 2,
+//       childAspectRatio: 1,
+//       crossAxisSpacing: 16,
+//       mainAxisSpacing: 16,
+//       children: [
+//         _buildMetricCard(
+//           title: 'Total Revenue',
+//           value: '₹${NumberFormat('#,##,###').format(dashboardData.totalRevenue)}',
 //           icon: Icons.currency_rupee,
-//           title: "Total Revenue",
-//           value: "₹45.2L",
-//           growth: "12.5%",
+//           color: Colors.green,
+//           growth: dashboardData.revenueGrowth,
 //         ),
-//         _KpiCard(
-//           icon: Icons.factory,
-//           title: "Production",
-//           value: "3.8K tons",
-//           growth: "8.3%",
-//         ),
-//         _KpiCard(
+//         _buildMetricCard(
+//           title: 'Total Orders',
+//           value: dashboardData.totalOrders.toString(),
 //           icon: Icons.shopping_cart,
-//           title: "Total Sales",
-//           value: "₹38.5L",
-//           growth: "15.2%",
+//           color: Colors.blue,
+//           growth: dashboardData.orderGrowth,
 //         ),
-//         _KpiCard(
+//         _buildMetricCard(
+//           title: 'Active Employees',
+//           value: dashboardData.activeEmployees.toString(),
 //           icon: Icons.people,
-//           title: "Active Dealers",
-//           value: "156",
-//           growth: "-2.1%",
-//           down: true,
+//           color: Colors.purple,
+//           growth: dashboardData.employeeGrowth,
+//         ),
+//         _buildMetricCard(
+//           title: 'Pending Orders',
+//           value: dashboardData.pendingOrders.toString(),
+//           icon: Icons.pending_actions,
+//           color: Colors.orange,
+//           isWarning: true,
 //         ),
 //       ],
 //     );
 //   }
 
-//   /// ---------------- LINE CHART ----------------
-//   Widget _revenueTrendChart() {
-//     return _card(
-//       SizedBox(
-//         height: 220,
-//         child: LineChart(
-//           LineChartData(
-//             minY: 40,
-//             maxY: 80,
-//             gridData: FlGridData(
-//               show: true,
-//               horizontalInterval: 10,
-//               getDrawingHorizontalLine: (value) =>
-//                   FlLine(color: Colors.grey.withOpacity(0.2)),
-//             ),
-//             borderData: FlBorderData(show: false),
-//             titlesData: FlTitlesData(
-//               leftTitles: AxisTitles(
-//                 sideTitles: SideTitles(
-//                   showTitles: true,
-//                   interval: 10,
-//                   getTitlesWidget: (value, _) => Text(
-//                     value.toInt().toString(),
-//                     style: const TextStyle(fontSize: 10, color: Colors.grey),
-//                   ),
-//                 ),
-//               ),
-//               bottomTitles: AxisTitles(
-//                 sideTitles: SideTitles(
-//                   showTitles: true,
-//                   getTitlesWidget: (value, _) {
-//                     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"];
-//                     return Text(
-//                       months[value.toInt()],
-//                       style: const TextStyle(fontSize: 10, color: Colors.grey),
-//                     );
-//                   },
-//                 ),
-//               ),
-//               topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-//               rightTitles: AxisTitles(
-//                 sideTitles: SideTitles(showTitles: false),
-//               ),
-//             ),
-//             lineBarsData: [
-//               LineChartBarData(
-//                 spots: const [
-//                   FlSpot(0, 45),
-//                   FlSpot(1, 52),
-//                   FlSpot(2, 47),
-//                   FlSpot(3, 63),
-//                   FlSpot(4, 70),
-//                   FlSpot(5, 78),
-//                 ],
-//                 isCurved: true,
-//                 barWidth: 3,
-//                 color: GlobalColors.primaryBlue,
-//                 dotData: FlDotData(show: true),
-//                 belowBarData: BarAreaData(
-//                   show: true,
-//                   color: GlobalColors.primaryBlue.withOpacity(0.15),
-//                 ),
-//               ),
-//             ],
-//           ),
-//         ),
+//   Widget _buildMetricCard({
+//     required String title,
+//     required String value,
+//     required IconData icon,
+//     required Color color,
+//     double growth = 0,
+//     bool isWarning = false,
+//   }) {
+//     return Card(
+//       elevation: 2,
+//       shape: RoundedRectangleBorder(
+//         borderRadius: BorderRadius.circular(16),
 //       ),
-//     );
-//   }
-
-//   /// ---------------- BAR CHART ----------------
-//   Widget _productionBarChart() {
-//     return _card(
-//       SizedBox(
-//         height: 250,
-//         child: BarChart(
-//           BarChartData(
-//             maxY: 1300,
-//             gridData: FlGridData(
-//               show: true,
-//               horizontalInterval: 100,
-//               getDrawingHorizontalLine: (value) =>
-//                   FlLine(color: Colors.grey.withOpacity(0.2)),
-//             ),
-//             borderData: FlBorderData(show: false),
-//             titlesData: FlTitlesData(
-//               leftTitles: AxisTitles(
-//                 sideTitles: SideTitles(
-//                   showTitles: true,
-//                   interval: 100,
-//                   reservedSize: 28,
-//                   getTitlesWidget: (value, _) => Text(
-//                     value.toInt().toString(),
-//                     style: const TextStyle(fontSize: 9, color: Colors.grey),
-//                   ),
-//                 ),
-//               ),
-
-//               bottomTitles: AxisTitles(
-//                 sideTitles: SideTitles(
-//                   showTitles: true,
-//                   getTitlesWidget: (value, _) {
-//                     const labels = ["Feed A", "Feed B", "Feed C", "Feed D"];
-//                     return Text(
-//                       labels[value.toInt()],
-//                       style: const TextStyle(fontSize: 10, color: Colors.grey),
-//                     );
-//                   },
-//                 ),
-//               ),
-//               topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-//               rightTitles: AxisTitles(
-//                 sideTitles: SideTitles(showTitles: false),
-//               ),
-//             ),
-//             barGroups: [
-//               _bar(0, 850),
-//               _bar(1, 1200),
-//               _bar(2, 950),
-//               _bar(3, 780),
-//             ],
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-
-//   BarChartGroupData _bar(int x, double y) {
-//     return BarChartGroupData(
-//       x: x,
-//       barRods: [
-//         BarChartRodData(
-//           toY: y,
-//           width: 24,
-//           borderRadius: BorderRadius.circular(6),
-//           color: GlobalColors.primaryBlue.withOpacity(0.25),
-//         ),
-//       ],
-//     );
-//   }
-
-//   /// ---------------- BRANCH TILE ----------------
-//   Widget _branchTile(
-//     String name,
-//     String revenue,
-//     String production,
-//     String sales,
-//   ) {
-//     return Container(
-//       margin: const EdgeInsets.only(bottom: 12),
-//       padding: const EdgeInsets.all(16),
-//       decoration: _boxDecoration(),
-//       child: Row(
-//         children: [
-//           CircleAvatar(
-//             radius: 22,
-//             backgroundColor: GlobalColors.primaryBlue.withOpacity(0.1),
-//             child: Icon(Icons.apartment, color: GlobalColors.primaryBlue),
-//           ),
-//           const SizedBox(width: 16),
-//           Expanded(
-//             child: Column(
-//               crossAxisAlignment: CrossAxisAlignment.start,
+//       color: Colors.white,
+//       child: Padding(
+//         padding: const EdgeInsets.all(16),
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//           children: [
+//             Row(
+//               mainAxisAlignment: MainAxisAlignment.spaceBetween,
 //               children: [
-//                 Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-//                 const SizedBox(height: 8),
-//                 Row(
-//                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//                   children: [
-//                     _metric("Revenue", revenue),
-//                     _metric("Production", production),
-//                     _metric("Sales", sales),
-//                   ],
+//                 Container(
+//                   padding: const EdgeInsets.all(8),
+//                   decoration: BoxDecoration(
+//                     color: color.withOpacity(0.1),
+//                     borderRadius: BorderRadius.circular(12),
+//                   ),
+//                   child: Icon(icon, size: 24, color: color),
+//                 ),
+//                 Container(
+//                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+//                   decoration: BoxDecoration(
+//                     color: growth >= 0 ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+//                     borderRadius: BorderRadius.circular(12),
+//                   ),
+//                   child: Row(
+//                     children: [
+//                       Icon(
+//                         growth >= 0 ? Icons.arrow_upward : Icons.arrow_downward,
+//                         size: 12,
+//                         color: growth >= 0 ? Colors.green : Colors.red,
+//                       ),
+//                       const SizedBox(width: 4),
+//                       Text(
+//                         '${growth.abs().toStringAsFixed(1)}%',
+//                         style: TextStyle(
+//                           fontSize: 12,
+//                           fontWeight: FontWeight.w600,
+//                           color: growth >= 0 ? Colors.green : Colors.red,
+//                         ),
+//                       ),
+//                     ],
+//                   ),
 //                 ),
 //               ],
 //             ),
-//           ),
-//           const Icon(Icons.chevron_right),
-//         ],
+//             const SizedBox(height: 12),
+//             Text(
+//               value,
+//               style: const TextStyle(
+//                 fontSize: 22,
+//                 fontWeight: FontWeight.w700,
+//                 color: Colors.black87,
+//               ),
+//             ),
+//             const SizedBox(height: 4),
+//             Text(
+//               title,
+//               style: TextStyle(
+//                 fontSize: 14,
+//                 color: Colors.grey.shade600,
+//               ),
+//             ),
+//           ],
+//         ),
 //       ),
 //     );
 //   }
 
-//   Widget _metric(String title, String value) {
-//     return Column(
-//       crossAxisAlignment: CrossAxisAlignment.start,
-//       children: [
-//         Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-//         Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
-//       ],
-//     );
-//   }
-
-//   /// ---------------- COMMON ----------------
-//   Widget _sectionHeader(String title, String action) {
-//     return Row(
-//       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//       children: [
-//         Text(
-//           title,
-//           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-//         ),
-//         Text(action, style: TextStyle(color: GlobalColors.primaryBlue)),
-//       ],
-//     );
-//   }
-
-//   Widget _card(Widget child) {
-//     return Container(
-//       padding: const EdgeInsets.all(16),
-//       decoration: _boxDecoration(),
-//       child: child,
-//     );
-//   }
-
-//   BoxDecoration _boxDecoration() {
-//     return BoxDecoration(
-//       color: GlobalColors.white,
+//   Widget _buildRevenueChart(DashboardData dashboardData, List<Map<String, dynamic>> chartData) {
+//   return Card(
+//     margin: const EdgeInsets.symmetric(horizontal: 16),
+//     elevation: 2,
+//     shape: RoundedRectangleBorder(
 //       borderRadius: BorderRadius.circular(16),
-//       boxShadow: [
-//         BoxShadow(
-//           color: GlobalColors.shadow,
-//           blurRadius: 10,
-//           offset: const Offset(0, 4),
-//         ),
-//       ],
-//     );
-//   }
-// }
-
-// /// ---------------- KPI CARD ----------------
-// class _KpiCard extends StatelessWidget {
-//   final IconData icon;
-//   final String title;
-//   final String value;
-//   final String growth;
-//   final bool down;
-
-//   const _KpiCard({
-//     required this.icon,
-//     required this.title,
-//     required this.value,
-//     required this.growth,
-//     this.down = false,
-//   });
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Container(
-//       decoration: BoxDecoration(
-//         color: GlobalColors.white,
-//         borderRadius: BorderRadius.circular(16),
-//         boxShadow: [
-//           BoxShadow(
-//             color: GlobalColors.shadow,
-//             blurRadius: 10,
-//             offset: const Offset(0, 4),
-//           ),
-//         ],
-//       ),
-//       padding: const EdgeInsets.all(16),
+//     ),
+//     color: Colors.white,
+//     child: Padding(
+//       padding: const EdgeInsets.all(20),
 //       child: Column(
 //         crossAxisAlignment: CrossAxisAlignment.start,
 //         children: [
-//           Icon(icon, size: 28, color: GlobalColors.primaryBlue),
-//           const SizedBox(height: 12),
-//           Text(
-//             value,
-//             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+//           Row(
+//             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//             children: [
+//               const Text(
+//                 'Revenue Overview',
+//                 style: TextStyle(
+//                   fontSize: 18,
+//                   fontWeight: FontWeight.w600,
+//                   color: Colors.black87,
+//                 ),
+//               ),
+//               TextButton(
+//                 onPressed: () {},
+//                 child: Text(
+//                   'View Details',
+//                   style: TextStyle(
+//                     color: GlobalColors.primaryBlue,
+//                     fontWeight: FontWeight.w600,
+//                   ),
+//                 ),
+//               ),
+//             ],
 //           ),
-//           Text(title, style: const TextStyle(color: Colors.grey)),
+//           const SizedBox(height: 16),
+          
+//           // Responsive chart container
+//           LayoutBuilder(
+//             builder: (context, constraints) {
+//               final availableHeight = constraints.maxHeight;
+              
+//               // Find max revenue for scaling
+//               int maxRevenue = 0;
+//               for (var data in chartData) {
+//                 final revenue = data['revenue'] as int;
+//                 if (revenue > maxRevenue) {
+//                   maxRevenue = revenue;
+//                 }
+//               }
+
+//               // If all revenues are 0, use a small default max to show empty bars
+//               if (maxRevenue == 0) {
+//                 maxRevenue = 100000; // Default max for empty chart
+//               }
+
+//               return SizedBox(
+//                 height: 150, // Fixed reasonable height
+//                 child: chartData.isEmpty
+//                     ? const Center(
+//                         child: Text(
+//                           'No revenue data available',
+//                           style: TextStyle(color: Colors.grey),
+//                         ),
+//                       )
+//                     : Row(
+//                         crossAxisAlignment: CrossAxisAlignment.end,
+//                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+//                         children: chartData.map((data) {
+//                           final day = data['day'] as String;
+//                           final revenue = data['revenue'] as int;
+//                           // Scale height based on max revenue (max bar height = 100)
+//                           final height = maxRevenue > 0 ? (revenue / maxRevenue) * 100 : 0;
+                          
+//                           return _buildBar(
+//                             height.toDouble(),
+//                             day,
+//                             revenue > 0 
+//                               ? (day == 'Wed' || day == 'Thu' ? GlobalColors.primaryBlue : Colors.blue)
+//                               : Colors.grey.withOpacity(0.3),
+//                             revenue > 0 ? revenue : null,
+//                           );
+//                         }).toList(),
+//                       ),
+//               );
+//             },
+//           ),
+          
+//           const SizedBox(height: 16),
+//           const Divider(),
 //           const SizedBox(height: 8),
-//           Text(
-//             "${down ? "↓" : "↑"} $growth",
-//             style: TextStyle(
-//               color: down ? Colors.red : Colors.green,
-//               fontWeight: FontWeight.bold,
-//             ),
+//           Wrap(
+//             spacing: 8,
+//             runSpacing: 8,
+//             alignment: WrapAlignment.spaceBetween,
+//             children: [
+//               Flexible(
+//                 child: Text(
+//                   'Total: ₹${NumberFormat('#,##,###').format(dashboardData.totalRevenue)}',
+//                   style: const TextStyle(
+//                     fontSize: 14,
+//                     fontWeight: FontWeight.w600,
+//                     color: Colors.black87,
+//                   ),
+//                   maxLines: 1,
+//                   overflow: TextOverflow.ellipsis,
+//                 ),
+//               ),
+//               Container(
+//                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+//                 decoration: BoxDecoration(
+//                   color: Colors.green.withOpacity(0.1),
+//                   borderRadius: BorderRadius.circular(20),
+//                 ),
+//                 child: Row(
+//                   mainAxisSize: MainAxisSize.min,
+//                   children: [
+//                     const Icon(Icons.arrow_upward, size: 12, color: Colors.green),
+//                     const SizedBox(width: 4),
+//                     Flexible(
+//                       child: Text(
+//                         '+${dashboardData.revenueGrowth.toStringAsFixed(1)}%',
+//                         style: const TextStyle(
+//                           fontSize: 11,
+//                           color: Colors.green,
+//                           fontWeight: FontWeight.w600,
+//                         ),
+//                         maxLines: 1,
+//                         overflow: TextOverflow.ellipsis,
+//                       ),
+//                     ),
+//                   ],
+//                 ),
+//               ),
+//             ],
 //           ),
 //         ],
+//       ),
+//     ),
+//   );
+// }
+
+// Widget _buildBar(double height, String label, Color color, [int? revenue]) {
+//   return Flexible(
+//     child: Column(
+//       mainAxisAlignment: MainAxisAlignment.end,
+//       children: [
+//         Tooltip(
+//           message: revenue != null ? '₹${NumberFormat('#,##,###').format(revenue)}' : 'No revenue',
+//           child: Container(
+//             width: 24, // Reduced from 28
+//             height: height,
+//             margin: const EdgeInsets.symmetric(horizontal: 2),
+//             decoration: BoxDecoration(
+//               color: color,
+//               borderRadius: const BorderRadius.only(
+//                 topLeft: Radius.circular(6),
+//                 topRight: Radius.circular(6),
+//               ),
+//             ),
+//           ),
+//         ),
+//         const SizedBox(height: 6),
+//         Text(
+//           label,
+//           style: TextStyle(
+//             fontSize: 11, // Reduced from 12
+//             color: Colors.grey.shade600,
+//           ),
+//           maxLines: 1,
+//           overflow: TextOverflow.ellipsis,
+//         ),
+//         if (revenue != null && revenue > 0)
+//           Padding(
+//             padding: const EdgeInsets.only(top: 2),
+//             child: Text(
+//               '₹${NumberFormat.compact().format(revenue)}',
+//               style: TextStyle(
+//                 fontSize: 9, // Reduced from 10
+//                 color: Colors.grey.shade500,
+//               ),
+//               maxLines: 1,
+//               overflow: TextOverflow.ellipsis,
+//             ),
+//           ),
+//       ],
+//     ),
+//   );
+// }
+
+
+//   Widget _buildTopProducts(DashboardData dashboardData) {
+//     final topProducts = dashboardData.topProducts;
+
+//     return Card(
+//       margin: const EdgeInsets.symmetric(horizontal: 16),
+//       elevation: 2,
+//       shape: RoundedRectangleBorder(
+//         borderRadius: BorderRadius.circular(16),
+//       ),
+//       color: Colors.white,
+//       child: Padding(
+//         padding: const EdgeInsets.all(20),
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             const Text(
+//               'Top Selling Products',
+//               style: TextStyle(
+//                 fontSize: 18,
+//                 fontWeight: FontWeight.w600,
+//                 color: Colors.black87,
+//               ),
+//             ),
+//             const SizedBox(height: 16),
+//             ...topProducts.map((product) {
+//               return Padding(
+//                 padding: const EdgeInsets.only(bottom: 16),
+//                 child: Row(
+//                   children: [
+//                     Container(
+//                       width: 40,
+//                       height: 40,
+//                       decoration: BoxDecoration(
+//                         color: GlobalColors.primaryBlue.withOpacity(0.1),
+//                         borderRadius: BorderRadius.circular(8),
+//                       ),
+//                       child: Icon(
+//                         Icons.inventory,
+//                         color: GlobalColors.primaryBlue,
+//                         size: 20,
+//                       ),
+//                     ),
+//                     const SizedBox(width: 12),
+//                     Expanded(
+//                       child: Column(
+//                         crossAxisAlignment: CrossAxisAlignment.start,
+//                         children: [
+//                           Text(
+//                             product['name'] as String,
+//                             style: const TextStyle(
+//                               fontSize: 16,
+//                               fontWeight: FontWeight.w600,
+//                               color: Colors.black87,
+//                             ),
+//                           ),
+//                           const SizedBox(height: 4),
+//                           Text(
+//                             '${product['sales']} sales • ₹${NumberFormat('#,##,###').format(product['revenue'])}',
+//                             style: TextStyle(
+//                               fontSize: 13,
+//                               color: Colors.grey.shade600,
+//                             ),
+//                           ),
+//                         ],
+//                       ),
+//                     ),
+//                     Container(
+//                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+//                       decoration: BoxDecoration(
+//                         color: Colors.green.withOpacity(0.1),
+//                         borderRadius: BorderRadius.circular(20),
+//                       ),
+//                       child: Text(
+//                         '₹${NumberFormat('#,##,###').format(product['revenue'])}',
+//                         style: const TextStyle(
+//                           fontSize: 14,
+//                           color: Colors.green,
+//                           fontWeight: FontWeight.w600,
+//                         ),
+//                       ),
+//                     ),
+//                   ],
+//                 ),
+//               );
+//             }).toList(),
+//             if (topProducts.isEmpty)
+//               const Padding(
+//                 padding: EdgeInsets.symmetric(vertical: 20),
+//                 child: Center(
+//                   child: Text(
+//                     'No sales data available',
+//                     style: TextStyle(
+//                       color: Colors.grey,
+//                       fontSize: 14,
+//                     ),
+//                   ),
+//                 ),
+//               ),
+//             const SizedBox(height: 8),
+//             Center(
+//               child: TextButton(
+//                 onPressed: () {},
+//                 child: Text(
+//                   'View All Products',
+//                   style: TextStyle(
+//                     color: GlobalColors.primaryBlue,
+//                     fontWeight: FontWeight.w600,
+//                     fontSize: 14,
+//                   ),
+//                 ),
+//               ),
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildRecentActivities(DashboardData dashboardData) {
+//     final recentActivities = dashboardData.recentActivities;
+
+//     return Card(
+//       margin: const EdgeInsets.symmetric(horizontal: 16),
+//       elevation: 2,
+//       shape: RoundedRectangleBorder(
+//         borderRadius: BorderRadius.circular(16),
+//       ),
+//       color: Colors.white,
+//       child: Padding(
+//         padding: const EdgeInsets.all(20),
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             const Text(
+//               'Recent Activities',
+//               style: TextStyle(
+//                 fontSize: 18,
+//                 fontWeight: FontWeight.w600,
+//                 color: Colors.black87,
+//               ),
+//             ),
+//             const SizedBox(height: 16),
+//             ...recentActivities.map((activity) {
+//               return Padding(
+//                 padding: const EdgeInsets.only(bottom: 16),
+//                 child: Row(
+//                   children: [
+//                     Container(
+//                       width: 40,
+//                       height: 40,
+//                       decoration: BoxDecoration(
+//                         color: (activity['color'] as Color).withOpacity(0.1),
+//                         borderRadius: BorderRadius.circular(8),
+//                       ),
+//                       child: Icon(
+//                         activity['icon'] as IconData,
+//                         color: activity['color'] as Color,
+//                         size: 20,
+//                       ),
+//                     ),
+//                     const SizedBox(width: 12),
+//                     Expanded(
+//                       child: Column(
+//                         crossAxisAlignment: CrossAxisAlignment.start,
+//                         children: [
+//                           Text(
+//                             activity['title'] as String,
+//                             style: const TextStyle(
+//                               fontSize: 15,
+//                               fontWeight: FontWeight.w600,
+//                               color: Colors.black87,
+//                             ),
+//                           ),
+//                           const SizedBox(height: 4),
+//                           Text(
+//                             activity['time'] as String,
+//                             style: TextStyle(
+//                               fontSize: 13,
+//                               color: Colors.grey.shade600,
+//                             ),
+//                           ),
+//                           if (activity['description'] != null)
+//                             Padding(
+//                               padding: const EdgeInsets.only(top: 4),
+//                               child: Text(
+//                                 activity['description'] as String,
+//                                 style: TextStyle(
+//                                   fontSize: 12,
+//                                   color: Colors.grey.shade600,
+//                                 ),
+//                               ),
+//                             ),
+//                         ],
+//                       ),
+//                     ),
+//                     Icon(
+//                       Icons.chevron_right,
+//                       color: Colors.grey.shade400,
+//                     ),
+//                   ],
+//                 ),
+//               );
+//             }).toList(),
+//             if (recentActivities.isEmpty)
+//               const Padding(
+//                 padding: EdgeInsets.symmetric(vertical: 20),
+//                 child: Center(
+//                   child: Text(
+//                     'No recent activities',
+//                     style: TextStyle(
+//                       color: Colors.grey,
+//                       fontSize: 14,
+//                     ),
+//                   ),
+//                 ),
+//               ),
+//             const SizedBox(height: 8),
+//             Center(
+//               child: TextButton(
+//                 onPressed: () {},
+//                 child: Text(
+//                   'View All Activities',
+//                   style: TextStyle(
+//                     color: GlobalColors.primaryBlue,
+//                     fontWeight: FontWeight.w600,
+//                     fontSize: 14,
+//                   ),
+//                 ),
+//               ),
+//             ),
+//           ],
+//         ),
 //       ),
 //     );
 //   }
 // }
-
-
-

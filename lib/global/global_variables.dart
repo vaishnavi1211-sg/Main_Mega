@@ -32,8 +32,13 @@ class AppColors {
   static const Color ratingAmber = Color(0xFFFFB300);
 
    late Color dangerRed;
+   static const Color primary = Color(0xFF4361EE);
+  static const Color secondary = Color(0xFF3A0CA3);
+  static const Color success = Color(0xFF4CAF50);
+  static const Color warning = Color(0xFFFF9800);
+  static const Color error = Color(0xFFF44336);
+  static const Color background = Color(0xFFF8F9FA);
 
-  static var success;
 }
 
 

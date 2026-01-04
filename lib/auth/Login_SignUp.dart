@@ -6,7 +6,6 @@ import 'package:mega_pro/dashboards/emp_dashboard.dart';
 import 'package:mega_pro/dashboards/mar_dashboard.dart';
 import 'package:mega_pro/dashboards/pro_dashboard.dart';
 import 'package:mega_pro/dashboards/own_dashboard.dart';
-import 'package:mega_pro/global/global_variables.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key, required String selectedRole});

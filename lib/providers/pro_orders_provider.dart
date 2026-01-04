@@ -183,7 +183,7 @@ class ProductionOrdersProvider extends ChangeNotifier {
       // Check current user
       final user = _supabase.auth.currentUser;
       print('👤 Current user: ${user?.email} (${user?.id})');
-      print('👤 User role: ${user?.appMetadata?['role']}');
+      print('👤 User role: ${user?.appMetadata['role']}');
       
       // Fetch ALL orders without filtering by employee_id
       print('🔍 Query: SELECT * FROM emp_mar_orders ORDER BY created_at DESC');
@@ -195,30 +195,25 @@ class ProductionOrdersProvider extends ChangeNotifier {
       print('✅ Query successful');
       print('📊 Response type: ${response.runtimeType}');
       
-      if (response is List) {
-        print('📦 Found ${response.length} orders in total');
-        
-        if (response.isNotEmpty) {
-          print('📋 First 3 orders:');
-          for (int i = 0; i < (response.length > 3 ? 3 : response.length); i++) {
-            final order = response[i];
-            print('   ${i + 1}. ID: ${order['id']}, Customer: ${order['customer_name']}, Status: ${order['status']}');
-          }
-        } else {
-          print('⚠️ No orders found in the table');
+      print('📦 Found ${response.length} orders in total');
+      
+      if (response.isNotEmpty) {
+        print('📋 First 3 orders:');
+        for (int i = 0; i < (response.length > 3 ? 3 : response.length); i++) {
+          final order = response[i];
+          print('   ${i + 1}. ID: ${order['id']}, Customer: ${order['customer_name']}, Status: ${order['status']}');
         }
-        
-        final ordersList = (response)
-            .map<ProductionOrderItem>((item) => ProductionOrderItem.fromMap(item as Map<String, dynamic>))
-            .toList();
-
-        print('🎉 Successfully created ${ordersList.length} ProductionOrderItem objects');
-        _orders = ordersList;
       } else {
-        print('❌ Unexpected response type: $response');
-        _orders = [];
+        print('⚠️ No orders found in the table');
       }
       
+      final ordersList = (response)
+          .map<ProductionOrderItem>((item) => ProductionOrderItem.fromMap(item))
+          .toList();
+
+      print('🎉 Successfully created ${ordersList.length} ProductionOrderItem objects');
+      _orders = ordersList;
+          
     } catch (e) {
       _error = 'Failed to load orders: $e';
       print('❌ Error loading orders: $e');
