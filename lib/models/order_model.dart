@@ -1,7 +1,9 @@
-// lib/models/order_model.dart
+// models/order_model.dart
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
 class Order {
   final String id;
-  final String? employeeId;
   final String customerName;
   final String customerMobile;
   final String customerAddress;
@@ -15,12 +17,11 @@ class Order {
   final String? remarks;
   final String status;
   final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? updatedAt;
   final String? orderNumber;
-
+  
   Order({
     required this.id,
-    this.employeeId,
     required this.customerName,
     required this.customerMobile,
     required this.customerAddress,
@@ -34,51 +35,105 @@ class Order {
     this.remarks,
     required this.status,
     required this.createdAt,
-    required this.updatedAt,
+    this.updatedAt,
     this.orderNumber,
   });
-
+  
   factory Order.fromJson(Map<String, dynamic> json) {
     return Order(
-      id: json['id'] as String,
-      employeeId: json['employee_id'] as String?,
-      customerName: json['customer_name'] as String,
-      customerMobile: json['customer_mobile'] as String,
-      customerAddress: json['customer_address'] as String,
-      feedCategory: json['feed_category'] as String,
-      bags: json['bags'] as int,
-      weightPerBag: json['weight_per_bag'] as int,
-      weightUnit: json['weight_unit'] as String,
-      totalWeight: json['total_weight'] as int,
-      pricePerBag: json['price_per_bag'] as int,
-      totalPrice: json['total_price'] as int,
-      remarks: json['remarks'] as String?,
-      status: json['status'] as String,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
-      orderNumber: json['order_number'] as String?,
+      id: json['id'] ?? '',
+      customerName: json['customer_name'] ?? '',
+      customerMobile: json['customer_mobile'] ?? '',
+      customerAddress: json['customer_address'] ?? '',
+      feedCategory: json['feed_category'] ?? '',
+      bags: (json['bags'] ?? 0).toInt(),
+      weightPerBag: (json['weight_per_bag'] ?? 0).toInt(),
+      weightUnit: json['weight_unit'] ?? 'kg',
+      totalWeight: (json['total_weight'] ?? 0).toInt(),
+      pricePerBag: (json['price_per_bag'] ?? 0).toInt(),
+      totalPrice: (json['total_price'] ?? 0).toInt(),
+      remarks: json['remarks'],
+      status: (json['status'] ?? 'pending').toString().toLowerCase(),
+      createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
+      updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
+      orderNumber: json['order_number'],
     );
   }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'employee_id': employeeId,
-      'customer_name': customerName,
-      'customer_mobile': customerMobile,
-      'customer_address': customerAddress,
-      'feed_category': feedCategory,
-      'bags': bags,
-      'weight_per_bag': weightPerBag,
-      'weight_unit': weightUnit,
-      'total_weight': totalWeight,
-      'price_per_bag': pricePerBag,
-      'total_price': totalPrice,
-      'remarks': remarks,
-      'status': status,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
-      'order_number': orderNumber,
-    };
+  
+  // Helper getters for UI
+  String get displayStatus {
+    switch (status) {
+      case 'pending':
+        return 'Pending';
+      case 'packing':
+        return 'Packing';
+      case 'ready_for_dispatch':
+        return 'Ready for Dispatch';
+      case 'dispatched':
+        return 'Dispatched';
+      case 'delivered':
+        return 'Delivered';
+      case 'completed':
+        return 'Completed';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return status;
+    }
+  }
+  
+  Color get statusColor {
+    switch (status) {
+      case 'pending':
+        return Colors.orange;
+      case 'packing':
+        return Colors.blue;
+      case 'ready_for_dispatch':
+        return Colors.purple;
+      case 'dispatched':
+        return Colors.indigo;
+      case 'delivered':
+      case 'completed':
+        return Colors.green;
+      case 'cancelled':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+  
+  IconData get statusIcon {
+    switch (status) {
+      case 'pending':
+        return Icons.pending_actions;
+      case 'packing':
+        return Icons.inventory;
+      case 'ready_for_dispatch':
+        return Icons.local_shipping;
+      case 'dispatched':
+        return Icons.directions_car;
+      case 'delivered':
+        return Icons.check_circle;
+      case 'completed':
+        return Icons.done_all;
+      case 'cancelled':
+        return Icons.cancel;
+      default:
+        return Icons.receipt;
+    }
+  }
+  
+  String get displayQuantity => '$bags Bags';
+  
+  String get productName => feedCategory;
+  
+  String get formattedCreatedAt {
+    return DateFormat('dd MMM yyyy, hh:mm a').format(createdAt);
+  }
+  
+  String get formattedUpdatedAt {
+    return updatedAt != null 
+        ? DateFormat('dd MMM yyyy, hh:mm a').format(updatedAt!)
+        : 'Never updated';
   }
 }

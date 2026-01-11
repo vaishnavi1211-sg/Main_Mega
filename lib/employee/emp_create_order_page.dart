@@ -50,7 +50,6 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
       appBar: AppBar(
         backgroundColor: GlobalColors.primaryBlue,
         elevation: 0,
-        centerTitle: true,
         iconTheme: const IconThemeData(color: GlobalColors.white),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: GlobalColors.white),
@@ -63,7 +62,7 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
           style: TextStyle(
             color: GlobalColors.white,
             fontWeight: FontWeight.w600,
-            fontSize: 20,
+            fontSize: 22,
           ),
         ),
       ),
@@ -96,10 +95,10 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "New Feed Order",
+                            "Make a new Feed Order",
                             style: TextStyle(
                               color: GlobalColors.white,
-                              fontSize: 24,
+                              fontSize: 20,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -183,7 +182,7 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                               const SizedBox(height: 8),
                               Container(
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(3),
                                   border: Border.all(
                                     color: Colors.grey,
                                     width: 1,
@@ -485,7 +484,7 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                     child: Icon(
                       Icons.check_circle,
                       color: GlobalColors.primaryBlue,
-                      size: 70,
+                      size: 50,
                     ),
                   ),
                   const SizedBox(height: 32),
