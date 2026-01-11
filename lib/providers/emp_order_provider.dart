@@ -88,19 +88,17 @@ class OrderProvider with ChangeNotifier {
           .order('created_at', ascending: false)
           .limit(10);
       
-      if (data != null && data is List) {
-        orders = data.map((order) {
-          return {
-            ...order,
-            'display_id': _getDisplayOrderId(order),
-          };
-        }).toList();
-        
-        _updateCountsFromOrders();
-        _initialLoadComplete = true;
-        error = null;
-      }
-    } catch (e) {
+      orders = data.map((order) {
+        return {
+          ...order,
+          'display_id': _getDisplayOrderId(order),
+        };
+      }).toList();
+      
+      _updateCountsFromOrders();
+      _initialLoadComplete = true;
+      error = null;
+        } catch (e) {
       error = 'Failed to load orders: $e';
       debugPrint("❌ Quick load failed: $e");
     } finally {
@@ -139,30 +137,28 @@ class OrderProvider with ChangeNotifier {
           .order('created_at', ascending: false)
           .range(_page * _limit, (_page + 1) * _limit - 1);
       
-      if (data != null && data is List) {
-        final newOrders = data.map((order) {
-          return {
-            ...order,
-            'display_id': _getDisplayOrderId(order),
-          };
-        }).toList();
-        
-        if (newOrders.length < _limit) {
-          _hasMoreData = false;
-        }
-        
-        if (loadMore) {
-          orders.addAll(newOrders);
-        } else {
-          orders = newOrders;
-        }
-        
-        _page++;
-        _updateCountsFromOrders();
-        _initialLoadComplete = true;
-        error = null;
+      final newOrders = data.map((order) {
+        return {
+          ...order,
+          'display_id': _getDisplayOrderId(order),
+        };
+      }).toList();
+      
+      if (newOrders.length < _limit) {
+        _hasMoreData = false;
       }
-    } catch (e) {
+      
+      if (loadMore) {
+        orders.addAll(newOrders);
+      } else {
+        orders = newOrders;
+      }
+      
+      _page++;
+      _updateCountsFromOrders();
+      _initialLoadComplete = true;
+      error = null;
+        } catch (e) {
       error = 'Failed to fetch orders: $e';
       debugPrint("❌ Fetch orders failed: $e");
     } finally {
@@ -190,6 +186,7 @@ class OrderProvider with ChangeNotifier {
           .eq('id', orderId)
           .single();
       
+      // ignore: unnecessary_null_comparison
       return response != null ? {
         ...response,
         'display_id': _getDisplayOrderId(response),

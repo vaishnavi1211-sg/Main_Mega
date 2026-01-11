@@ -26,7 +26,7 @@ class _ProductionOrdersPageState extends State<ProductionOrdersPage> {
   }
   
   Future<void> _initializeData() async {
-    final ordersProvider = Provider.of<ProductionOrdersProvider>(
+    Provider.of<ProductionOrdersProvider>(
       context, 
       listen: false
     );
