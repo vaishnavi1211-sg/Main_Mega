@@ -2,16 +2,18 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:mega_pro/main.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mega_pro/global/global_variables.dart';
 
 class EmployeeProfileDashboard extends StatefulWidget {
   final Map<String, dynamic>? userData;
-  
+
   const EmployeeProfileDashboard({super.key, this.userData});
 
   @override
-  State<EmployeeProfileDashboard> createState() => _EmployeeProfileDashboardState();
+  State<EmployeeProfileDashboard> createState() =>
+      _EmployeeProfileDashboardState();
 }
 
 class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
@@ -22,7 +24,7 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
   bool isLoading = true;
   bool _isEditing = false;
   final _formKey = GlobalKey<FormState>();
-  
+
   late TextEditingController _nameController;
   late TextEditingController _emailController;
   late TextEditingController _phoneController;
@@ -58,7 +60,7 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
         _processUserData(widget.userData!);
         return;
       }
-      
+
       final supabase = Supabase.instance.client;
       final user = supabase.auth.currentUser;
       if (user == null) {
@@ -116,12 +118,12 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
         'salary': data['salary'] ?? 0,
         'profile_image': data['profile_image'],
       };
-      
+
       _nameController.text = data['full_name']?.toString() ?? '';
       _emailController.text = data['email']?.toString() ?? '';
       _phoneController.text = data['phone']?.toString() ?? '';
       _positionController.text = data['position']?.toString() ?? '';
-      
+
       isLoading = false;
     });
   }
@@ -144,20 +146,20 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
         'role': 'Employee',
         'salary': 0,
       };
-      
+
       _nameController.text = 'Employee';
       _emailController.text = email;
       _phoneController.text = '9876543210';
       _positionController.text = 'Employee';
-      
+
       isLoading = false;
     });
   }
 
   Future<void> _pickProfileImage() async {
     final XFile? file = await picker.pickImage(
-      source: ImageSource.gallery, 
-      imageQuality: 75
+      source: ImageSource.gallery,
+      imageQuality: 75,
     );
     if (file != null) {
       setState(() => profileImage = File(file.path));
@@ -204,28 +206,13 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
     }
   }
 
-  Future<void> _logout() async {
-    try {
-      await Supabase.instance.client.auth.signOut();
-      Navigator.pushNamedAndRemoveUntil(
-        context, 
-        '/', 
-        (route) => false
-      );
-    } catch (e) {
-      print('Error logging out: $e');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
       return Scaffold(
         backgroundColor: GlobalColors.background,
         body: const Center(
-          child: CircularProgressIndicator(
-            color: GlobalColors.primaryBlue,
-          ),
+          child: CircularProgressIndicator(color: GlobalColors.primaryBlue),
         ),
       );
     }
@@ -254,7 +241,10 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: GlobalColors.primaryBlue,
                 ),
-                child: const Text('Retry', style: TextStyle(color: Colors.white)),
+                child: const Text(
+                  'Retry',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           ),
@@ -293,8 +283,12 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
                     ),
                     TextButton(
                       onPressed: () {
-                        Navigator.pop(context);
-                        _logout();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => RoleSelectionScreen(),
+                          ),
+                        );
                       },
                       child: const Text(
                         'Logout',
@@ -349,15 +343,18 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
                     child: CircleAvatar(
                       radius: 40,
                       backgroundColor: Colors.white,
-                      backgroundImage:
-                          profileImage != null ? FileImage(profileImage!) : null,
-                      child: profileImage == null && employee['profile_image'] == null
+                      backgroundImage: profileImage != null
+                          ? FileImage(profileImage!)
+                          : null,
+                      child:
+                          profileImage == null &&
+                              employee['profile_image'] == null
                           ? Text(
                               (employee['empName'] is String &&
                                       employee['empName'].isNotEmpty)
                                   ? employee['empName']
-                                      .substring(0, 2)
-                                      .toUpperCase()
+                                        .substring(0, 2)
+                                        .toUpperCase()
                                   : "EMP",
                               style: TextStyle(
                                 fontSize: 28,
@@ -383,7 +380,7 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.15),
                                 blurRadius: 4,
-                              )
+                              ),
                             ],
                           ),
                           child: Icon(
@@ -393,7 +390,7 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
                           ),
                         ),
                       ),
-                    )
+                    ),
                 ],
               ),
               const SizedBox(width: 20),
@@ -438,7 +435,7 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
                     ),
                   ],
                 ),
-              )
+              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -480,10 +477,7 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
       children: [
         Text(
           title,
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.8),
-            fontSize: 12,
-          ),
+          style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
         ),
         const SizedBox(height: 4),
         Text(
@@ -500,9 +494,7 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
 
   Widget _buildTabSection(Map<String, dynamic> employee) {
     return Container(
-      constraints: const BoxConstraints(
-        minHeight: 450,
-      ),
+      constraints: const BoxConstraints(minHeight: 450),
       child: DefaultTabController(
         length: 2,
         child: Column(
@@ -518,17 +510,13 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
             SizedBox(
               height: 450,
               child: TabBarView(
-                children: [
-                  _detailsTab(employee),
-                  _performanceTab(employee),
-                ],
+                children: [_detailsTab(employee), _performanceTab(employee)],
               ),
             ),
           ],
         ),
       ),
-      );
-    
+    );
   }
 
   Widget _detailsTab(Map<String, dynamic> employee) {
@@ -539,7 +527,7 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
           children: [
             // Edit Form or Display Info
             _isEditing ? _buildEditForm() : _buildDisplayInfo(employee),
-            
+
             // Additional Information (only when not editing)
             if (!_isEditing) ...[
               const SizedBox(height: 20),
@@ -554,9 +542,7 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
   Widget _buildEditForm() {
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Form(
@@ -572,7 +558,7 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
                 ),
               ),
               const SizedBox(height: 20),
-              
+
               // Name Field
               TextFormField(
                 controller: _nameController,
@@ -591,7 +577,7 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
                 },
               ),
               const SizedBox(height: 16),
-              
+
               // Email Field (read-only)
               TextFormField(
                 controller: _emailController,
@@ -607,7 +593,7 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
                 readOnly: true,
               ),
               const SizedBox(height: 16),
-              
+
               // Phone Field
               TextFormField(
                 controller: _phoneController,
@@ -626,7 +612,7 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
                 },
               ),
               const SizedBox(height: 16),
-              
+
               // Position Field
               TextFormField(
                 controller: _positionController,
@@ -644,9 +630,9 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
                   return null;
                 },
               ),
-              
+
               const SizedBox(height: 24),
-              
+
               // Action Buttons
               Row(
                 children: [
@@ -676,9 +662,12 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
                       onPressed: () {
                         setState(() {
                           _isEditing = false;
-                          _nameController.text = employeeData!['empName']?.toString() ?? '';
-                          _phoneController.text = employeeData!['phone']?.toString() ?? '';
-                          _positionController.text = employeeData!['position']?.toString() ?? '';
+                          _nameController.text =
+                              employeeData!['empName']?.toString() ?? '';
+                          _phoneController.text =
+                              employeeData!['phone']?.toString() ?? '';
+                          _positionController.text =
+                              employeeData!['position']?.toString() ?? '';
                         });
                       },
                       style: OutlinedButton.styleFrom(
@@ -709,21 +698,35 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
   Widget _buildDisplayInfo(Map<String, dynamic> employee) {
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _infoItem(Icons.email, "Email", employee['email']?.toString() ?? 'N/A'),
+            _infoItem(
+              Icons.email,
+              "Email",
+              employee['email']?.toString() ?? 'N/A',
+            ),
             const Divider(),
-            _infoItem(Icons.phone, "Phone", employee['phone']?.toString() ?? 'N/A'),
+            _infoItem(
+              Icons.phone,
+              "Phone",
+              employee['phone']?.toString() ?? 'N/A',
+            ),
             const Divider(),
-            _infoItem(Icons.location_on, "District", employee['district']?.toString() ?? 'N/A'),
+            _infoItem(
+              Icons.location_on,
+              "District",
+              employee['district']?.toString() ?? 'N/A',
+            ),
             const Divider(),
-            _infoItem(Icons.business, "Branch", employee['branch']?.toString() ?? 'N/A'),
+            _infoItem(
+              Icons.business,
+              "Branch",
+              employee['branch']?.toString() ?? 'N/A',
+            ),
             const Divider(),
             _infoItem(
               Icons.calendar_today,
@@ -736,11 +739,19 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
             ),
             if (employee['role'] != null) ...[
               const Divider(),
-              _infoItem(Icons.work, "Role", employee['role']?.toString() ?? 'N/A'),
+              _infoItem(
+                Icons.work,
+                "Role",
+                employee['role']?.toString() ?? 'N/A',
+              ),
             ],
             if (employee['salary'] != null && employee['salary'] > 0) ...[
               const Divider(),
-              _infoItem(Icons.currency_rupee, "Salary", "₹${employee['salary']}"),
+              _infoItem(
+                Icons.currency_rupee,
+                "Salary",
+                "₹${employee['salary']}",
+              ),
             ],
           ],
         ),
@@ -768,10 +779,7 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
               children: [
                 Text(
                   label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -808,21 +816,23 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _metricCard("Performance", employee['performance']?.toDouble() ?? 0.0,
-                        GlobalColors.primaryBlue),
-                    Container(
-                      width: 1,
-                      height: 60,
-                      color: Colors.grey[300],
+                    _metricCard(
+                      "Performance",
+                      employee['performance']?.toDouble() ?? 0.0,
+                      GlobalColors.primaryBlue,
                     ),
-                    _metricCard("Attendance", employee['attendance']?.toDouble() ?? 0.0,
-                        Colors.green),
+                    Container(width: 1, height: 60, color: Colors.grey[300]),
+                    _metricCard(
+                      "Attendance",
+                      employee['attendance']?.toDouble() ?? 0.0,
+                      Colors.green,
+                    ),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 20),
-            
+
             // Additional Employee Metrics
             Card(
               elevation: 4,
@@ -947,9 +957,7 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
   Widget _buildAdditionalInfo(Map<String, dynamic> employee) {
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(

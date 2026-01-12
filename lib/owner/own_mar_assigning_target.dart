@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:mega_pro/global/global_variables.dart';
 import 'package:mega_pro/models/mar_manager_model.dart';
 import 'package:mega_pro/services/mar_target_assigning_services.dart';
 
@@ -551,29 +553,31 @@ class _AssignTargetPageState extends State<AssignTargetPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text(
-          'Assign Marketing Targets',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
+      backgroundColor: GlobalColors.primaryBlue,
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Assign Monthly Targets",
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 18),
           ),
-        ),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-        iconTheme: const IconThemeData(color: Colors.white),
-        actions: [
+        ],
+      ),
+      //centerTitle: false,
+      iconTheme: const IconThemeData(color: Colors.white),
+      actions: [
           IconButton(
             icon: const Icon(Icons.history_outlined),
             onPressed: () => _showTargetsHistory(context),
             tooltip: 'View Targets History',
           ),
         ],
-      ),
+      
+      ),   
+
+
+      
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(
@@ -1485,12 +1489,11 @@ class _AssignTargetPageState extends State<AssignTargetPage> {
                 : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.check_circle_outline, size: 20, color: Colors.white),
                       const SizedBox(width: 8),
                       Text(
                         _selectedDistrict == 'All Districts'
                             ? 'Assign to All'
-                            : 'Assign Targets',
+                            : 'Assign Target',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,

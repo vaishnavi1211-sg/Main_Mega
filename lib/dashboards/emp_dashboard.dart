@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -11,6 +12,7 @@ import 'package:mega_pro/employee/emp_profile.dart';
 import 'package:mega_pro/employee/emp_recent_order_page.dart';
 import 'package:mega_pro/employee/emp_totalOrdersScreen.dart';
 import 'package:mega_pro/global/global_variables.dart';
+import 'package:mega_pro/main.dart';
 import 'package:mega_pro/providers/emp_attendance_provider.dart';
 import 'package:mega_pro/providers/emp_mar_target_provider.dart';
 import 'package:mega_pro/providers/emp_order_provider.dart';
@@ -20,10 +22,7 @@ import 'package:provider/provider.dart';
 class EmployeeDashboard extends StatefulWidget {
   final Map<String, dynamic> userData;
 
-  const EmployeeDashboard({
-    super.key,
-    required this.userData,
-  });
+  const EmployeeDashboard({super.key, required this.userData});
 
   @override
   State<EmployeeDashboard> createState() => _EmployeeDashboardState();
@@ -41,29 +40,32 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
     '/recent-orders',
     '/profile',
   ];
-
-  @override
-  Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        if (_navigatorKey.currentState != null &&
-            _navigatorKey.currentState!.canPop()) {
-          _navigatorKey.currentState!.pop();
+@override
+Widget build(BuildContext context) {
+  return WillPopScope(
+    onWillPop: () async {
+      if (_navigatorKey.currentState != null &&
+          _navigatorKey.currentState!.canPop()) {
+        _navigatorKey.currentState!.pop();
+        return false;
+      } else {
+        if (_selectedIndex != 0) {
+          setState(() {
+            _selectedIndex = 0;
+          });
+          _navigatorKey.currentState?.pushReplacementNamed(_routeNames[0]);
           return false;
         } else {
-          if (_selectedIndex != 0) {
-            setState(() {
-              _selectedIndex = 0;
-            });
-            _navigatorKey.currentState?.pushReplacementNamed(_routeNames[0]);
-            return false;
-          } else {
-            bool shouldExit = (await _buildExitDialog(context)) as bool;
-            return shouldExit;
-          }
+          // Show exit dialog and wait for result
+          bool? shouldExit = await showDialog<bool>(
+            context: context,
+            builder: (context) => _buildExitDialog(context),
+          );
+          return shouldExit ?? false;
         }
-      },
-      child: Scaffold(
+      }
+    },
+    child: Scaffold(
         key: _scaffoldKey,
         backgroundColor: AppColors.scaffoldBg,
         drawer: _buildDrawer(context),
@@ -90,14 +92,21 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                 _selectedIndex = index;
               });
               // Navigate to the route
-              _navigatorKey.currentState?.pushReplacementNamed(_routeNames[index]);
+              _navigatorKey.currentState?.pushReplacementNamed(
+                _routeNames[index],
+              );
             }
           },
           items: const [
             BottomNavigationBarItem(icon: Icon(Iconsax.home), label: "Home"),
-            BottomNavigationBarItem(icon: Icon(Iconsax.add_square), label: "Create"),
             BottomNavigationBarItem(
-                icon: Icon(Iconsax.receipt_item), label: "Orders"),
+              icon: Icon(Iconsax.add_square),
+              label: "Create",
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Iconsax.receipt_item),
+              label: "Orders",
+            ),
             BottomNavigationBarItem(icon: Icon(Iconsax.user), label: "Profile"),
           ],
         ),
@@ -106,104 +115,100 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
   }
 
   Widget _buildExitDialog(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      elevation: 0,
-      backgroundColor: Colors.transparent,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 20,
-              spreadRadius: 2,
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [GlobalColors.primaryBlue, Colors.blue[700]!],
-                ),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-              child: Row(
-                children: [                  
-                  Expanded(
-                    child: Text(
-                      "Exit App?",
-                      style: GoogleFonts.poppins(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  
-                  Text("Are you sure you want to exit?", style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.grey[800])),
-                  const SizedBox(height: 8),
-                  Text("Any unsaved changes may be lost", style: TextStyle(fontSize: 14, color: Colors.grey[600]), textAlign: TextAlign.center),
-                  const SizedBox(height: 24),
-                ],
-              ),
-            ),
-            
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
-                border: Border(top: BorderSide(color: Colors.grey[200]!, width: 1)),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      label: const Text("Cancel"),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.grey[700],
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        side: BorderSide(color: Colors.grey[400]!),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      label: const Text("Exit"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: GlobalColors.primaryBlue,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        elevation: 0,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+  return AlertDialog(
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    backgroundColor: Colors.transparent,
+    content: Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 20,
+            spreadRadius: 2,
+          ),
+        ],
       ),
-    );
-  }
-
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [GlobalColors.primaryBlue, Colors.blue[700]!],
+              ),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Row(
+              children: [                  
+                Expanded(
+                  child: Text(
+                    "Exit App?",
+                    style: GoogleFonts.poppins(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                Text("Are you sure you want to exit?", style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey[800])),
+                const SizedBox(height: 28),
+                
+              ],
+            ),
+          ),
+          
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
+              border: Border(top: BorderSide(color: Colors.grey[200]!, width: 1)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    label: const Text("Cancel"),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.grey[700],
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      side: BorderSide(color: Colors.grey[400]!),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    label: const Text("Exit"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: GlobalColors.primaryBlue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
   Widget _buildPageForRoute(String routeName) {
     switch (routeName) {
       case '/home':
@@ -245,13 +250,20 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(emp?['full_name'] ?? '',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold)),
-                    Text(emp?['position'] ?? '',
-                        style: const TextStyle(
-                            color: Colors.white70, fontSize: 12)),
+                    Text(
+                      emp?['full_name'] ?? '',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      emp?['position'] ?? '',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -270,9 +282,7 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
             Navigator.pop(context);
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => const AttendanceHistoryPage(),
-              ),
+              MaterialPageRoute(builder: (_) => const AttendanceHistoryPage()),
             );
           }),
           _drawerTile(Iconsax.receipt_item, "Total Orders", () {
@@ -293,8 +303,7 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
             Navigator.pop(context);
             Navigator.push(
               context,
-              MaterialPageRoute(
-                  builder: (_) => const CompletedOrdersPage()),
+              MaterialPageRoute(builder: (_) => const CompletedOrdersPage()),
             );
           }),
           _drawerTile(Iconsax.user, "My Profile", () {
@@ -304,7 +313,10 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
           }),
           const Spacer(),
           _drawerTile(Iconsax.logout, "Logout", () {
-            Navigator.pop(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => RoleSelectionScreen()),
+            );
           }, danger: true),
           const SizedBox(height: 12),
         ],
@@ -312,16 +324,23 @@ class _EmployeeDashboardState extends State<EmployeeDashboard> {
     );
   }
 
-  Widget _drawerTile(IconData icon, String title, VoidCallback onTap,
-      {bool danger = false}) {
+  Widget _drawerTile(
+    IconData icon,
+    String title,
+    VoidCallback onTap, {
+    bool danger = false,
+  }) {
     return ListTile(
-      leading: Icon(icon,
-          color:
-              danger ? GlobalColors.danger : GlobalColors.primaryBlue),
-      title: Text(title,
-          style: TextStyle(
-              color:
-                  danger ? GlobalColors.danger : GlobalColors.black)),
+      leading: Icon(
+        icon,
+        color: danger ? GlobalColors.danger : GlobalColors.primaryBlue,
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: danger ? GlobalColors.danger : GlobalColors.black,
+        ),
+      ),
       onTap: onTap,
     );
   }
@@ -358,8 +377,18 @@ class __DashboardHomeState extends State<_DashboardHome> {
     );
 
     monthLabels = const [
-      'Jan','Feb','Mar','Apr','May','Jun',
-      'Jul','Aug','Sep','Oct','Nov','Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
 
     // Load data immediately
@@ -370,7 +399,7 @@ class __DashboardHomeState extends State<_DashboardHome> {
 
   Future<void> _initializeAndLoadData() async {
     if (_isInitialized) return;
-    
+
     setState(() {
       _isDataLoading = true;
       _loadError = null;
@@ -379,13 +408,13 @@ class __DashboardHomeState extends State<_DashboardHome> {
     try {
       // First load employee profile if not loaded
       await context.read<EmployeeProvider>().loadEmployeeProfile();
-      
+
       // Load all data concurrently
       await Future.wait([
         _loadTargetData(),
         context.read<AttendanceProvider>().checkTodayAttendance(),
       ]);
-      
+
       setState(() {
         _isInitialized = true;
       });
@@ -404,25 +433,26 @@ class __DashboardHomeState extends State<_DashboardHome> {
   Future<void> _loadTargetData() async {
     final empProvider = context.read<EmployeeProvider>();
     final targetProvider = context.read<TargetProvider>();
-    
+
     final empId = empProvider.profile?['emp_id']?.toString();
     if (empId != null && empId.isNotEmpty) {
       print('🔄 Loading target data for employee: $empId');
-      
+
       try {
         await targetProvider.loadTargetData(empId);
-        
+
         // Debug: Print loaded data
         final targets = targetProvider.getMonthlyTargets(empId, months);
         final achieved = targetProvider.getMonthlyAchieved(empId, months);
-        
+
         print('📊 === DASHBOARD DATA LOADED ===');
         for (int i = 0; i < months.length; i++) {
           if (targets[i] > 0 || achieved[i] > 0) {
-            print('${monthLabels[i]}: Target=${targets[i]} T, Achieved=${achieved[i]} T');
+            print(
+              '${monthLabels[i]}: Target=${targets[i]} T, Achieved=${achieved[i]} T',
+            );
           }
         }
-        
       } catch (e) {
         print('❌ Failed to load target data: $e');
         throw e; // Re-throw to be caught by parent
@@ -434,18 +464,18 @@ class __DashboardHomeState extends State<_DashboardHome> {
 
   Future<void> _refreshData() async {
     if (_isRefreshing) return;
-    
+
     setState(() {
       _isRefreshing = true;
       _loadError = null;
     });
-    
+
     try {
       await Future.wait([
         _loadTargetData(),
         context.read<AttendanceProvider>().checkTodayAttendance(),
       ]);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Data refreshed successfully'),
@@ -453,14 +483,14 @@ class __DashboardHomeState extends State<_DashboardHome> {
           duration: Duration(seconds: 2),
         ),
       );
-      
+
       setState(() {});
     } catch (e) {
       print('❌ Error refreshing data: $e');
       setState(() {
         _loadError = 'Refresh failed: ${e.toString()}';
       });
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Refresh failed: ${e.toString()}'),
@@ -499,7 +529,7 @@ class __DashboardHomeState extends State<_DashboardHome> {
     // Get target and achieved data
     final targets = targetProvider.getMonthlyTargets(empId, months);
     final achieved = targetProvider.getMonthlyAchieved(empId, months);
-    
+
     // Calculate max value for scaling
     double maxValue = 0;
     for (var target in targets) {
@@ -508,15 +538,17 @@ class __DashboardHomeState extends State<_DashboardHome> {
     for (var achievement in achieved) {
       if (achievement > maxValue) maxValue = achievement;
     }
-    
+
     // If no data, set sensible defaults
     if (maxValue == 0) maxValue = 100.0;
-    
+
     // Add padding for better visualization
     maxValue = maxValue * 1.2;
-    
+
     // Calculate intervals for Y axis
-    final double interval = maxValue <= 100 ? 20.0 : (maxValue / 5).ceilToDouble();
+    final double interval = maxValue <= 100
+        ? 20.0
+        : (maxValue / 5).ceilToDouble();
 
     // Check if we have any data to show
     final hasTargets = targets.any((t) => t > 0);
@@ -533,11 +565,13 @@ class __DashboardHomeState extends State<_DashboardHome> {
           icon: const Icon(Icons.menu, color: Colors.white),
           onPressed: () => widget.scaffoldKey.currentState?.openDrawer(),
         ),
-        title: const Text("Employee Dashboard",
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+        title: const Text(
+          "Employee Dashboard",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
         actions: [
           IconButton(
-            icon: _isRefreshing 
+            icon: _isRefreshing
                 ? const SizedBox(
                     width: 20,
                     height: 20,
@@ -569,7 +603,8 @@ class __DashboardHomeState extends State<_DashboardHome> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const EmployeeAttendancePage(cameras: []),
+                              builder: (_) =>
+                                  const EmployeeAttendancePage(cameras: []),
                             ),
                           );
                         },
@@ -581,7 +616,7 @@ class __DashboardHomeState extends State<_DashboardHome> {
                           : Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
-                        BoxShadow(color: AppColors.shadowGrey, blurRadius: 12)
+                        BoxShadow(color: AppColors.shadowGrey, blurRadius: 12),
                       ],
                     ),
                     child: Row(
@@ -641,7 +676,7 @@ class __DashboardHomeState extends State<_DashboardHome> {
                   ),
                 ),
                 const SizedBox(height: 28),
-                
+
                 // Orders Overview
                 const Text(
                   "Orders Overview",
@@ -656,7 +691,8 @@ class __DashboardHomeState extends State<_DashboardHome> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (_) => const TotalOrdersPage()),
+                              builder: (_) => const TotalOrdersPage(),
+                            ),
                           );
                         },
                         borderRadius: BorderRadius.circular(16),
@@ -674,13 +710,17 @@ class __DashboardHomeState extends State<_DashboardHome> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (_) => const PendingOrdersPage()),
+                              builder: (_) => const PendingOrdersPage(),
+                            ),
                           );
                         },
                         borderRadius: BorderRadius.circular(16),
                         child: _summary(
                           "Pending",
-                          context.watch<OrderProvider>().pendingOrders.toString(),
+                          context
+                              .watch<OrderProvider>()
+                              .pendingOrders
+                              .toString(),
                           Iconsax.timer,
                         ),
                       ),
@@ -692,13 +732,17 @@ class __DashboardHomeState extends State<_DashboardHome> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (_) => const CompletedOrdersPage()),
+                              builder: (_) => const CompletedOrdersPage(),
+                            ),
                           );
                         },
                         borderRadius: BorderRadius.circular(16),
                         child: _summary(
                           "Completed",
-                          context.watch<OrderProvider>().completedOrders.toString(),
+                          context
+                              .watch<OrderProvider>()
+                              .completedOrders
+                              .toString(),
                           Iconsax.tick_circle,
                         ),
                       ),
@@ -706,7 +750,7 @@ class __DashboardHomeState extends State<_DashboardHome> {
                   ],
                 ),
                 const SizedBox(height: 28),
-                
+
                 // Performance Chart Section
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -714,7 +758,7 @@ class __DashboardHomeState extends State<_DashboardHome> {
                     color: GlobalColors.white,
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
-                      BoxShadow(color: AppColors.shadowGrey, blurRadius: 12)
+                      BoxShadow(color: AppColors.shadowGrey, blurRadius: 12),
                     ],
                   ),
                   child: Column(
@@ -725,14 +769,22 @@ class __DashboardHomeState extends State<_DashboardHome> {
                         children: [
                           const Text(
                             "Performance vs Target",
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                           Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: GlobalColors.primaryBlue.withOpacity(0.1),
+                                  color: GlobalColors.primaryBlue.withOpacity(
+                                    0.1,
+                                  ),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
@@ -748,15 +800,8 @@ class __DashboardHomeState extends State<_DashboardHome> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        "Monthly comparison in Tons (Jan-Dec)",
-                        style: TextStyle(
-                          color: GlobalColors.textGrey,
-                          fontSize: 12,
-                        ),
-                      ),
                       
+
                       // Error message
                       if (_loadError != null)
                         Container(
@@ -769,7 +814,11 @@ class __DashboardHomeState extends State<_DashboardHome> {
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.error, color: Colors.red, size: 16),
+                              const Icon(
+                                Icons.error,
+                                color: Colors.red,
+                                size: 16,
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
@@ -787,7 +836,7 @@ class __DashboardHomeState extends State<_DashboardHome> {
                             ],
                           ),
                         ),
-                      
+
                       // Data status indicator
                       if (!hasData)
                         Container(
@@ -800,7 +849,11 @@ class __DashboardHomeState extends State<_DashboardHome> {
                           ),
                           child: Column(
                             children: [
-                              const Icon(Icons.info, color: Colors.blue, size: 32),
+                              const Icon(
+                                Icons.info,
+                                color: Colors.blue,
+                                size: 32,
+                              ),
                               const SizedBox(height: 8),
                               const Text(
                                 "No Performance Data",
@@ -829,13 +882,16 @@ class __DashboardHomeState extends State<_DashboardHome> {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.blue,
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      
+
                       // Current month summary - ALWAYS SHOW
                       Padding(
                         padding: const EdgeInsets.only(top: 12),
@@ -862,7 +918,8 @@ class __DashboardHomeState extends State<_DashboardHome> {
                               _buildCurrentMonthStat(
                                 "Achieved",
                                 "${achieved[DateTime.now().month - 1].toStringAsFixed(1)} T",
-                                achieved[DateTime.now().month - 1] >= targets[DateTime.now().month - 1]
+                                achieved[DateTime.now().month - 1] >=
+                                        targets[DateTime.now().month - 1]
                                     ? Colors.green
                                     : GlobalColors.primaryBlue,
                               ),
@@ -871,8 +928,9 @@ class __DashboardHomeState extends State<_DashboardHome> {
                                     ? "${((achieved[DateTime.now().month - 1] / targets[DateTime.now().month - 1]) * 100).toStringAsFixed(0)}%"
                                     : "N/A",
                                 "Progress",
-                                targets[DateTime.now().month - 1] > 0 && 
-                                achieved[DateTime.now().month - 1] >= targets[DateTime.now().month - 1]
+                                targets[DateTime.now().month - 1] > 0 &&
+                                        achieved[DateTime.now().month - 1] >=
+                                            targets[DateTime.now().month - 1]
                                     ? Colors.green
                                     : Colors.orange,
                               ),
@@ -880,36 +938,68 @@ class __DashboardHomeState extends State<_DashboardHome> {
                           ),
                         ),
                       ),
-                      
+
                       const SizedBox(height: 12),
-                      
+
                       // Chart Container - ALWAYS RENDER, even if empty
                       Container(
                         height: 320,
                         decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300, width: 1),
+                          border: Border.all(
+                            color: Colors.grey.shade300,
+                            width: 1,
+                          ),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Column(
                           children: [
-                            
+                            // Chart Title
+                            Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade50,
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Colors.grey.shade300,
+                                  ),
+                                ),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  hasData
+                                      ? "Monthly Targets vs Achievements"
+                                      : "Performance Chart",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
                             Expanded(
                               child: Scrollbar(
                                 controller: _scrollController,
                                 child: SingleChildScrollView(
                                   scrollDirection: Axis.horizontal,
                                   child: SizedBox(
-                                    width: 420, 
-                                    height: 300,
+                                    width: 420,
+                                    height: 290,
                                     child: Padding(
                                       padding: const EdgeInsets.all(12.0),
-                                      child: hasData 
+                                      child: hasData
                                           ? BarChart(
-                                              _buildBarChartData(targets, achieved, maxValue, interval),
+                                              _buildBarChartData(
+                                                targets,
+                                                achieved,
+                                                maxValue,
+                                                interval,
+                                              ),
                                             )
                                           : Center(
                                               child: Column(
-                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
                                                 children: [
                                                   Icon(
                                                     Icons.bar_chart,
@@ -920,7 +1010,8 @@ class __DashboardHomeState extends State<_DashboardHome> {
                                                   Text(
                                                     "Loading performance data...",
                                                     style: TextStyle(
-                                                      color: Colors.grey.shade400,
+                                                      color:
+                                                          Colors.grey.shade400,
                                                       fontSize: 14,
                                                     ),
                                                   ),
@@ -935,7 +1026,7 @@ class __DashboardHomeState extends State<_DashboardHome> {
                           ],
                         ),
                       ),
-                      
+
                       // Legend - Only show if we have data
                       if (hasData) ...[
                         const SizedBox(height: 16),
@@ -944,13 +1035,16 @@ class __DashboardHomeState extends State<_DashboardHome> {
                           children: [
                             _buildLegendItem(Colors.grey.shade400, "Target"),
                             const SizedBox(width: 20),
-                            _buildLegendItem(GlobalColors.primaryBlue, "Achieved"),
+                            _buildLegendItem(
+                              GlobalColors.primaryBlue,
+                              "Achieved",
+                            ),
                             const SizedBox(width: 20),
                             _buildLegendItem(Colors.green, "Target Achieved"),
                           ],
                         ),
                       ],
-                      
+
                       // Year Summary - Only show if we have data
                       if (hasData) ...[
                         const SizedBox(height: 16),
@@ -973,7 +1067,8 @@ class __DashboardHomeState extends State<_DashboardHome> {
                               ),
                               const SizedBox(height: 12),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceAround,
                                 children: [
                                   _buildYearSummaryStat(
                                     "Total Target",
@@ -987,12 +1082,30 @@ class __DashboardHomeState extends State<_DashboardHome> {
                                   ),
                                   _buildYearSummaryStat(
                                     "Overall Progress",
-                                    targets.fold(0.0, (sum, element) => sum + element) > 0
+                                    targets.fold(
+                                              0.0,
+                                              (sum, element) => sum + element,
+                                            ) >
+                                            0
                                         ? "${((achieved.fold(0.0, (sum, element) => sum + element) / targets.fold(0.0, (sum, element) => sum + element)) * 100).toStringAsFixed(1)}%"
                                         : "0%",
-                                    targets.fold(0.0, (sum, element) => sum + element) > 0 &&
-                                    (achieved.fold(0.0, (sum, element) => sum + element) / 
-                                     targets.fold(0.0, (sum, element) => sum + element)) >= 1
+                                    targets.fold(
+                                                  0.0,
+                                                  (sum, element) =>
+                                                      sum + element,
+                                                ) >
+                                                0 &&
+                                            (achieved.fold(
+                                                      0.0,
+                                                      (sum, element) =>
+                                                          sum + element,
+                                                    ) /
+                                                    targets.fold(
+                                                      0.0,
+                                                      (sum, element) =>
+                                                          sum + element,
+                                                    )) >=
+                                                1
                                         ? Colors.green
                                         : Colors.orange,
                                   ),
@@ -1013,7 +1126,12 @@ class __DashboardHomeState extends State<_DashboardHome> {
     );
   }
 
-  BarChartData _buildBarChartData(List<double> targets, List<double> achieved, double maxValue, double interval) {
+  BarChartData _buildBarChartData(
+    List<double> targets,
+    List<double> achieved,
+    double maxValue,
+    double interval,
+  ) {
     return BarChartData(
       alignment: BarChartAlignment.center,
       groupsSpace: 12,
@@ -1022,25 +1140,25 @@ class __DashboardHomeState extends State<_DashboardHome> {
       barTouchData: BarTouchData(
         enabled: true,
         touchTooltipData: BarTouchTooltipData(
-          tooltipBorder: BorderSide(color: Colors.grey.shade100),
+          tooltipBorder: BorderSide(color: Colors.grey.shade300),
           tooltipRoundedRadius: 8,
           tooltipMargin: 10,
           getTooltipItem: (group, groupIndex, rod, rodIndex) {
             final month = monthLabels[group.x];
             final targetVal = targets[group.x];
             final achievedVal = achieved[group.x];
-            final progress = targetVal > 0 
-                ? (achievedVal / targetVal) * 100 
+            final progress = targetVal > 0
+                ? (achievedVal / targetVal) * 100
                 : 0;
-            
+
             String tooltipText = "📅 $month ${DateTime.now().year}\n";
-            tooltipText += "\n";
+            tooltipText += "━━━━━━━━━━━━━━━━━━━━\n";
             tooltipText += "🎯 Target: ${targetVal.toStringAsFixed(1)} T\n";
             tooltipText += "📈 Achieved: ${achievedVal.toStringAsFixed(1)} T\n";
-            
+
             if (targetVal > 0) {
               tooltipText += "📊 Progress: ${progress.toStringAsFixed(1)}%";
-              
+
               if (progress >= 100) {
                 tooltipText += " 🎉 Target Achieved!";
               } else if (progress >= 70) {
@@ -1053,7 +1171,7 @@ class __DashboardHomeState extends State<_DashboardHome> {
             } else {
               tooltipText += "ℹ️ No target assigned";
             }
-            
+
             return BarTooltipItem(
               tooltipText,
               const TextStyle(
@@ -1078,10 +1196,7 @@ class __DashboardHomeState extends State<_DashboardHome> {
                 padding: const EdgeInsets.only(right: 8),
                 child: Text(
                   "${value.toInt()} T",
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: Colors.grey,
-                  ),
+                  style: const TextStyle(fontSize: 10, color: Colors.grey),
                 ),
               );
             },
@@ -1090,9 +1205,7 @@ class __DashboardHomeState extends State<_DashboardHome> {
         rightTitles: const AxisTitles(
           sideTitles: SideTitles(showTitles: false),
         ),
-        topTitles: const AxisTitles(
-          sideTitles: SideTitles(showTitles: false),
-        ),
+        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         bottomTitles: AxisTitles(
           sideTitles: SideTitles(
             showTitles: true,
@@ -1107,8 +1220,12 @@ class __DashboardHomeState extends State<_DashboardHome> {
                     monthLabels[index],
                     style: TextStyle(
                       fontSize: 11,
-                      color: isCurrentMonth ? GlobalColors.primaryBlue : Colors.grey,
-                      fontWeight: isCurrentMonth ? FontWeight.w600 : FontWeight.w500,
+                      color: isCurrentMonth
+                          ? GlobalColors.primaryBlue
+                          : Colors.grey,
+                      fontWeight: isCurrentMonth
+                          ? FontWeight.w600
+                          : FontWeight.w500,
                     ),
                   ),
                 );
@@ -1124,24 +1241,18 @@ class __DashboardHomeState extends State<_DashboardHome> {
         drawVerticalLine: false,
         horizontalInterval: interval,
         getDrawingHorizontalLine: (value) {
-          return FlLine(
-            color: Colors.grey.shade200,
-            strokeWidth: 0.5,
-          );
+          return FlLine(color: Colors.grey.shade200, strokeWidth: 0.5);
         },
       ),
       borderData: FlBorderData(
         show: true,
-        border: Border.all(
-          color: Colors.grey.shade300,
-          width: 0.5,
-        ),
+        border: Border.all(color: Colors.grey.shade300, width: 0.5),
       ),
       barGroups: List.generate(12, (index) {
         final target = targets[index];
         final achievedValue = achieved[index];
         final isTargetAchieved = target > 0 && achievedValue >= target;
-        
+
         return BarChartGroupData(
           x: index,
           groupVertically: true,
@@ -1185,10 +1296,7 @@ class __DashboardHomeState extends State<_DashboardHome> {
           const SizedBox(height: 4),
           Text(
             title,
-            style: const TextStyle(
-              color: GlobalColors.textGrey,
-              fontSize: 12,
-            ),
+            style: const TextStyle(color: GlobalColors.textGrey, fontSize: 12),
           ),
         ],
       ),
@@ -1207,13 +1315,7 @@ class __DashboardHomeState extends State<_DashboardHome> {
           ),
         ),
         const SizedBox(height: 2),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 10,
-            color: Colors.grey,
-          ),
-        ),
+        Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
       ],
     );
   }
