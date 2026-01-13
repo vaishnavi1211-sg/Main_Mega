@@ -43,8 +43,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ProductionOrdersProvider()),
         ChangeNotifierProvider(create: (_) => DashboardProvider()),
         ChangeNotifierProvider(create: (_) => TargetProvider()),
-        ChangeNotifierProvider(
-          create: (context) => RealTimeOrderProvider(Supabase.instance.client),
+        ChangeNotifierProvider(create: (context) => RealTimeOrderProvider(Supabase.instance.client),
         ),
       ],
       child: MaterialApp(
@@ -81,8 +80,9 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
     // Navigate to main screen after 1 second
-    Future.delayed(const Duration(seconds: 1), () {
+    Future.delayed(const Duration(seconds: 3), () {
       Navigator.pushReplacement(
+        // ignore: use_build_context_synchronously
         context,
         MaterialPageRoute(
           builder: (context) => const RoleSelectionScreen(),
@@ -114,7 +114,7 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             const SizedBox(height: 20),
             const Text(
-              'Mega Pro',
+              'Mega Project',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
