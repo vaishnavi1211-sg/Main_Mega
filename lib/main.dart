@@ -12,7 +12,7 @@ import 'package:mega_pro/providers/emp_provider.dart';
 import 'package:mega_pro/providers/own_dashboard_provider.dart';
 import 'package:mega_pro/providers/pro_inventory_provider.dart';
 import 'package:mega_pro/providers/pro_orders_provider.dart';
-import 'package:mega_pro/providers/tracking_orders_provider.dart';
+import 'package:mega_pro/providers/emp_tracking_orders_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -56,7 +56,7 @@ class MyApp extends StatelessWidget {
           scaffoldBackgroundColor: AppColors.scaffoldBg,
           useMaterial3: true,
         ),
-        home: const SplashScreen(),
+        home: const RoleSelectionScreen(),
         routes: {
           '/employee/home': (_) => const EmployeeDashboard(userData: {},),
           '/employee/create': (_) => const CattleFeedOrderScreen(),
@@ -68,69 +68,69 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+// class SplashScreen extends StatefulWidget {
+//   const SplashScreen({super.key});
 
-  @override
-  State<SplashScreen> createState() => _SplashScreenState();
-}
+//   @override
+//   State<SplashScreen> createState() => _SplashScreenState();
+// }
 
-class _SplashScreenState extends State<SplashScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // Navigate to main screen after 1 second
-    Future.delayed(const Duration(seconds: 3), () {
-      Navigator.pushReplacement(
-        // ignore: use_build_context_synchronously
-        context,
-        MaterialPageRoute(
-          builder: (context) => const RoleSelectionScreen(),
-        ),
-      );
-    });
-  }
+// class _SplashScreenState extends State<SplashScreen> {
+//   @override
+//   void initState() {
+//     super.initState();
+//     // Navigate to main screen after 1 second
+//     Future.delayed(const Duration(seconds: 3), () {
+//       Navigator.pushReplacement(
+//         // ignore: use_build_context_synchronously
+//         context,
+//         MaterialPageRoute(
+//           builder: (context) => const RoleSelectionScreen(),
+//         ),
+//       );
+//     });
+//   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: GlobalColors.primaryBlue,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Icon(
-                Icons.shopping_cart,
-                size: 60,
-                color: GlobalColors.primaryBlue,
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Mega Project',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 20),
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       backgroundColor: GlobalColors.primaryBlue,
+//       body: Center(
+//         child: Column(
+//           mainAxisAlignment: MainAxisAlignment.center,
+//           children: [
+//             Container(
+//               width: 100,
+//               height: 100,
+//               decoration: BoxDecoration(
+//                 color: Colors.white,
+//                 borderRadius: BorderRadius.circular(20),
+//               ),
+//               child: const Icon(
+//                 Icons.shopping_cart,
+//                 size: 60,
+//                 color: GlobalColors.primaryBlue,
+//               ),
+//             ),
+//             const SizedBox(height: 20),
+//             const Text(
+//               'Mega Project',
+//               style: TextStyle(
+//                 fontSize: 24,
+//                 fontWeight: FontWeight.bold,
+//                 color: Colors.white,
+//               ),
+//             ),
+//             const SizedBox(height: 20),
+//             const CircularProgressIndicator(
+//               valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+// }
 
 class RoleSelectionScreen extends StatelessWidget {
   const RoleSelectionScreen({super.key});

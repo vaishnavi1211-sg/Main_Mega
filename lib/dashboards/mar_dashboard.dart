@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:mega_pro/marketing/mar_emp_attendace_report.dart';
 import 'package:mega_pro/marketing/mar_employees.dart';
 import 'package:mega_pro/marketing/mar_order.dart';
 import 'package:mega_pro/marketing/mar_profile.dart';
@@ -193,6 +194,19 @@ class _MarketingManagerDashboardState extends State<MarketingManagerDashboard> {
       ),
       //centerTitle: false,
       iconTheme: const IconThemeData(color: Colors.white),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.refresh),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ManagerAttendancePage(),
+              ),
+            );
+          },
+        ),
+      ],
       
     );
   }
