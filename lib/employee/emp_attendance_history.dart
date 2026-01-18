@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:mega_pro/providers/emp_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:intl/intl.dart'; // Add this import for date formatting
+import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // Add this import
 
 import 'package:mega_pro/global/global_variables.dart';
 import 'package:mega_pro/providers/emp_attendance_provider.dart';
@@ -16,14 +18,15 @@ class AttendanceHistoryPage extends StatefulWidget {
 class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
   DateTime focusedDay = DateTime.now();
   DateTime selectedDay = DateTime.now();
-  Map<String, dynamic>? _selectedAttendanceDetails; // Store selected day's details
+  Map<String, dynamic>? _selectedAttendanceDetails;
 
   @override
   void initState() {
     super.initState();
     // Load attendance history when page opens
     Future.microtask(() async {
-      await context.read<AttendanceProvider>().loadAttendanceHistory();
+      final provider = context.read<AttendanceProvider>();
+      await provider.loadAttendanceHistory(EmployeeProvider() as String);
       // Load details for today initially
       await _loadAttendanceDetails(DateTime.now());
     });
@@ -31,16 +34,19 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
 
   // Load attendance details for a specific date
   Future<void> _loadAttendanceDetails(DateTime date) async {
-    final provider = context.read<AttendanceProvider>();
+    context.read<AttendanceProvider>();
     final formattedDate = DateFormat('yyyy-MM-dd').format(date);
     
     try {
+      // Get Supabase instance
+      final supabase = Supabase.instance.client;
+      
       // First check if user is logged in
-      final user = provider.supabase.auth.currentUser;
+      final user = supabase.auth.currentUser;
       if (user == null) return;
 
       // Fetch attendance details for the selected date
-      final data = await provider.supabase
+      final data = await supabase
           .from('emp_attendance')
           .select('*')
           .eq('employee_id', user.id)

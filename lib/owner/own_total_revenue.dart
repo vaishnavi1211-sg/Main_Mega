@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:mega_pro/global/global_variables.dart';
 import 'package:mega_pro/models/own_dashboard_model.dart';
-import 'package:mega_pro/models/own_revenue_model.dart';
 import 'package:mega_pro/providers/own_dashboard_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
 class DistrictWiseRevenuePage extends StatefulWidget {
-  const DistrictWiseRevenuePage({super.key, required DashboardData dashboardData});
+  final DashboardData dashboardData;
+  
+  const DistrictWiseRevenuePage({super.key, required this.dashboardData});
 
   @override
   State<DistrictWiseRevenuePage> createState() => _DistrictWiseRevenuePageState();
@@ -25,7 +26,7 @@ class _DistrictWiseRevenuePageState extends State<DistrictWiseRevenuePage> {
       _isRefreshing = true;
     });
     
-    await provider.loadDistrictRevenueData();
+    await provider.refreshDistrictData();
     
     setState(() {
       _isRefreshing = false;
@@ -48,10 +49,7 @@ class _DistrictWiseRevenuePageState extends State<DistrictWiseRevenuePage> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list, color: Colors.white),
-            onPressed: () => _showFilterOptions(context),
-          ),
+          
           Consumer<DashboardProvider>(
             builder: (context, provider, _) {
               return IconButton(
@@ -123,13 +121,11 @@ class _DistrictWiseRevenuePageState extends State<DistrictWiseRevenuePage> {
 
           final districts = provider.districtRevenueData;
           final totalRevenue = districts.fold(0.0, (sum, district) => sum + district.revenue);
-          final totalOrders = districts.fold(0, (sum, district) => sum + district.orders);
 
           return RefreshIndicator(
             onRefresh: () => _refreshData(context),
             child: Column(
               children: [
-                // Filter Chip Bar
                 Container(
                   padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                   color: Colors.white,
@@ -147,7 +143,6 @@ class _DistrictWiseRevenuePageState extends State<DistrictWiseRevenuePage> {
                                 setState(() {
                                   _selectedFilter = filter;
                                 });
-                                // Apply filter logic here
                                 _applyFilter(filter, provider);
                               }
                             },
@@ -171,7 +166,6 @@ class _DistrictWiseRevenuePageState extends State<DistrictWiseRevenuePage> {
                   ),
                 ),
 
-                // Summary Card
                 Container(
                   margin: const EdgeInsets.all(16),
                   padding: const EdgeInsets.all(16),
@@ -197,7 +191,7 @@ class _DistrictWiseRevenuePageState extends State<DistrictWiseRevenuePage> {
                       Container(width: 1, height: 40, color: Colors.grey.shade200),
                       _buildSummaryItem(
                         'Total Orders',
-                        totalOrders.toString(),
+                        districts.fold(0, (sum, district) => sum + district.orders).toString(),
                         Colors.blue,
                       ),
                       Container(width: 1, height: 40, color: Colors.grey.shade200),
@@ -210,7 +204,6 @@ class _DistrictWiseRevenuePageState extends State<DistrictWiseRevenuePage> {
                   ),
                 ),
 
-                // District List
                 Expanded(
                   child: ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -394,56 +387,10 @@ class _DistrictWiseRevenuePageState extends State<DistrictWiseRevenuePage> {
   }
 
   void _applyFilter(String filter, DashboardProvider provider) {
-    // Apply filtering logic based on selected filter
-    // This would require additional data fetching with date ranges
     debugPrint('Applying filter: $filter');
-    
-    // For now, just refresh data with the new filter
-    // You would need to modify getDistrictRevenueData to accept date ranges
     _refreshData(context);
   }
 
-  void _showFilterOptions(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Filter by Period',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 16),
-              ..._filters.map((filter) {
-                return ListTile(
-                  title: Text(filter),
-                  trailing: _selectedFilter == filter
-                      ? Icon(Icons.check, color: GlobalColors.primaryBlue)
-                      : null,
-                  onTap: () {
-                    setState(() {
-                      _selectedFilter = filter;
-                    });
-                    Navigator.pop(context);
-                  },
-                );
-              }),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   void _showDistrictDetails(BuildContext context, DistrictRevenueData district) {
     showModalBottomSheet(
@@ -572,7 +519,7 @@ class _DistrictWiseRevenuePageState extends State<DistrictWiseRevenuePage> {
             ),
           ),
         ],
-      )
+      ),
     );
   }
 }

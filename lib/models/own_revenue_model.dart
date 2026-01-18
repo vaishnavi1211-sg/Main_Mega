@@ -48,7 +48,7 @@ class OrderDetail {
     required this.product,
     required this.quantity,
     required this.branch,
-    required this.district,
+    required this.district, required String paymentMethod,
   });
 
   factory OrderDetail.fromJson(Map<String, dynamic> json) {
@@ -61,7 +61,7 @@ class OrderDetail {
       product: json['product'] ?? '',
       quantity: json['quantity'] ?? 0,
       branch: json['branch'] ?? '',
-      district: json['district'] ?? '',
+      district: json['district'] ?? '', paymentMethod: '',
     );
   }
 }

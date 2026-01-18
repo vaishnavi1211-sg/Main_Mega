@@ -17,10 +17,8 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 Future<void> main() async {
-  // Show splash screen immediately
   runApp(const MyApp());
   
-  // Initialize Supabase in background
   WidgetsFlutterBinding.ensureInitialized();
   await Supabase.initialize(
     url: "https://phkkiyxfcepqauxncqpm.supabase.co",
@@ -251,6 +249,7 @@ class RoleSelectionScreen extends StatelessWidget {
           border: Border.all(color: AppColors.borderGrey),
           boxShadow: [
             BoxShadow(
+              // ignore: deprecated_member_use
               color: Colors.black12.withOpacity(0.05),
               blurRadius: 5,
               offset: const Offset(0, 3),
@@ -263,6 +262,7 @@ class RoleSelectionScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
+                // ignore: deprecated_member_use
                 color: color.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -302,12 +302,14 @@ class RoleSelectionScreen extends StatelessWidget {
                     border: Border.all(
                       color: isPrimary
                           ? Colors.transparent
+                          // ignore: deprecated_member_use
                           : AppColors.primaryBlue.withOpacity(0.3),
                     ),
                     boxShadow: isPrimary
                         ? [
                             BoxShadow(
                               color:
+                                  // ignore: deprecated_member_use
                                   AppColors.primaryBlue.withOpacity(0.2),
                               blurRadius: 6,
                               offset: const Offset(0, 3),

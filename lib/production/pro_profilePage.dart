@@ -30,7 +30,7 @@ class _ProductionProfilePageState extends State<ProductionProfilePage> {
     try {
       final supabase = Supabase.instance.client;
       final user = supabase.auth.currentUser;
-      
+
       if (user == null) {
         _createDefaultProfile();
         return;
@@ -112,8 +112,10 @@ class _ProductionProfilePageState extends State<ProductionProfilePage> {
   }
 
   Future<void> pickProfileImage() async {
-    final XFile? file =
-        await picker.pickImage(source: ImageSource.gallery, imageQuality: 75);
+    final XFile? file = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 75,
+    );
     if (file != null) {
       setState(() => profileImage = File(file.path));
     }
@@ -122,11 +124,7 @@ class _ProductionProfilePageState extends State<ProductionProfilePage> {
   Future<void> _logout() async {
     try {
       await Supabase.instance.client.auth.signOut();
-      Navigator.pushNamedAndRemoveUntil(
-        context, 
-        '/', 
-        (route) => false
-      );
+      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
     } catch (e) {
       print('Error logging out: $e');
     }
@@ -149,8 +147,6 @@ class _ProductionProfilePageState extends State<ProductionProfilePage> {
               Stack(
                 children: [
                   Container(
-                    width: 90,
-                    height: 90,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 3),
@@ -158,15 +154,16 @@ class _ProductionProfilePageState extends State<ProductionProfilePage> {
                     child: CircleAvatar(
                       radius: 40,
                       backgroundColor: Colors.white,
-                      backgroundImage:
-                          profileImage != null ? FileImage(profileImage!) : null,
+                      backgroundImage: profileImage != null
+                          ? FileImage(profileImage!)
+                          : null,
                       child: profileImage == null
                           ? Text(
                               (user['empName'] is String &&
                                       user['empName'].isNotEmpty)
                                   ? user['empName']
-                                      .substring(0, 2)
-                                      .toUpperCase()
+                                        .substring(0, 2)
+                                        .toUpperCase()
                                   : "PM",
                               style: TextStyle(
                                 fontSize: 28,
@@ -191,7 +188,7 @@ class _ProductionProfilePageState extends State<ProductionProfilePage> {
                             BoxShadow(
                               color: Colors.black.withOpacity(0.15),
                               blurRadius: 4,
-                            )
+                            ),
                           ],
                         ),
                         child: Icon(
@@ -201,7 +198,7 @@ class _ProductionProfilePageState extends State<ProductionProfilePage> {
                         ),
                       ),
                     ),
-                  )
+                  ),
                 ],
               ),
               const SizedBox(width: 20),
@@ -228,7 +225,9 @@ class _ProductionProfilePageState extends State<ProductionProfilePage> {
                               context: context,
                               builder: (context) => AlertDialog(
                                 title: const Text('Confirm Logout'),
-                                content: const Text('Are you sure you want to logout?'),
+                                content: const Text(
+                                  'Are you sure you want to logout?',
+                                ),
                                 actions: [
                                   TextButton(
                                     onPressed: () => Navigator.pop(context),
@@ -282,7 +281,7 @@ class _ProductionProfilePageState extends State<ProductionProfilePage> {
                     ),
                   ],
                 ),
-              )
+              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -308,9 +307,10 @@ class _ProductionProfilePageState extends State<ProductionProfilePage> {
           _idItem(
             "Since",
             DateFormat("MMM yyyy").format(
-                user['joiningDate'] is DateTime
-                    ? user['joiningDate']
-                    : DateTime.now()),
+              user['joiningDate'] is DateTime
+                  ? user['joiningDate']
+                  : DateTime.now(),
+            ),
           ),
         ],
       ),
@@ -383,10 +383,7 @@ class _ProductionProfilePageState extends State<ProductionProfilePage> {
           SizedBox(
             height: 500,
             child: TabBarView(
-              children: [
-                _detailsTab(user),
-                _productionStatsTab(user),
-              ],
+              children: [_detailsTab(user), _productionStatsTab(user)],
             ),
           ),
         ],
@@ -408,19 +405,33 @@ class _ProductionProfilePageState extends State<ProductionProfilePage> {
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
-                _infoItem(Icons.email, "Email",
-                    user['email']?.toString() ?? 'N/A'),
+                _infoItem(
+                  Icons.email,
+                  "Email",
+                  user['email']?.toString() ?? 'N/A',
+                ),
                 const Divider(),
-                _infoItem(Icons.phone, "Phone",
-                    user['phone']?.toString() ?? 'N/A'),
+                _infoItem(
+                  Icons.phone,
+                  "Phone",
+                  user['phone']?.toString() ?? 'N/A',
+                ),
                 const Divider(),
-                _infoItem(Icons.business, "Branch",
-                    user['branch']?.toString() ?? 'N/A'),
+                _infoItem(
+                  Icons.business,
+                  "Branch",
+                  user['branch']?.toString() ?? 'N/A',
+                ),
                 const Divider(),
-                _infoItem(Icons.work, "Department",
-                    user['department']?.toString() ?? 'Production'),
+                _infoItem(
+                  Icons.work,
+                  "Department",
+                  user['department']?.toString() ?? 'Production',
+                ),
                 const Divider(),
-                _infoItem(Icons.calendar_today, "Joining Date",
+                _infoItem(
+                  Icons.calendar_today,
+                  "Joining Date",
                   DateFormat('dd MMMM yyyy').format(
                     user['joiningDate'] is DateTime
                         ? user['joiningDate']
@@ -428,18 +439,30 @@ class _ProductionProfilePageState extends State<ProductionProfilePage> {
                   ),
                 ),
                 const Divider(),
-                _infoItem(Icons.work, "Role",
-                    user['role']?.toString() ?? 'Production Manager'),
+                _infoItem(
+                  Icons.work,
+                  "Role",
+                  user['role']?.toString() ?? 'Production Manager',
+                ),
                 const Divider(),
-                _infoItem(Icons.access_time, "Shift",
-                    user['shift']?.toString() ?? 'Day'),
+                _infoItem(
+                  Icons.access_time,
+                  "Shift",
+                  user['shift']?.toString() ?? 'Day',
+                ),
                 const Divider(),
-                _infoItem(Icons.timeline, "Experience",
-                    user['experience']?.toString() ?? 'N/A'),
+                _infoItem(
+                  Icons.timeline,
+                  "Experience",
+                  user['experience']?.toString() ?? 'N/A',
+                ),
                 if (user['salary'] != null && user['salary'] > 0) ...[
                   const Divider(),
-                  _infoItem(Icons.currency_rupee, "Salary",
-                      "₹${user['salary']}"),
+                  _infoItem(
+                    Icons.currency_rupee,
+                    "Salary",
+                    "₹${user['salary']}",
+                  ),
                 ],
               ],
             ),
@@ -466,17 +489,17 @@ class _ProductionProfilePageState extends State<ProductionProfilePage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _metricCard("Performance",
-                        user['performance']?.toDouble() ?? 0.0,
-                        GlobalColors.primaryBlue),
-                    Container(
-                      width: 1,
-                      height: 60,
-                      color: Colors.grey[300],
+                    _metricCard(
+                      "Performance",
+                      user['performance']?.toDouble() ?? 0.0,
+                      GlobalColors.primaryBlue,
                     ),
-                    _metricCard("Attendance",
-                        user['attendance']?.toDouble() ?? 0.0,
-                        Colors.green),
+                    Container(width: 1, height: 60, color: Colors.grey[300]),
+                    _metricCard(
+                      "Attendance",
+                      user['attendance']?.toDouble() ?? 0.0,
+                      Colors.green,
+                    ),
                   ],
                 ),
               ),
@@ -627,10 +650,7 @@ class _ProductionProfilePageState extends State<ProductionProfilePage> {
               children: [
                 Text(
                   label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -655,9 +675,7 @@ class _ProductionProfilePageState extends State<ProductionProfilePage> {
       return Scaffold(
         backgroundColor: GlobalColors.background,
         body: const Center(
-          child: CircularProgressIndicator(
-            color: GlobalColors.primaryBlue,
-          ),
+          child: CircularProgressIndicator(color: GlobalColors.primaryBlue),
         ),
       );
     }
@@ -686,8 +704,10 @@ class _ProductionProfilePageState extends State<ProductionProfilePage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: GlobalColors.primaryBlue,
                 ),
-                child:
-                    const Text('Retry', style: TextStyle(color: Colors.white)),
+                child: const Text(
+                  'Retry',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           ),
@@ -706,16 +726,16 @@ class _ProductionProfilePageState extends State<ProductionProfilePage> {
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.w600,
             color: Colors.white,
-            fontSize: 20,
+            fontSize: 22,
           ),
         ),
-        iconTheme: const IconThemeData(color: Colors.white),        
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
+              //physics: const BouncingScrollPhysics(),
               child: Column(
                 children: [
                   _buildProfileHeader(user),
@@ -731,12 +751,6 @@ class _ProductionProfilePageState extends State<ProductionProfilePage> {
     );
   }
 }
-
-
-
-
-
-
 
 // import 'package:flutter/material.dart';
 // import 'package:supabase_flutter/supabase_flutter.dart';
