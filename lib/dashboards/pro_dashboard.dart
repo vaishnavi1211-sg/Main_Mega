@@ -352,7 +352,8 @@ class _DashboardContentState extends State<DashboardContent> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    // Delay initial load to ensure providers are ready
+    Future.delayed(const Duration(milliseconds: 100), () {
       _fetchAllData();
     });
     _startRealtimeUpdates();
@@ -360,28 +361,30 @@ class _DashboardContentState extends State<DashboardContent> {
 
   void _startRealtimeUpdates() {
     _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      _fetchAllData();
+      if (mounted) {
+        _fetchAllData();
+      }
     });
   }
 
   Future<void> _fetchAllData() async {
+    if (!mounted) return;
+    
     try {
-      setState(() {
-        _isLoading = true;
-      });
-      
-      await Future.wait([
-        _fetchInventoryData(),
-        _fetchProducts(),
-        _fetchProductionMetrics(),
-        _fetchMachineStatus(),
-        _fetchRecentOrders(),
-      ]);
-      
-      // Calculate profit metrics after other data is loaded
+      // Set loading state
+      if (mounted) {
+        setState(() {
+          _isLoading = true;
+        });
+      }
+
+      // Fetch all data in sequence to avoid conflicts
+      await _fetchInventoryData();
+      await _fetchProducts();
+      await _fetchProductionMetrics();
+      await _fetchMachineStatus();
+      await _fetchRecentOrders();
       await _calculateProfitMetrics();
-      
-      // Get total bags from provider context
       await _fetchTotalInventoryBags();
       
       if (mounted) {
@@ -390,8 +393,12 @@ class _DashboardContentState extends State<DashboardContent> {
           _isLoading = false;
         });
       }
+      
+      debugPrint('✅ All data fetched successfully');
+      debugPrint('📦 Total bags: $_totalInventoryBags');
+      debugPrint('💰 Revenue: $_totalRevenue');
     } catch (e) {
-      debugPrint('Error fetching data: $e');
+      debugPrint('❌ Error fetching data: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -402,25 +409,24 @@ class _DashboardContentState extends State<DashboardContent> {
 
   Future<void> _fetchTotalInventoryBags() async {
     try {
-      // Access the InventoryProvider safely
-      final inventoryProvider = context.read<InventoryProvider>();
-      
-      // Wait a bit for provider to load if needed
-      await Future.delayed(const Duration(milliseconds: 100));
-      
-      // Calculate total bags directly from active items
-      final totalBags = inventoryProvider.activeItems.fold(
-        0.0, 
-        (sum, item) => sum + item.bags
-      );
-      
+      // Direct database query for total bags
+      final response = await _supabase
+          .from('production_products')
+          .select('bags')
+          .eq('is_active', true);
+
+      double totalBags = 0.0;
+      for (var item in response) {
+        totalBags += (item['bags'] ?? 0).toDouble();
+      }
+
       if (mounted) {
         setState(() {
           _totalInventoryBags = totalBags;
         });
       }
       
-      debugPrint('Total inventory bags: $totalBags');
+      debugPrint('📊 Direct DB query - Total bags: $totalBags');
     } catch (e) {
       debugPrint('Error fetching total bags: $e');
       if (mounted) {
@@ -434,8 +440,9 @@ class _DashboardContentState extends State<DashboardContent> {
   Future<void> _fetchInventoryData() async {
     try {
       final response = await _supabase
-          .from('production_products') // Updated to match provider
+          .from('production_products')
           .select('*')
+          .eq('is_active', true)
           .order('name', ascending: true);
 
       if (mounted) {
@@ -444,6 +451,8 @@ class _DashboardContentState extends State<DashboardContent> {
           _inventoryData.addAll(List<Map<String, dynamic>>.from(response));
         });
       }
+      
+      debugPrint('📦 Inventory data fetched: ${_inventoryData.length} items');
     } catch (e) {
       debugPrint('Error fetching inventory: $e');
     }
@@ -452,9 +461,10 @@ class _DashboardContentState extends State<DashboardContent> {
   Future<void> _fetchProducts() async {
     try {
       final response = await _supabase
-          .from('pro_products')
+          .from('production_products') // Use same table as inventory
           .select('*')
-          .order('name', ascending: true);
+          .eq('is_active', true)
+          .order('name', ascending:true);
 
       if (mounted) {
         setState(() {
@@ -462,12 +472,13 @@ class _DashboardContentState extends State<DashboardContent> {
           _products.addAll(List<Map<String, dynamic>>.from(response));
         });
       }
+      
+      debugPrint('📋 Products fetched: ${_products.length} items');
     } catch (e) {
       debugPrint('Error fetching products: $e');
     }
   }
 
-  // ENHANCED PROFIT CALCULATION METHOD
   Future<void> _calculateProfitMetrics() async {
     try {
       final today = DateTime.now();
@@ -476,49 +487,24 @@ class _DashboardContentState extends State<DashboardContent> {
       double totalRevenue = 0.0;
       Map<String, double> rawMaterialCosts = {};
 
-      // METHOD 1: Get revenue from Provider (primary method)
-      try {
-        final ordersProvider = context.read<ProductionOrdersProvider>();
-        final completedOrders = ordersProvider.orders
-            .where((order) => order.status.toLowerCase() == 'completed')
-            .toList();
-        
-        debugPrint('Found ${completedOrders.length} completed orders from provider');
-        
-        // Sum revenue for current month
-        for (var order in completedOrders) {
-          if (order.createdAt.isAfter(monthStart) && order.createdAt.isBefore(today.add(const Duration(days: 1)))) {
-            totalRevenue += order.totalPrice;
-            debugPrint('Added order revenue: ₹${order.totalPrice} - Date: ${order.createdAt}');
-          }
-        }
-        
-        debugPrint('Total revenue from provider: ₹$totalRevenue');
-      } catch (e) {
-        debugPrint('Error accessing provider for revenue: $e');
-        
-        // METHOD 2: Fallback to Supabase
-        final monthStartStr = "${monthStart.year}-${monthStart.month.toString().padLeft(2, '0')}-01";
-        final todayStr = "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
-
-        final revenueResponse = await _supabase
-            .from('emp_mar_orders')
-            .select('total_price, created_at')
-            .eq('status', 'completed')
-            .gte('created_at', monthStartStr)
-            .lte('created_at', todayStr);
-
-        for (var order in revenueResponse) {
-          totalRevenue += (order['total_price'] ?? 0).toDouble();
-        }
-        
-        debugPrint('Total revenue from Supabase: ₹$totalRevenue');
-      }
-
-      // Get raw material usage cost for this month
+      // Get revenue from completed orders this month
       final monthStartStr = "${monthStart.year}-${monthStart.month.toString().padLeft(2, '0')}-01";
       final todayStr = "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
 
+      final revenueResponse = await _supabase
+          .from('emp_mar_orders')
+          .select('total_price, created_at')
+          .eq('status', 'completed')
+          .gte('created_at', monthStartStr)
+          .lte('created_at', todayStr);
+
+      for (var order in revenueResponse) {
+        totalRevenue += (order['total_price'] ?? 0).toDouble();
+      }
+      
+      debugPrint('💰 Total revenue from Supabase: ₹$totalRevenue');
+
+      // Get raw material usage cost for this month
       final materialResponse = await _supabase
           .from('pro_raw_material_usage')
           .select('total_cost, raw_material_id, pro_inventory!inner(name)')
@@ -537,8 +523,7 @@ class _DashboardContentState extends State<DashboardContent> {
         rawMaterialCosts[materialName] = (rawMaterialCosts[materialName] ?? 0) + cost;
       }
 
-      debugPrint('Total raw material cost: ₹$totalRawMaterialCost');
-      debugPrint('Raw material breakdown: $rawMaterialCosts');
+      debugPrint('📊 Total raw material cost: ₹$totalRawMaterialCost');
 
       // Calculate profit
       double totalProfit = totalRevenue - totalRawMaterialCost;
@@ -553,73 +538,15 @@ class _DashboardContentState extends State<DashboardContent> {
           _rawMaterialUsage = rawMaterialCosts;
         });
         
-        debugPrint('Profit Calculation Complete:');
+        debugPrint('✅ Profit Calculation Complete:');
         debugPrint('  Revenue: ₹$_totalRevenue');
         debugPrint('  Material Cost: ₹$_totalRawMaterialCost');
         debugPrint('  Profit: ₹$_totalProfit');
         debugPrint('  Margin: ${_profitMargin.toStringAsFixed(2)}%');
       }
     } catch (e) {
-      debugPrint('Profit calculation error: $e');
+      debugPrint('❌ Profit calculation error: $e');
     }
-  }
-
-  // GET MONTHLY STATISTICS
-  Future<Map<String, dynamic>> getMonthlyStatistics() async {
-    final today = DateTime.now();
-    final monthStart = DateTime(today.year, today.month, 1);
-    final monthStartStr = "${monthStart.year}-${monthStart.month.toString().padLeft(2, '0')}-01";
-    final todayStr = "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
-
-    Map<String, dynamic> stats = {
-      'revenue': 0.0,
-      'material_cost': 0.0,
-      'profit': 0.0,
-      'margin': 0.0,
-      'order_count': 0,
-    };
-
-    try {
-      // Get revenue from completed orders
-      final ordersProvider = context.read<ProductionOrdersProvider>();
-      final completedOrders = ordersProvider.orders
-          .where((order) => order.status.toLowerCase() == 'completed')
-          .toList();
-      
-      int orderCount = 0;
-      double revenue = 0.0;
-      
-      for (var order in completedOrders) {
-        if (order.createdAt.isAfter(monthStart) && order.createdAt.isBefore(today.add(const Duration(days: 1)))) {
-          revenue += order.totalPrice;
-          orderCount++;
-        }
-      }
-      
-      stats['revenue'] = revenue;
-      stats['order_count'] = orderCount;
-
-      // Get raw material costs
-      final materialResponse = await _supabase
-          .from('pro_raw_material_usage')
-          .select('total_cost')
-          .gte('usage_date', monthStartStr)
-          .lte('usage_date', todayStr);
-
-      double materialCost = 0.0;
-      for (var usage in materialResponse) {
-        materialCost += (usage['total_cost'] ?? 0).toDouble();
-      }
-      
-      stats['material_cost'] = materialCost;
-      stats['profit'] = revenue - materialCost;
-      stats['margin'] = revenue > 0 ? ((revenue - materialCost) / revenue) * 100 : 0;
-
-    } catch (e) {
-      debugPrint('Error getting monthly statistics: $e');
-    }
-    
-    return stats;
   }
 
   Future<void> _fetchProductionMetrics() async {
@@ -751,37 +678,52 @@ class _DashboardContentState extends State<DashboardContent> {
             onPressed: () async {
               _showRefreshSnackBar(context);
               await _calculateProfitMetrics();
-              final stats = await getMonthlyStatistics();
-              _showMonthlyStatsDialog(context, stats);
             },
             tooltip: 'View Monthly Stats',
           ),
-          
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              _fetchAllData();
+              _showRefreshSnackBar(context);
+            },
+            tooltip: 'Refresh All Data',
+          ),
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: GlobalColors.primaryBlue))
-          : _DashboardBody(
-              inventoryData: _inventoryData,
-              products: _products,
-              recentOrders: _recentOrders,
-              isLoading: _isLoading,
-              todayProduction: _todayProduction,
-              productionTarget: _productionTarget,
-              activeMachines: _activeMachines,
-              totalMachines: _totalMachines,
-              qualityRate: _qualityRate,
-              totalRevenue: _totalRevenue,
-              totalRawMaterialCost: _totalRawMaterialCost,
-              totalProfit: _totalProfit,
-              profitMargin: _profitMargin,
-              rawMaterialUsage: _rawMaterialUsage,
-              totalInventoryBags: _totalInventoryBags,
-              currencyFormat: _currencyFormat,
-              onRefresh: () {
-                _fetchAllData();
+          ? const Center(
+              child: CircularProgressIndicator(
+                color: GlobalColors.primaryBlue,
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: () async {
+                await _fetchAllData();
                 _showRefreshSnackBar(context);
               },
+              child: _DashboardBody(
+                inventoryData: _inventoryData,
+                products: _products,
+                recentOrders: _recentOrders,
+                isLoading: _isLoading,
+                todayProduction: _todayProduction,
+                productionTarget: _productionTarget,
+                activeMachines: _activeMachines,
+                totalMachines: _totalMachines,
+                qualityRate: _qualityRate,
+                totalRevenue: _totalRevenue,
+                totalRawMaterialCost: _totalRawMaterialCost,
+                totalProfit: _totalProfit,
+                profitMargin: _profitMargin,
+                rawMaterialUsage: _rawMaterialUsage,
+                totalInventoryBags: _totalInventoryBags,
+                currencyFormat: _currencyFormat,
+                onRefresh: () {
+                  _fetchAllData();
+                  _showRefreshSnackBar(context);
+                },
+              ),
             ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
@@ -795,67 +737,6 @@ class _DashboardContentState extends State<DashboardContent> {
         backgroundColor: GlobalColors.primaryBlue,
         child: const Icon(Icons.add, color: Colors.white),
         tooltip: 'Record Raw Material Usage',
-      ),
-    );
-  }
-
-  void _showMonthlyStatsDialog(BuildContext context, Map<String, dynamic> stats) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(
-            'Monthly Statistics',
-            style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _statItem('Total Revenue', '₹${stats['revenue'].toStringAsFixed(2)}', Colors.green),
-              _statItem('Raw Material Cost', '₹${stats['material_cost'].toStringAsFixed(2)}', Colors.orange),
-              _statItem('Net Profit', '₹${stats['profit'].toStringAsFixed(2)}', 
-                  (stats['profit'] as double) >= 0 ? Colors.green : Colors.red),
-              _statItem('Profit Margin', '${stats['margin'].toStringAsFixed(2)}%', 
-                  (stats['margin'] as double) >= 20 ? Colors.green : Colors.orange),
-              _statItem('Completed Orders', stats['order_count'].toString(), Colors.blue),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _statItem(String label, String value, Color color) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              color: Colors.grey[700],
-            ),
-          ),
-          Text(
-            value,
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1581,14 +1462,7 @@ class _DashboardBody extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          if (isLoading)
-            Container(
-              height: 200,
-              child: const Center(
-                child: CircularProgressIndicator(color: GlobalColors.primaryBlue),
-              ),
-            )
-          else if (inventoryData.isEmpty)
+          if (inventoryData.isEmpty)
             Container(
               height: 200,
               child: Center(
@@ -1615,8 +1489,8 @@ class _DashboardBody extends StatelessWidget {
           else
             Column(
               children: inventoryData.take(4).map((item) {
-                final stock = (item['stock'] ?? 0).toDouble();
-                final reorder = (item['reorder_level'] ?? 100).toDouble();
+                final stock = (item['bags'] ?? 0).toDouble(); // Use bags instead of stock
+                final reorder = (item['min_bags_stock'] ?? 10).toDouble(); // Use min_bags_stock
                 final isLow = stock < reorder;
                 final percentage = reorder > 0 ? (stock / reorder) : 0;
 
@@ -1655,7 +1529,7 @@ class _DashboardBody extends StatelessWidget {
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              "${stock.toStringAsFixed(0)} ${item['unit'] ?? 'kg'}",
+                              "${stock.toStringAsFixed(0)} bags",
                               style: GoogleFonts.poppins(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -1702,7 +1576,7 @@ class _DashboardBody extends StatelessWidget {
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                "Below reorder level (${reorder.toStringAsFixed(0)} ${item['unit'] ?? 'kg'})",
+                                "Below reorder level (${reorder.toStringAsFixed(0)} bags)",
                                 style: GoogleFonts.poppins(
                                   fontSize: 11,
                                   color: Colors.red,
@@ -1831,8 +1705,8 @@ class _DashboardBody extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildProductionMetrics(),
-              const SizedBox(height: 20),
+              // _buildProductionMetrics(),
+              // const SizedBox(height: 20),
               
               _buildInventorySummary(),
               const SizedBox(height: 20),
@@ -1855,7 +1729,6 @@ class _DashboardBody extends StatelessWidget {
     );
   }
 }
-
 
 
 
