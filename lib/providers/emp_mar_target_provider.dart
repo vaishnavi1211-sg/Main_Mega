@@ -43,24 +43,20 @@ class TargetProvider extends ChangeNotifier {
             .like('target_month', '$currentYear-%')
             .order('target_month');
 
-        if (targetsResponse != null && targetsResponse is List) {
-          print('📊 Found ${targetsResponse.length} target records');
+        print('📊 Found ${targetsResponse.length} target records');
+        
+        for (final row in targetsResponse) {
+          final month = row['target_month']?.toString();
+          final amount = double.tryParse(row['target_amount'].toString()) ?? 0.0;
+          final rowEmpId = row['emp_id']?.toString();
           
-          for (final row in targetsResponse) {
-            final month = row['target_month']?.toString();
-            final amount = double.tryParse(row['target_amount'].toString()) ?? 0.0;
-            final rowEmpId = row['emp_id']?.toString();
-            
-            print('   Month: $month, Target Amount: $amount, Emp ID: $rowEmpId');
-            
-            if (month != null && targetMap.containsKey(month)) {
-              targetMap[month] = amount;
-            }
+          print('   Month: $month, Target Amount: $amount, Emp ID: $rowEmpId');
+          
+          if (month != null && targetMap.containsKey(month)) {
+            targetMap[month] = amount;
           }
-        } else {
-          print('⚠️ No target records found in emp_mar_targets');
         }
-      } catch (e) {
+            } catch (e) {
         print('❌ Error querying emp_mar_targets: $e');
       }
 
@@ -75,42 +71,40 @@ class TargetProvider extends ChangeNotifier {
             .gte('created_at', '$currentYear-01-01')
             .lte('created_at', '$currentYear-12-31');
 
-        if (ordersResponse != null && ordersResponse is List) {
-          print('📦 Found ${ordersResponse.length} completed orders');
+        print('📦 Found ${ordersResponse.length} completed orders');
+        
+        // Group by month
+        for (final order in ordersResponse) {
+          final createdAt = order['created_at']?.toString();
+          final totalWeight = (order['total_weight'] as num?)?.toDouble() ?? 0.0;
+          final bags = (order['bags'] as num?)?.toDouble() ?? 0.0;
           
-          // Group by month
-          for (final order in ordersResponse) {
-            final createdAt = order['created_at']?.toString();
-            final totalWeight = (order['total_weight'] as num?)?.toDouble() ?? 0.0;
-            final bags = (order['bags'] as num?)?.toDouble() ?? 0.0;
-            
-            if (createdAt != null) {
-              try {
-                final date = DateTime.parse(createdAt);
-                final monthKey = '${date.year}-${date.month.toString().padLeft(2, '0')}';
-                
-                if (achievedMap.containsKey(monthKey)) {
-                  // Convert weight to tons (if in kg, divide by 1000)
-                  double weightInTons = totalWeight;
-                  if (totalWeight > 1000) { // If it's in kg, convert to tons
-                    weightInTons = totalWeight / 1000;
-                  }
-                  
-                  // Alternative: if bags is available, estimate weight (50kg per bag = 0.05 tons)
-                  if (weightInTons == 0 && bags > 0) {
-                    weightInTons = bags * 0.05; // 50kg per bag
-                  }
-                  
-                  achievedMap[monthKey] = achievedMap[monthKey]! + weightInTons;
-                  print('     Added ${weightInTons.toStringAsFixed(2)} tons to $monthKey');
+          if (createdAt != null) {
+            try {
+              final date = DateTime.parse(createdAt);
+              final monthKey = '${date.year}-${date.month.toString().padLeft(2, '0')}';
+              
+              if (achievedMap.containsKey(monthKey)) {
+                // Convert weight to tons (if in kg, divide by 1000)
+                double weightInTons = totalWeight;
+                if (totalWeight > 1000) { // If it's in kg, convert to tons
+                  weightInTons = totalWeight / 1000;
                 }
-              } catch (e) {
-                print('     Error parsing date: $e');
+                
+                // Alternative: if bags is available, estimate weight (50kg per bag = 0.05 tons)
+                if (weightInTons == 0 && bags > 0) {
+                  weightInTons = bags * 0.05; // 50kg per bag
+                }
+                
+                achievedMap[monthKey] = achievedMap[monthKey]! + weightInTons;
+                print('     Added ${weightInTons.toStringAsFixed(2)} tons to $monthKey');
               }
+            } catch (e) {
+              print('     Error parsing date: $e');
             }
           }
         }
-      } catch (e) {
+            } catch (e) {
         print('❌ Error querying emp_mar_orders: $e');
       }
 
