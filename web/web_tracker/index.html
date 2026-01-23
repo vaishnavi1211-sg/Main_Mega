@@ -1,0 +1,641 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mega Pro Order Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #2196F3;
+            --secondary: #FF9800;
+            --success: #4CAF50;
+            --danger: #f44336;
+            --light: #f8f9fa;
+            --dark: #212529;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .navbar {
+            background: var(--primary) !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .tracking-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .status-badge {
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-packing { background: #d1ecf1; color: #0c5460; }
+        .status-ready { background: #d4edda; color: #155724; }
+        .status-dispatched { background: #cce5ff; color: #004085; }
+        .status-delivered { background: #d4edda; color: #155724; }
+        .status-completed { background: #28a745; color: white; }
+        
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+        
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #e0e0e0;
+        }
+        
+        .timeline-item {
+            position: relative;
+            margin-bottom: 25px;
+        }
+        
+        .timeline-dot {
+            position: absolute;
+            left: -28px;
+            top: 5px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            border: 3px solid white;
+            box-shadow: 0 0 0 3px #e0e0e0;
+        }
+        
+        .timeline-dot.active {
+            background: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary);
+        }
+        
+        .timeline-dot.completed {
+            background: var(--success);
+            box-shadow: 0 0 0 3px var(--success);
+        }
+        
+        .order-details td {
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .invoice-btn {
+            background: linear-gradient(45deg, var(--primary), #1976d2);
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 8px;
+            text-decoration: none;
+            display: inline-block;
+            transition: transform 0.3s;
+        }
+        
+        .invoice-btn:hover {
+            transform: translateY(-2px);
+            color: white;
+            text-decoration: none;
+            box-shadow: 0 5px 15px rgba(33, 150, 243, 0.3);
+        }
+        
+        .footer {
+            background: var(--dark);
+            color: white;
+            padding: 20px 0;
+            margin-top: 40px;
+        }
+        
+        .tracking-input {
+            border-radius: 10px;
+            padding: 15px;
+            border: 2px solid var(--primary);
+            font-size: 18px;
+        }
+        
+        .loading-spinner {
+            display: none;
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error-alert {
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-truck fa-lg me-2"></i>
+                <strong>Mega Pro</strong> Order Tracker
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container my-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <!-- Tracking Input -->
+                <div class="tracking-card p-4 mb-4">
+                    <h3 class="mb-3"><i class="fas fa-search me-2"></i>Track Your Order</h3>
+                    <p class="text-muted mb-4">Enter your tracking ID to check order status</p>
+                    
+                    <div class="input-group mb-3">
+                        <input type="text" id="trackingId" class="form-control tracking-input" 
+                               placeholder="Enter Tracking ID (e.g., ORD-12345678)">
+                        <button class="btn btn-primary btn-lg" onclick="trackOrder()">
+                            <i class="fas fa-search me-2"></i>Track
+                        </button>
+                    </div>
+                    
+                    <!-- Optional Token Input -->
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="useToken">
+                        <label class="form-check-label" for="useToken">
+                            I have a security token (optional)
+                        </label>
+                    </div>
+                    
+                    <div id="tokenInput" class="mb-3" style="display: none;">
+                        <input type="text" id="token" class="form-control" placeholder="Enter security token">
+                    </div>
+                </div>
+                
+                <!-- Loading Spinner -->
+                <div id="loadingSpinner" class="loading-spinner"></div>
+                
+                <!-- Error Alert -->
+                <div id="errorAlert" class="error-alert alert alert-danger" role="alert">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    <span id="errorMessage">Order not found. Please check your tracking ID.</span>
+                </div>
+                
+                <!-- Order Details (Initially Hidden) -->
+                <div id="orderDetails" class="tracking-card p-4" style="display: none;">
+                    <!-- Order Header -->
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <h4 class="mb-1">Order <span id="orderTrackingId"></span></h4>
+                            <p class="text-muted mb-0" id="orderDate"></p>
+                        </div>
+                        <div>
+                            <span id="orderStatusBadge" class="status-badge">Pending</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Status Timeline -->
+                    <h5 class="mb-3"><i class="fas fa-history me-2"></i>Order Progress</h5>
+                    <div class="timeline mb-4">
+                        <div class="timeline-item">
+                            <div class="timeline-dot completed"></div>
+                            <div class="timeline-content">
+                                <h6 class="mb-1">Order Placed</h6>
+                                <p class="text-muted mb-0" id="orderPlacedDate">Date will appear here</p>
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <div id="packingDot" class="timeline-dot"></div>
+                            <div class="timeline-content">
+                                <h6 class="mb-1">Packing</h6>
+                                <p class="text-muted mb-0">Your order is being prepared</p>
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <div id="readyDot" class="timeline-dot"></div>
+                            <div class="timeline-content">
+                                <h6 class="mb-1">Ready for Dispatch</h6>
+                                <p class="text-muted mb-0">Order is packed and ready</p>
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <div id="dispatchDot" class="timeline-dot"></div>
+                            <div class="timeline-content">
+                                <h6 class="mb-1">Dispatched</h6>
+                                <p class="text-muted mb-0">Order is on the way</p>
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <div id="deliveryDot" class="timeline-dot"></div>
+                            <div class="timeline-content">
+                                <h6 class="mb-1">Delivered</h6>
+                                <p class="text-muted mb-0">Order has been delivered</p>
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <div id="completeDot" class="timeline-dot"></div>
+                            <div class="timeline-content">
+                                <h6 class="mb-1">Completed</h6>
+                                <p class="text-muted mb-0">Order process completed</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Order Information -->
+                    <h5 class="mb-3"><i class="fas fa-info-circle me-2"></i>Order Information</h5>
+                    <div class="table-responsive">
+                        <table class="table order-details">
+                            <tbody>
+                                <tr>
+                                    <td width="40%"><strong>Customer Name</strong></td>
+                                    <td id="customerName">Loading...</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Mobile Number</strong></td>
+                                    <td id="customerMobile">Loading...</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Delivery Address</strong></td>
+                                    <td id="customerAddress">Loading...</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>District</strong></td>
+                                    <td id="customerDistrict">Loading...</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Product</strong></td>
+                                    <td id="productName">Loading...</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Quantity</strong></td>
+                                    <td id="orderQuantity">Loading...</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Total Weight</strong></td>
+                                    <td id="totalWeight">Loading...</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Total Amount</strong></td>
+                                    <td><strong id="totalAmount" class="text-primary">Loading...</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Invoice Section -->
+                    <div id="invoiceSection" class="mt-4" style="display: none;">
+                        <h5 class="mb-3"><i class="fas fa-file-invoice me-2"></i>Invoice</h5>
+                        <p>Your invoice is ready for download.</p>
+                        <a id="invoiceLink" href="#" target="_blank" class="invoice-btn">
+                            <i class="fas fa-download me-2"></i>Download Invoice
+                        </a>
+                        <p class="text-muted mt-2" id="invoiceGeneratedDate"></p>
+                    </div>
+                    
+                    <!-- Live Updates Info -->
+                    <div class="alert alert-info mt-4">
+                        <i class="fas fa-sync-alt me-2"></i>
+                        <strong>Live Updates:</strong> This page automatically updates when order status changes.
+                    </div>
+                </div>
+                
+                <!-- Instructions -->
+                <div class="tracking-card p-4 mt-4">
+                    <h5><i class="fas fa-question-circle me-2"></i>How to Track Your Order</h5>
+                    <ul class="mt-3">
+                        <li>Enter the tracking ID provided by our employee</li>
+                        <li>If you have a security token, enable the checkbox and enter it</li>
+                        <li>Click "Track" to view your order status</li>
+                        <li>This page will update automatically when status changes</li>
+                        <li>Download invoice when order is delivered</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Mega Pro Cattle Feed</h5>
+                    <p>Track your cattle feed orders in real-time</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p>Customer Support: 1800-123-4567</p>
+                    <p>Email: support@megapro.com</p>
+                </div>
+            </div>
+            <hr class="bg-light">
+            <div class="text-center">
+                <p class="mb-0">© 2024 Mega Pro Cattle Feed. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script>
+        // Supabase configuration - REPLACE WITH YOUR CREDENTIALS
+        const SUPABASE_URL = 'https://phkkiyxfcepqauxncqpm.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_GdCo8okHOGBmrW9OH_qsZg_PDOl7a1u';    
+
+        let currentOrderId = '';
+        let supabaseClient = null;
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize Supabase client
+            if (window.supabase) {
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            } else {
+                // Load Supabase from CDN
+                const script = document.createElement('script');
+                script.src = 'https://unpkg.com/@supabase/supabase-js@2';
+                script.onload = function() {
+                    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                    console.log('Supabase client loaded');
+                };
+                document.head.appendChild(script);
+            }
+            
+            // Show token input when checkbox is clicked
+            document.getElementById('useToken').addEventListener('change', function() {
+                document.getElementById('tokenInput').style.display = this.checked ? 'block' : 'none';
+            });
+            
+            // Check URL for tracking ID
+            const urlParams = new URLSearchParams(window.location.search);
+            const trackingId = urlParams.get('id');
+            const token = urlParams.get('token');
+            
+            if (trackingId) {
+                document.getElementById('trackingId').value = trackingId;
+                if (token) {
+                    document.getElementById('useToken').checked = true;
+                    document.getElementById('tokenInput').style.display = 'block';
+                    document.getElementById('token').value = token;
+                }
+                // Auto-track if ID is in URL
+                setTimeout(() => trackOrder(), 500);
+            }
+        });
+        
+        // Track order function
+        async function trackOrder() {
+            const trackingId = document.getElementById('trackingId').value.trim();
+            const useToken = document.getElementById('useToken').checked;
+            const token = useToken ? document.getElementById('token').value.trim() : null;
+            
+            if (!trackingId) {
+                showError('Please enter a tracking ID');
+                return;
+            }
+            
+            // Show loading, hide error and previous details
+            document.getElementById('loadingSpinner').style.display = 'block';
+            document.getElementById('errorAlert').style.display = 'none';
+            document.getElementById('orderDetails').style.display = 'none';
+            
+            try {
+                // Fetch order from Supabase
+                let response;
+                if (supabaseClient) {
+                    let query = supabaseClient
+                        .from('emp_mar_orders')
+                        .select('*')
+                        .eq('tracking_id', trackingId);
+                    
+                    if (token) {
+                        query = query.eq('tracking_token', token);
+                    }
+                    
+                    const { data, error } = await query.single();
+                    
+                    if (error) throw error;
+                    response = data;
+                } else {
+                    // Fallback to REST API
+                    const url = `${SUPABASE_URL}/rest/v1/emp_mar_orders?tracking_id=eq.${trackingId}${token ? `&tracking_token=eq.${token}` : ''}`;
+                    const res = await fetch(url, {
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                        }
+                    });
+                    
+                    if (!res.ok) throw new Error('Order not found');
+                    const data = await res.json();
+                    if (!data || data.length === 0) throw new Error('Order not found');
+                    response = data[0];
+                }
+                
+                // Display order details
+                displayOrderDetails(response);
+                currentOrderId = response.id;
+                
+                // Setup real-time subscription
+                setupRealtimeSubscription(trackingId);
+                
+            } catch (error) {
+                console.error('Tracking error:', error);
+                showError('Order not found or invalid token. Please check your details.');
+            } finally {
+                document.getElementById('loadingSpinner').style.display = 'none';
+            }
+        }
+        
+        // Display order details
+        function displayOrderDetails(order) {
+            // Update order header
+            document.getElementById('orderTrackingId').textContent = order.tracking_id;
+            document.getElementById('orderDate').textContent = `Placed on: ${formatDate(order.created_at)}`;
+            
+            // Update status badge
+            const statusBadge = document.getElementById('orderStatusBadge');
+            statusBadge.textContent = formatStatus(order.status);
+            statusBadge.className = `status-badge status-${order.status}`;
+            
+            // Update timeline
+            updateTimeline(order.status);
+            
+            // Update order information
+            document.getElementById('customerName').textContent = order.customer_name;
+            document.getElementById('customerMobile').textContent = order.customer_mobile;
+            document.getElementById('customerAddress').textContent = order.customer_address;
+            document.getElementById('customerDistrict').textContent = order.district || 'Not specified';
+            document.getElementById('productName').textContent = order.feed_category;
+            document.getElementById('orderQuantity').textContent = `${order.bags} Bags`;
+            document.getElementById('totalWeight').textContent = `${order.total_weight} ${order.weight_unit}`;
+            document.getElementById('totalAmount').textContent = `₹${order.total_price}`;
+            document.getElementById('orderPlacedDate').textContent = formatDate(order.created_at);
+            
+            // Show invoice section if invoice exists
+            if (order.invoice_url) {
+                document.getElementById('invoiceSection').style.display = 'block';
+                document.getElementById('invoiceLink').href = order.invoice_url;
+                document.getElementById('invoiceGeneratedDate').textContent = 
+                    `Generated on: ${formatDate(order.invoice_generated_at)}`;
+            } else {
+                document.getElementById('invoiceSection').style.display = 'none';
+            }
+            
+            // Show order details
+            document.getElementById('orderDetails').style.display = 'block';
+        }
+        
+        // Update timeline based on status
+        function updateTimeline(status) {
+            // Reset all dots
+            const dots = ['packingDot', 'readyDot', 'dispatchDot', 'deliveryDot', 'completeDot'];
+            dots.forEach(dot => {
+                const element = document.getElementById(dot);
+                element.className = 'timeline-dot';
+            });
+            
+            // Activate dots based on status
+            const statusMap = {
+                'pending': [],
+                'packing': ['packingDot'],
+                'ready_for_dispatch': ['packingDot', 'readyDot'],
+                'dispatched': ['packingDot', 'readyDot', 'dispatchDot'],
+                'delivered': ['packingDot', 'readyDot', 'dispatchDot', 'deliveryDot'],
+                'completed': ['packingDot', 'readyDot', 'dispatchDot', 'deliveryDot', 'completeDot']
+            };
+            
+            if (statusMap[status]) {
+                statusMap[status].forEach(dot => {
+                    const element = document.getElementById(dot);
+                    element.className = 'timeline-dot active';
+                });
+                
+                // Mark previous dots as completed
+                const statusOrder = ['pending', 'packing', 'ready_for_dispatch', 'dispatched', 'delivered', 'completed'];
+                const currentIndex = statusOrder.indexOf(status);
+                
+                for (let i = 0; i < currentIndex; i++) {
+                    const prevStatus = statusOrder[i];
+                    if (statusMap[prevStatus]) {
+                        statusMap[prevStatus].forEach(dot => {
+                            const element = document.getElementById(dot);
+                            if (element && !element.classList.contains('active')) {
+                                element.className = 'timeline-dot completed';
+                            }
+                        });
+                    }
+                }
+            }
+        }
+        
+        // Setup real-time subscription
+        function setupRealtimeSubscription(trackingId) {
+            if (!supabaseClient || !currentOrderId) return;
+            
+            // Subscribe to order updates
+            const channel = supabaseClient
+                .channel(`order-${trackingId}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'UPDATE',
+                        schema: 'public',
+                        table: 'emp_mar_orders',
+                        filter: `tracking_id=eq.${trackingId}`
+                    },
+                    (payload) => {
+                        console.log('Order updated:', payload.new);
+                        displayOrderDetails(payload.new);
+                        
+                        // Show update notification
+                        showNotification('Order status updated!');
+                    }
+                )
+                .subscribe();
+        }
+        
+        // Show error message
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('errorAlert').style.display = 'block';
+        }
+        
+        // Show notification
+        function showNotification(message) {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = 'alert alert-success alert-dismissible fade show position-fixed';
+            notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            notification.innerHTML = `
+                <i class="fas fa-bell me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 5000);
+        }
+        
+        // Helper functions
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-IN', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
+        function formatStatus(status) {
+            const statusMap = {
+                'pending': 'Pending',
+                'packing': 'Packing',
+                'ready_for_dispatch': 'Ready for Dispatch',
+                'dispatched': 'Dispatched',
+                'delivered': 'Delivered',
+                'completed': 'Completed'
+            };
+            return statusMap[status] || status;
+        }
+    </script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:mega_pro/marketing/mar_emp_attendace_report.dart';
-import 'package:mega_pro/marketing/mar_employees.dart';
+import 'package:mega_pro/marketing/mar_emp_performnace.dart' ;
+import 'package:mega_pro/marketing/mar_emp_target.dart';
 import 'package:mega_pro/marketing/mar_order.dart';
 import 'package:mega_pro/marketing/mar_profile.dart';
 import 'package:mega_pro/marketing/mar_reporting.dart';
@@ -195,12 +195,12 @@ class _MarketingManagerDashboardState extends State<MarketingManagerDashboard> {
       iconTheme: const IconThemeData(color: Colors.white),
       actions: [
         IconButton(
-          icon: const Icon(Icons.refresh),
+          icon: const Icon(Icons.group),
           onPressed: () {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => ManagerAttendancePage(),
+                builder: (context) => DistrictTeamMembersPage(),
               ),
             );
           },
@@ -431,9 +431,7 @@ class _DashboardContentState extends State<DashboardContent> {
   
   // Target variables
   Map<String, dynamic>? _currentTargetData;
-  Map<String, dynamic>? _teamPerformanceData;
   bool _isLoadingTarget = true;
-  bool _isLoadingTeam = true;
   bool _isLoadingSales = true;
   DateTime _currentMonth = DateTime.now();
   String? _managerId;
@@ -468,7 +466,6 @@ class _DashboardContentState extends State<DashboardContent> {
         print('❌ No user logged in');
         setState(() {
           _isLoadingTarget = false;
-          _isLoadingTeam = false;
           _isLoadingSales = false;
         });
         return;
@@ -487,7 +484,6 @@ class _DashboardContentState extends State<DashboardContent> {
         print('❌ No profile found for user');
         setState(() {
           _isLoadingTarget = false;
-          _isLoadingTeam = false;
           _isLoadingSales = false;
         });
         return;
@@ -506,7 +502,6 @@ class _DashboardContentState extends State<DashboardContent> {
         print('❌ Manager ID is empty');
         setState(() {
           _isLoadingTarget = false;
-          _isLoadingTeam = false;
           _isLoadingSales = false;
         });
         return;
@@ -539,7 +534,6 @@ class _DashboardContentState extends State<DashboardContent> {
       print('❌ Error initializing dashboard: $e');
       setState(() {
         _isLoadingTarget = false;
-        _isLoadingTeam = false;
         _isLoadingSales = false;
       });
     }
@@ -836,7 +830,6 @@ class _DashboardContentState extends State<DashboardContent> {
 
   Future<void> _loadTeamPerformance(String managerId) async {
     try {
-      setState(() => _isLoadingTeam = true);
       
       // Get all employees under this manager
       final employees = await supabase
@@ -847,8 +840,6 @@ class _DashboardContentState extends State<DashboardContent> {
 
       if (employees.isEmpty) {
         setState(() {
-          _teamPerformanceData = null;
-          _isLoadingTeam = false;
         });
         return;
       }
@@ -874,83 +865,24 @@ class _DashboardContentState extends State<DashboardContent> {
               '${_currentMonth.month == 12 ? '01' : (_currentMonth.month + 1).toString().padLeft(2, '0')}-01');
 
       // Calculate team totals
-      int totalRevenueTarget = 0;
-      int totalOrderTarget = 0;
-      int totalAchievedRevenue = 0;
-      int totalAchievedOrders = orders.length;
-      double totalProgress = 0;
+      // ignore: unused_local_variable
       int activeEmployees = 0;
 
       for (var employee in employees) {
         final employeeTargets = targets.where((t) => t['marketing_executive_id'] == employee['id']).toList();
-        final employeeOrders = orders.where((o) => o['created_by'] == employee['id']).toList();
+        orders.where((o) => o['created_by'] == employee['id']).toList();
         
         if (employeeTargets.isNotEmpty) {
-          final target = employeeTargets.first;
-          totalRevenueTarget += ((target['revenue_target'] ?? 0) as num).toInt();
-          totalOrderTarget += ((target['order_target'] ?? 0) as num).toInt();
-          totalAchievedRevenue += employeeOrders.fold(0, (sum, order) => sum + ((order['amount'] as int?) ?? 0));
-          totalProgress += (employeeOrders.length / (target['order_target'] ?? 1)).clamp(0.0, 1.0);
           activeEmployees++;
         }
       }
       setState(() {
-        _teamPerformanceData = {
-          'totalRevenueTarget': totalRevenueTarget,
-          'totalOrderTarget': totalOrderTarget,
-          'totalAchievedRevenue': totalAchievedRevenue,
-          'totalAchievedOrders': totalAchievedOrders,
-          'averageProgress': activeEmployees > 0 ? totalProgress / activeEmployees : 0,
-          'activeEmployees': activeEmployees,
-          'totalEmployees': employees.length,
-          'topPerformers': _getTopPerformers(employees, targets, orders),
-        };
-        _isLoadingTeam = false;
       });
 
     } catch (e) {
       print('❌ Error loading team performance: $e');
-      setState(() => _isLoadingTeam = false);
     }
-  }
-
-  List<Map<String, dynamic>> _getTopPerformers(
-    List<Map<String, dynamic>> employees,
-    List<Map<String, dynamic>> targets,
-    List<Map<String, dynamic>> orders,
-  ) {
-    final performers = <Map<String, dynamic>>[];
-
-    for (var employee in employees) {
-      final employeeTargets = targets.where((t) => t['marketing_executive_id'] == employee['id']).toList();
-      final employeeOrders = orders.where((o) => o['created_by'] == employee['id']).toList();
-      
-      if (employeeTargets.isNotEmpty) {
-        final target = employeeTargets.first;
-        final achievedRevenue = employeeOrders.fold<int>(0, (sum, order) => sum + ((order['amount'] as int?) ?? 0));
-        final revenueProgress = target['revenue_target'] > 0 
-            ? achievedRevenue / target['revenue_target'] 
-            : 0.0;
-        final orderProgress = target['order_target'] > 0 
-            ? employeeOrders.length / target['order_target'] 
-            : 0.0;
-        final overallProgress = (revenueProgress + orderProgress) / 2;
-
-        performers.add({
-          'id': employee['id'],
-          'name': employee['full_name'],
-          'revenueProgress': revenueProgress,
-          'orderProgress': orderProgress,
-          'overallProgress': overallProgress,
-          'achievedRevenue': achievedRevenue,
-          'achievedOrders': employeeOrders.length,
-        });
-      }
-    }
-
-    performers.sort((a, b) => b['overallProgress'].compareTo(a['overallProgress']));
-    return performers.take(3).toList();
-  }
+  } 
 
   // Line Chart Widget
   Widget _buildChart(List<Map<String, dynamic>> talukas) {
@@ -1505,304 +1437,8 @@ class _DashboardContentState extends State<DashboardContent> {
     );
   }
 
-  Widget _buildTeamPerformanceCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 15, offset: const Offset(0, 6))],
-      ),
-      child: _isLoadingTeam
-          ? Center(child: const CircularProgressIndicator(color: GlobalColors.primaryBlue))
-          : _teamPerformanceData == null
-              ? _buildNoTeamState()
-              : _buildTeamState(_teamPerformanceData!),
-    );
-  }
 
-  Widget _buildNoTeamState() {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text("Team Performance", style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey[800])),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.group, size: 14, color: Colors.orange[700]),
-                  const SizedBox(width: 4),
-                  Text("No Team", style: TextStyle(color: Colors.orange[700], fontWeight: FontWeight.w600, fontSize: 12)),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.grey[50],
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey[300]!, width: 1),
-          ),
-          child: Column(
-            children: [
-              Icon(Icons.group_outlined, size: 48, color: Colors.grey[400]),
-              const SizedBox(height: 12),
-              Text("No team members assigned", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey[700])),
-              const SizedBox(height: 8),
-              Text("Add marketing executives to your team", style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTeamState(Map<String, dynamic> teamData) {
-    final totalRevenue = teamData['totalAchievedRevenue'] ?? 0;
-    final totalOrders = teamData['totalAchievedOrders'] ?? 0;
-    final avgProgress = ((teamData['averageProgress'] ?? 0) * 100).toInt();
-    final activeEmployees = teamData['activeEmployees'] ?? 0;
-    final totalEmployees = teamData['totalEmployees'] ?? 0;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Header
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text("Team Performance", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.grey[800])),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: GlobalColors.primaryBlue.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.group, size: 14, color: GlobalColors.primaryBlue),
-                  const SizedBox(width: 6),
-                  Text("$activeEmployees/$totalEmployees Active", style: TextStyle(color: GlobalColors.primaryBlue, fontWeight: FontWeight.w600, fontSize: 12)),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        // Team Metrics
-        Row(
-          children: [
-            Expanded(
-              child: _buildTeamMetricCard(
-                title: "Total Revenue",
-                value: "₹${NumberFormat().format(totalRevenue)}",
-                icon: Icons.currency_rupee,
-                color: Colors.green,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildTeamMetricCard(
-                title: "Total Orders",
-                value: "${NumberFormat().format(totalOrders)}",
-                icon: Icons.shopping_cart,
-                color: Colors.blue,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildTeamMetricCard(
-                title: "Avg. Progress",
-                value: "$avgProgress%",
-                icon: Icons.trending_up,
-                color: Colors.orange,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildTeamMetricCard(
-                title: "Team Size",
-                value: "$totalEmployees",
-                icon: Icons.people,
-                color: Colors.purple,
-              ),
-            ),
-          ],
-        ),
-
-        // Top Performers
-        if ((teamData['topPerformers'] as List).isNotEmpty) ...[
-          const SizedBox(height: 20),
-          Text("Top Performers", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[800])),
-          const SizedBox(height: 12),
-          Column(
-            children: List.generate((teamData['topPerformers'] as List).length, (index) {
-              final performer = (teamData['topPerformers'] as List)[index];
-              final progress = (performer['overallProgress'] * 100).toInt();
-              return Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.grey[200]!),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: _getRankColor(index),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Text(
-                          "${index + 1}",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(performer['name'], style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                          const SizedBox(height: 2),
-                          Text("${performer['achievedOrders']} orders • ₹${NumberFormat().format(performer['achievedRevenue'])}", 
-                            style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _getProgressColor(progress),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text("$progress%", style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w600)),
-                    ),
-                  ],
-                ),
-              );
-            }),
-          ),
-        ],
-
-        // Real-time indicator
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.blue[50],
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.blue[100]!),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.sync, size: 14, color: Colors.blue[600]),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text("Team performance updates in real-time", 
-                  style: TextStyle(fontSize: 12, color: Colors.blue[700])),
-              ),
-              Container(
-                width: 8,
-                height: 8,
-                decoration: const BoxDecoration(
-                  color: Colors.green,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                "LIVE",
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.green,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTeamMetricCard({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 16, color: color),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(title, 
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w500),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey[800])),
-        ],
-      ),
-    );
-  }
-
-  Color _getRankColor(int rank) {
-    switch (rank) {
-      case 0: return Colors.amber[700]!;
-      case 1: return Colors.grey[500]!;
-      case 2: return Colors.orange[700]!;
-      default: return Colors.blue;
-    }
-  }
-
-  Color _getProgressColor(int progress) {
-    if (progress >= 90) return Colors.green;
-    if (progress >= 70) return Colors.blue;
-    if (progress >= 50) return Colors.orange;
-    return Colors.red;
-  }
+  
 
   @override
   Widget build(BuildContext context) {
@@ -2145,134 +1781,8 @@ class _DashboardContentState extends State<DashboardContent> {
               // Assigned Target Card
               _buildAssignedTargetCard(),
               
-              // Team Performance Card
-              _buildTeamPerformanceCard(),
-
-              // Action Buttons
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        if (_managerId != null) {
-                          setState(() {
-                            _isLoadingTarget = true;
-                            _isLoadingTeam = true;
-                            _isLoadingSales = true;
-                          });
-                          Future.wait([
-                            _loadCurrentTarget(_managerId!),
-                            _loadTeamPerformance(_managerId!),
-                            _loadInitialSalesData(),
-                          ]);
-                        }
-                      },
-                      icon: const Icon(Icons.refresh),
-                      label: const Text("Refresh All"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const EmployeeDetailPage(),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.group_add),
-                      label: const Text("Manage Team"),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        side: BorderSide(color: GlobalColors.primaryBlue),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              
-              // Real-time Information Card
-              Container(
-                margin: const EdgeInsets.only(top: 16),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey[200]!),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: Colors.green.withOpacity(0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(Icons.sync, color: Colors.green),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text("Real-time Dashboard", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[800])),
-                              const SizedBox(height: 2),
-                              Text("All data updates automatically as orders are completed", 
-                                style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        _buildInfoItem("Sales", "Updates from completed orders"),
-                        const SizedBox(width: 12),
-                        _buildInfoItem("Targets", "Auto-calculated achievements"),
-                        const SizedBox(width: 12),
-                        _buildInfoItem("Team", "Real-time performance tracking"),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              
-              SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoItem(String title, String description) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey[200]!),
-        ),
-        child: Column(
-          children: [
-            Text(title, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey[800])),
-            const SizedBox(height: 4),
-            Text(description, style: TextStyle(fontSize: 9, color: Colors.grey[600]), textAlign: TextAlign.center),
-          ],
         ),
       ),
     );

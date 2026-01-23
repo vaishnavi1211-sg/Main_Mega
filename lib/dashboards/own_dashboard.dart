@@ -22,8 +22,6 @@ class OwnerDashboard extends StatefulWidget {
 
 class _OwnerDashboardState extends State<OwnerDashboard> {
   final DateTime _selectedDate = DateTime.now();
-  String _selectedFilter = 'Today';
-  final List<String> _filters = ['Today', 'This Week', 'This Month', 'This Year'];
   final ScrollController _scrollController = ScrollController();
   bool _showRefreshIndicator = false;
 

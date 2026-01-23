@@ -179,45 +179,7 @@ class _ReportingPageState extends State<ReportingPage> {
       },
       child: Scaffold(
         backgroundColor: const Color(0xFFF3F4F6),
-        appBar: AppBar(
-          backgroundColor: themePrimary,
-          elevation: 0,
-          title: Text("Field Visit Entry", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
-          iconTheme: const IconThemeData(color: Colors.white),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () {
-              // Check if form has data
-              if (_enterpriseNameController.text.isNotEmpty || 
-                  _selfieFile != null || 
-                  _meterFile != null) {
-                showDialog(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('Unsaved Changes'),
-                    content: const Text('Going back will discard your form data. Continue?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text('STAY'),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          _clearForm();
-                          Navigator.pop(ctx);
-                          Navigator.pop(context);
-                        },
-                        child: const Text('LEAVE'),
-                      ),
-                    ],
-                  ),
-                );
-              } else {
-                Navigator.pop(context);
-              }
-            },
-          ),
-        ),
+       
         body: _isSubmitting 
           ? const Center(child: CircularProgressIndicator()) 
           : SingleChildScrollView(
