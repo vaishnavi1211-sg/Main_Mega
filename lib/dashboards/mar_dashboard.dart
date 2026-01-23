@@ -38,7 +38,7 @@ class _MarketingManagerDashboardState extends State<MarketingManagerDashboard> {
       DashboardContent(userData: widget.userData),
       const EmployeeDetailPage(),
       const CattleFeedOrderScreen(),
-      const ReportingPage(),
+      const MarketingManagerAttendancePage(),
       MarketingProfilePage(userData: widget.userData),
     ];
   }
@@ -1494,7 +1494,7 @@ class _DashboardContentState extends State<DashboardContent> {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              "Assigned District: $_selectedDistrict",
+                              " District: $_selectedDistrict",
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
@@ -1552,8 +1552,8 @@ class _DashboardContentState extends State<DashboardContent> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Colors.blue[600]!,
-                      Colors.blue[600]!,
+                      GlobalColors.primaryBlue,
+                      GlobalColors.primaryBlue,
                     ],
                   ),
                   borderRadius: BorderRadius.circular(16),
@@ -1586,7 +1586,7 @@ class _DashboardContentState extends State<DashboardContent> {
                                   width: 12,
                                   height: 12,
                                   child: CircularProgressIndicator(
-                                    strokeWidth: 2,
+                                    strokeWidth: 1,
                                     color: Colors.white,
                                   ),
                                 ),

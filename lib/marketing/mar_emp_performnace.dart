@@ -1370,7 +1370,7 @@ class _DistrictTeamMembersPageState extends State<DistrictTeamMembersPage> {
                                   const SizedBox(height: 2),
                                   Text(
                                     _managerName != null
-                                        ? '$_managerName · $_managerDistrict "}'
+                                        ? '$_managerName · $_managerDistrict'
                                         : 'District: $_managerDistrict',
                                     style: GoogleFonts.poppins(
                                       fontSize: 12,

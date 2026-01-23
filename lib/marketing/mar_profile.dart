@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:mega_pro/marketing/mar_attendance_histroy.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:mega_pro/global/global_variables.dart';
@@ -185,134 +186,166 @@ class _MarketingProfilePageState extends State<MarketingProfilePage> {
   }
 
   // ================= PROFILE HEADER =================
-  Widget _buildProfileHeader(Map<String, dynamic> manager) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            GlobalColors.primaryBlue,
-            GlobalColors.primaryBlue.withOpacity(0.9),
-          ],
-        ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
-        ),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Stack(
-                children: [
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 3),
-                    ),
-                    child: CircleAvatar(
-                      radius: 40,
-                      backgroundColor: Colors.white,
-                      backgroundImage:
-                          profileImage != null ? FileImage(profileImage!) : null,
-                      child: profileImage == null
-                          ? Text(
-                              (manager['empName'] is String && 
-                              manager['empName'].isNotEmpty)
-                                ? manager['empName'].substring(0, 2).toUpperCase()
-                                : "MM",
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: GlobalColors.primaryBlue,
-                              ),
-                            )
-                          : null,
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: GestureDetector(
-                      onTap: pickProfileImage,
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.15),
-                              blurRadius: 4,
-                            )
-                          ],
-                        ),
-                        child: Icon(
-                          Icons.camera_alt,
-                          size: 18,
-                          color: GlobalColors.primaryBlue,
-                        ),
-                      ),
-                    ),
-                  )
-                ],
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      manager['empName']?.toString() ?? 'Marketing Manager',
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      manager['position']?.toString() ?? 'Marketing Manager',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        manager['status']?.toString() ?? 'Active',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            ],
-          ),
-          const SizedBox(height: 20),
-          _buildManagerIdCard(manager),
+ Widget _buildProfileHeader(Map<String, dynamic> manager) {
+  return Container(
+    padding: const EdgeInsets.all(24),
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          GlobalColors.primaryBlue,
+          GlobalColors.primaryBlue.withOpacity(0.9),
         ],
       ),
-    );
-  }
+      borderRadius: const BorderRadius.only(
+        bottomLeft: Radius.circular(24),
+        bottomRight: Radius.circular(24),
+      ),
+    ),
+    child: Column(
+      children: [
+        Row(
+          children: [
+            Stack(
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 3),
+                  ),
+                  child: CircleAvatar(
+                    radius: 40,
+                    backgroundColor: Colors.white,
+                    backgroundImage:
+                        profileImage != null ? FileImage(profileImage!) : null,
+                    child: profileImage == null
+                        ? Text(
+                            (manager['empName'] is String && 
+                            manager['empName'].isNotEmpty)
+                              ? manager['empName'].substring(0, 2).toUpperCase()
+                              : "MM",
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: GlobalColors.primaryBlue,
+                            ),
+                          )
+                        : null,
+                  ),
+                ),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: GestureDetector(
+                    onTap: pickProfileImage,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.15),
+                            blurRadius: 4,
+                          )
+                        ],
+                      ),
+                      child: Icon(
+                        Icons.camera_alt,
+                        size: 18,
+                        color: GlobalColors.primaryBlue,
+                      ),
+                    ),
+                  ),
+                )
+              ],
+            ),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    manager['empName']?.toString() ?? 'Marketing Manager',
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    manager['position']?.toString() ?? 'Marketing Manager',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      manager['status']?.toString() ?? 'Active',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          ],
+        ),
+        const SizedBox(height: 20),
+        
+        // Attendance History Button
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 16),
+          child: ElevatedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const MarketingManagerAttendanceHistoryPage(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.calendar_today, size: 20),
+            label: const Text(
+              'View Attendance History',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: GlobalColors.primaryBlue,
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 2,
+              shadowColor: Colors.black.withOpacity(0.1),
+            ),
+          ),
+        ),
+        
+        _buildManagerIdCard(manager),
+      ],
+    ),
+  );
+}
 
   Widget _buildManagerIdCard(Map<String, dynamic> manager) {
     return Container(

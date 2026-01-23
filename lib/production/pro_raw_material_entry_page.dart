@@ -884,22 +884,7 @@ class _ProRawMaterialEntryPageState extends State<ProRawMaterialEntryPage> {
                   },
                 ),
               ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  'Stock: ${material.availableStock.toStringAsFixed(0)}',
-                  style: GoogleFonts.poppins(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.blue,
-                  ),
-                ),
-              ),
+              
             ],
           ),
           if (material.quantity > 0)
