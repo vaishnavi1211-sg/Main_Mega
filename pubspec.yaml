@@ -50,6 +50,8 @@ dependencies:
   percent_indicator: ^4.2.3
   badges: ^3.0.0
   geocoding: ^2.1.1
+  url_launcher: ^6.1.14  # For opening WhatsApp
+  clipboard: ^0.1.3
 
 
 dev_dependencies:

@@ -22,9 +22,11 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Supabase.initialize(
     url: "https://phkkiyxfcepqauxncqpm.supabase.co",
-    anonKey: "sb_publishable_GdCo8okHOGBmrW9OH_qsZg_PDOl7a1u",
+    anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBoa2tpeXhmY2VwcWF1eG5jcXBtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY5NzUwNDgsImV4cCI6MjA4MjU1MTA0OH0.MZoyvuXy0jAE7yN9AT94qal5ND9wtuuXIu5av9rJMkc",
   );
 }
+
+//sb_publishable_GdCo8okHOGBmrW9OH_qsZg_PDOl7a1u
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});

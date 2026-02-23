@@ -254,7 +254,7 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
           print('📊 Performance Metrics Calculated:');
           print('  Task Completion: $_taskCompletionRate%');
           print('  Work Quality: $_workQualityScore%');
-          print('  Attendance: $_attendancePercentage% ($_attendedDays/$_totalWorkingDays days)');
+          print('  Attendance: $_attendancePercentage% ($_attendedDays/$_totalWorkingDays )');
           print('  Team Collaboration: $_teamCollaborationScore%');
           print('  Overall Performance: $_performanceScore%');
 
@@ -1036,7 +1036,7 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
                         _statItem(
                           "Completed Orders",
                           _completedOrdersCount.toString(),
-                          Colors.green,
+                          Colors.blue,
                         ),
                         const SizedBox(width: 12),
                         _statItem(
@@ -1046,9 +1046,9 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
                         ),
                         const SizedBox(width: 12),
                         _statItem(
-                          "Attendance",
-                          "$_attendedDays/$_totalWorkingDays days",
-                          Colors.orange,
+                          "Present Days",
+                          "$_attendedDays/$_totalWorkingDays ",
+                          Colors.blue,
                         ),
                       ],
                     ),
@@ -1086,58 +1086,7 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
             ),
             const SizedBox(height: 20),
 
-            // Detailed Performance Metrics
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      "Detailed Performance Metrics",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _performanceMetric(
-                      title: "Task Completion Rate",
-                      value: _taskCompletionRate,
-                      color: _getMetricColor(_taskCompletionRate),
-                      description: "Completed $_completedOrdersCount out of $_totalOrdersCount orders",
-                    ),
-                    const SizedBox(height: 12),
-                    _performanceMetric(
-                      title: "Work Quality Score",
-                      value: _workQualityScore,
-                      color: _getMetricColor(_workQualityScore),
-                      description: "Based on order value and completion time",
-                    ),
-                    const SizedBox(height: 12),
-                    _performanceMetric(
-                      title: "Team Collaboration",
-                      value: _teamCollaborationScore,
-                      color: _getMetricColor(_teamCollaborationScore),
-                      description: "Team activities and coordination",
-                    ),
-                    const SizedBox(height: 12),
-                    _performanceMetric(
-                      title: "Monthly Attendance",
-                      value: _attendancePercentage,
-                      color: _getAttendanceColor(_attendancePercentage),
-                      description: "Present $_attendedDays out of $_totalWorkingDays days",
-                    ),
-                  ],
-                ),
-              ),
-            ),
+           
           ],
         ),
       ),
@@ -1223,57 +1172,6 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
     );
   }
 
-  Widget _performanceMetric({
-    required String title,
-    required double value,
-    required Color color,
-    required String description,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey[700],
-                ),
-              ),
-            ),
-            Text(
-              "${value.toStringAsFixed(1)}%",
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          description,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
-        ),
-        const SizedBox(height: 8),
-        LinearProgressIndicator(
-          value: value / 100,
-          backgroundColor: Colors.grey[200],
-          valueColor: AlwaysStoppedAnimation<Color>(color),
-          minHeight: 4,
-          borderRadius: BorderRadius.circular(2),
-        ),
-      ],
-    );
-  }
 
   Color _getPerformanceColor(double score) {
     if (score >= 85) return Colors.green;
@@ -1289,12 +1187,6 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
     return Colors.red;
   }
 
-  Color _getMetricColor(double value) {
-    if (value >= 80) return Colors.green;
-    if (value >= 60) return Colors.blue;
-    if (value >= 40) return Colors.orange;
-    return Colors.red;
-  }
 
   Widget _buildAdditionalInfo(Map<String, dynamic> employee) {
     return Card(

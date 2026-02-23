@@ -1,1186 +1,8 @@
-// import 'dart:convert';
-// import 'dart:math';
-// import 'package:flutter/material.dart';
-// import 'package:mega_pro/global/global_variables.dart';
-// import 'package:mega_pro/providers/emp_order_provider.dart';
-// import 'package:provider/provider.dart';
-// import 'package:clipboard/clipboard.dart';
-
-// class CattleFeedOrderScreen extends StatefulWidget {
-//   const CattleFeedOrderScreen({super.key});
-
-//   @override
-//   State<CattleFeedOrderScreen> createState() => _CattleFeedOrderScreenState();
-// }
-
-// class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
-//   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-//   int selectedBags = 1;
-//   String? selectedCategory;
-//   String? selectedDistrict;
-//   bool _orderPlaced = false;
-//   Map<String, dynamic>? _orderDetails;
-//   String? _trackingLink;
-//   String? _trackingId;
-
-//   final TextEditingController nameController = TextEditingController();
-//   final TextEditingController addressController = TextEditingController();
-//   final TextEditingController mobileController = TextEditingController();
-//   final TextEditingController emailController = TextEditingController();
-//   final TextEditingController remarksController = TextEditingController();
-
-//   final List<String> districtOptions = [
-//     'Select District',
-//     'Ahmednagar',
-//     'Akola',
-//     'Amravati',
-//     'Aurangabad',
-//     'Beed',
-//     'Bhandara',
-//     'Buldhana',
-//     'Chandrapur',
-//     'Dhule',
-//     'Gadchiroli',
-//     'Gondia',
-//     'Hingoli',
-//     'Jalgaon',
-//     'Jalna',
-//     'Kolhapur',
-//     'Latur',
-//     'Mumbai City',
-//     'Mumbai Suburban',
-//     'Nagpur',
-//     'Nanded',
-//     'Nandurbar',
-//     'Nashik',
-//     'Osmanabad',
-//     'Palghar',
-//     'Parbhani',
-//     'Pune',
-//     'Raigad',
-//     'Ratnagiri',
-//     'Sangli',
-//     'Satara',
-//     'Sindhudurg',
-//     'Solapur',
-//     'Thane',
-//     'Wardha',
-//     'Washim',
-//     'Yavatmal',
-//     'Other'
-//   ];
-
-//   final Map<String, Map<String, dynamic>> categories = {
-//     "मिल्क पॉवर / Milk Power": {"weight": 20, "unit": "kg", "price": 350},
-//     "दुध सरिता / Dugdh Sarita": {"weight": 25, "unit": "kg", "price": 450},
-//     "दुग्धराज / Dugdh Raj": {"weight": 30, "unit": "kg", "price": 600},
-//     "डायमंड संतुलित पशु आहार / Diamond Balanced Animal Feed": {"weight": 10, "unit": "kg", "price": 800},
-//     "मिल्क पॉवर प्लस / Milk Power Plus": {"weight": 5, "unit": "kg", "price": 1200},
-//     "संतुलित पशु आहार / Santulit Pashu Aahar": {"weight": 5, "unit": "kg", "price": 1200},
-//     "जीवन धारा / Jeevan Dhara": {"weight": 5, "unit": "kg", "price": 1200},
-//     "Dairy Special संतुलित पशु आहार": {"weight": 5, "unit": "kg", "price": 1200},
-//   };
-
-//   final List<int> bagOptions = [1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 40, 50];
-
-//   @override
-//   Widget build(BuildContext context) {
-//     final orderProvider = Provider.of<OrderProvider>(context, listen: false);
-
-//     if (_orderPlaced) {
-//       return _buildSuccessPage(orderProvider);
-//     }
-
-//     return Scaffold(
-//       backgroundColor: GlobalColors.background,
-//       appBar: AppBar(
-//         backgroundColor: GlobalColors.primaryBlue,
-//         elevation: 0,
-//         centerTitle: true,
-//         iconTheme: const IconThemeData(color: GlobalColors.white),
-//         leading: IconButton(
-//           icon: const Icon(Icons.arrow_back, color: GlobalColors.white),
-//           onPressed: () {
-//             Navigator.pop(context);
-//           },
-//         ),
-//         title: const Text(
-//           "Cattle Feed Order",
-//           style: TextStyle(
-//             color: GlobalColors.white,
-//             fontWeight: FontWeight.w600,
-//             fontSize: 20,
-//           ),
-//         ),
-//       ),
-//       body: orderProvider.loading
-//           ? const Center(
-//               child: CircularProgressIndicator(
-//                 color: GlobalColors.primaryBlue,
-//               ),
-//             )
-//           : Form(
-//               key: _formKey,
-//               child: SingleChildScrollView(
-//                 padding: const EdgeInsets.only(bottom: 40),
-//                 child: Column(
-//                   crossAxisAlignment: CrossAxisAlignment.start,
-//                   children: [
-//                     // Header Section
-//                     Container(
-//                       width: double.infinity,
-//                       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-//                       decoration: BoxDecoration(
-//                         color: GlobalColors.primaryBlue,
-//                         borderRadius: const BorderRadius.only(
-//                           bottomLeft: Radius.circular(20),
-//                           bottomRight: Radius.circular(20),
-//                         ),
-//                       ),
-//                       child: const Column(
-//                         crossAxisAlignment: CrossAxisAlignment.start,
-//                         children: [
-//                           Text(
-//                             "New Feed Order",
-//                             style: TextStyle(
-//                               color: GlobalColors.white,
-//                               fontSize: 24,
-//                               fontWeight: FontWeight.bold,
-//                             ),
-//                           ),
-//                           SizedBox(height: 6),
-//                           Text(
-//                             "Fill the details to place order",
-//                             style: TextStyle(
-//                               color: GlobalColors.white,
-//                               fontSize: 14,
-//                             ),
-//                           ),
-//                         ],
-//                       ),
-//                     ),
-//                     const SizedBox(height: 24),
-
-//                     // Customer Information Section
-//                     Padding(
-//                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-//                       child: Text(
-//                         "Customer Information",
-//                         style: TextStyle(
-//                           fontSize: 17,
-//                           fontWeight: FontWeight.w600,
-//                           color: Colors.black,
-//                         ),
-//                       ),
-//                     ),
-//                     Padding(
-//                       padding: const EdgeInsets.symmetric(horizontal: 20),
-//                       child: Container(
-//                         padding: const EdgeInsets.all(20),
-//                         decoration: BoxDecoration(
-//                           color: Colors.white,
-//                           borderRadius: BorderRadius.circular(16),
-//                           boxShadow: [
-//                             BoxShadow(
-//                               color: Colors.grey.withOpacity(0.1),
-//                               blurRadius: 15,
-//                               offset: const Offset(0, 4),
-//                             ),
-//                           ],
-//                           border: Border.all(color: Colors.grey, width: 1),
-//                         ),
-//                         child: Column(
-//                           children: [
-//                             // Name Field
-//                             Column(
-//                               crossAxisAlignment: CrossAxisAlignment.start,
-//                               children: [
-//                                 Text(
-//                                   "Customer Name *",
-//                                   style: TextStyle(
-//                                     fontSize: 14,
-//                                     fontWeight: FontWeight.w500,
-//                                     color: Colors.black,
-//                                   ),
-//                                 ),
-//                                 const SizedBox(height: 8),
-//                                 TextFormField(
-//                                   controller: nameController,
-//                                   decoration: InputDecoration(
-//                                     hintText: "Enter full name",
-//                                     filled: true,
-//                                     fillColor: Colors.white,
-//                                     prefixIcon: Icon(Icons.person_outline, color: GlobalColors.primaryBlue),
-//                                     border: OutlineInputBorder(
-//                                       borderRadius: BorderRadius.circular(12),
-//                                       borderSide: BorderSide(color: Colors.grey, width: 1),
-//                                     ),
-//                                   ),
-//                                   validator: (value) {
-//                                     if (value == null || value.isEmpty) {
-//                                       return 'Please enter customer name';
-//                                     }
-//                                     return null;
-//                                   },
-//                                 ),
-//                               ],
-//                             ),
-//                             const SizedBox(height: 16),
-
-//                             // Mobile Field
-//                             Column(
-//                               crossAxisAlignment: CrossAxisAlignment.start,
-//                               children: [
-//                                 Text(
-//                                   "Mobile Number *",
-//                                   style: TextStyle(
-//                                     fontSize: 14,
-//                                     fontWeight: FontWeight.w500,
-//                                     color: Colors.black,
-//                                   ),
-//                                 ),
-//                                 const SizedBox(height: 8),
-//                                 TextFormField(
-//                                   controller: mobileController,
-//                                   keyboardType: TextInputType.phone,
-//                                   decoration: InputDecoration(
-//                                     hintText: "10 digit mobile number",
-//                                     filled: true,
-//                                     fillColor: Colors.white,
-//                                     prefixIcon: Icon(Icons.phone_outlined, color: GlobalColors.primaryBlue),
-//                                     border: OutlineInputBorder(
-//                                       borderRadius: BorderRadius.circular(12),
-//                                       borderSide: BorderSide(color: Colors.grey, width: 1),
-//                                     ),
-//                                   ),
-//                                   validator: (value) {
-//                                     if (value == null || value.isEmpty) {
-//                                       return 'Please enter mobile number';
-//                                     }
-//                                     if (value.length != 10 || int.tryParse(value) == null) {
-//                                       return 'Enter valid 10-digit mobile number';
-//                                     }
-//                                     return null;
-//                                   },
-//                                 ),
-//                               ],
-//                             ),
-//                             const SizedBox(height: 16),
-
-//                             // Email Field
-//                             Column(
-//                               crossAxisAlignment: CrossAxisAlignment.start,
-//                               children: [
-//                                 Text(
-//                                   "Email Address (Optional)",
-//                                   style: TextStyle(
-//                                     fontSize: 14,
-//                                     fontWeight: FontWeight.w500,
-//                                     color: Colors.black,
-//                                   ),
-//                                 ),
-//                                 const SizedBox(height: 8),
-//                                 TextFormField(
-//                                   controller: emailController,
-//                                   keyboardType: TextInputType.emailAddress,
-//                                   decoration: InputDecoration(
-//                                     hintText: "Enter email for invoice",
-//                                     filled: true,
-//                                     fillColor: Colors.white,
-//                                     prefixIcon: Icon(Icons.email_outlined, color: GlobalColors.primaryBlue),
-//                                     border: OutlineInputBorder(
-//                                       borderRadius: BorderRadius.circular(12),
-//                                       borderSide: BorderSide(color: Colors.grey, width: 1),
-//                                     ),
-//                                   ),
-//                                 ),
-//                               ],
-//                             ),
-//                             const SizedBox(height: 16),
-
-//                             // Address Field
-//                             Column(
-//                               crossAxisAlignment: CrossAxisAlignment.start,
-//                               children: [
-//                                 Text(
-//                                   "Delivery Address *",
-//                                   style: TextStyle(
-//                                     fontSize: 14,
-//                                     fontWeight: FontWeight.w500,
-//                                     color: Colors.black,
-//                                   ),
-//                                 ),
-//                                 const SizedBox(height: 8),
-//                                 TextFormField(
-//                                   controller: addressController,
-//                                   maxLines: 2,
-//                                   decoration: InputDecoration(
-//                                     hintText: "Enter complete delivery address",
-//                                     filled: true,
-//                                     fillColor: Colors.white,
-//                                     prefixIcon: Icon(Icons.location_on_outlined, color: GlobalColors.primaryBlue),
-//                                     border: OutlineInputBorder(
-//                                       borderRadius: BorderRadius.circular(12),
-//                                       borderSide: BorderSide(color: Colors.grey, width: 1),
-//                                     ),
-//                                   ),
-//                                   validator: (value) {
-//                                     if (value == null || value.isEmpty) {
-//                                       return 'Please enter delivery address';
-//                                     }
-//                                     return null;
-//                                   },
-//                                 ),
-//                               ],
-//                             ),
-//                             const SizedBox(height: 16),
-
-//                             // District Dropdown
-//                             Column(
-//                               crossAxisAlignment: CrossAxisAlignment.start,
-//                               children: [
-//                                 Text(
-//                                   "District *",
-//                                   style: TextStyle(
-//                                     fontSize: 14,
-//                                     fontWeight: FontWeight.w500,
-//                                     color: Colors.black,
-//                                   ),
-//                                 ),
-//                                 const SizedBox(height: 8),
-//                                 DropdownButtonFormField<String>(
-//                                   value: selectedDistrict,
-//                                   decoration: InputDecoration(
-//                                     filled: true,
-//                                     fillColor: Colors.white,
-//                                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-//                                     border: OutlineInputBorder(
-//                                       borderRadius: BorderRadius.circular(12),
-//                                       borderSide: BorderSide.none,
-//                                     ),
-//                                     enabledBorder: OutlineInputBorder(
-//                                       borderRadius: BorderRadius.circular(12),
-//                                       borderSide: BorderSide(color: Colors.grey, width: 1),
-//                                     ),
-//                                     focusedBorder: OutlineInputBorder(
-//                                       borderRadius: BorderRadius.circular(12),
-//                                       borderSide: BorderSide(color: GlobalColors.primaryBlue, width: 1),
-//                                     ),
-//                                   ),
-//                                   hint: const Text("Select district"),
-//                                   items: districtOptions
-//                                       .where((district) => district != 'Select District')
-//                                       .map((district) => DropdownMenuItem(
-//                                             value: district,
-//                                             child: Text(district),
-//                                           ))
-//                                       .toList(),
-//                                   onChanged: (value) => setState(() => selectedDistrict = value),
-//                                   validator: (value) {
-//                                     if (value == null || value.isEmpty) {
-//                                       return 'Please select a district';
-//                                     }
-//                                     return null;
-//                                   },
-//                                 ),
-//                               ],
-//                             ),
-//                           ],
-//                         ),
-//                       ),
-//                     ),
-
-//                     const SizedBox(height: 20),
-
-//                     // Order Details Section
-//                     Padding(
-//                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-//                       child: Text(
-//                         "Order Details",
-//                         style: TextStyle(
-//                           fontSize: 17,
-//                           fontWeight: FontWeight.w600,
-//                           color: Colors.black,
-//                         ),
-//                       ),
-//                     ),
-//                     Padding(
-//                       padding: const EdgeInsets.symmetric(horizontal: 20),
-//                       child: Container(
-//                         padding: const EdgeInsets.all(20),
-//                         decoration: BoxDecoration(
-//                           color: Colors.white,
-//                           borderRadius: BorderRadius.circular(16),
-//                           boxShadow: [
-//                             BoxShadow(
-//                               color: Colors.grey.withOpacity(0.1),
-//                               blurRadius: 15,
-//                               offset: const Offset(0, 4),
-//                             ),
-//                           ],
-//                           border: Border.all(color: Colors.grey, width: 1),
-//                         ),
-//                         child: Column(
-//                           children: [
-//                             // Category Dropdown
-//                             Column(
-//                               crossAxisAlignment: CrossAxisAlignment.start,
-//                               children: [
-//                                 Text(
-//                                   "Feed Category *",
-//                                   style: TextStyle(
-//                                     fontSize: 14,
-//                                     fontWeight: FontWeight.w500,
-//                                     color: Colors.black,
-//                                   ),
-//                                 ),
-//                                 const SizedBox(height: 8),
-//                                 DropdownButtonFormField<String>(
-//                                   value: selectedCategory,
-//                                   decoration: InputDecoration(
-//                                     filled: true,
-//                                     fillColor: Colors.white,
-//                                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-//                                     border: OutlineInputBorder(
-//                                       borderRadius: BorderRadius.circular(12),
-//                                       borderSide: BorderSide.none,
-//                                     ),
-//                                     enabledBorder: OutlineInputBorder(
-//                                       borderRadius: BorderRadius.circular(12),
-//                                       borderSide: BorderSide(color: Colors.grey, width: 1),
-//                                     ),
-//                                     focusedBorder: OutlineInputBorder(
-//                                       borderRadius: BorderRadius.circular(12),
-//                                       borderSide: BorderSide(color: GlobalColors.primaryBlue, width: 1),
-//                                     ),
-//                                   ),
-//                                   hint: const Text("Select feed category"),
-//                                   items: categories.keys
-//                                       .map((category) => DropdownMenuItem(
-//                                             value: category,
-//                                             child: Text(category),
-//                                           ))
-//                                       .toList(),
-//                                   onChanged: (value) => setState(() => selectedCategory = value),
-//                                   validator: (value) {
-//                                     if (value == null || value.isEmpty) {
-//                                       return 'Please select a category';
-//                                     }
-//                                     return null;
-//                                   },
-//                                 ),
-//                               ],
-//                             ),
-
-//                             if (selectedCategory != null) ...[
-//                               const SizedBox(height: 20),
-//                               Column(
-//                                 crossAxisAlignment: CrossAxisAlignment.start,
-//                                 children: [
-//                                   Text(
-//                                     "Number of Bags *",
-//                                     style: TextStyle(
-//                                       fontSize: 14,
-//                                       fontWeight: FontWeight.w500,
-//                                       color: Colors.black,
-//                                     ),
-//                                   ),
-//                                   const SizedBox(height: 8),
-//                                   Wrap(
-//                                     spacing: 8,
-//                                     runSpacing: 8,
-//                                     children: bagOptions.map((bags) {
-//                                       return ChoiceChip(
-//                                         label: Text('$bags Bag${bags > 1 ? 's' : ''}'),
-//                                         selected: selectedBags == bags,
-//                                         selectedColor: GlobalColors.primaryBlue,
-//                                         labelStyle: TextStyle(
-//                                           color: selectedBags == bags ? GlobalColors.white : Colors.black,
-//                                           fontWeight: FontWeight.w500,
-//                                         ),
-//                                         onSelected: (selected) {
-//                                           setState(() {
-//                                             selectedBags = bags;
-//                                           });
-//                                         },
-//                                       );
-//                                     }).toList(),
-//                                   ),
-//                                   const SizedBox(height: 16),
-//                                   Container(
-//                                     padding: const EdgeInsets.all(12),
-//                                     decoration: BoxDecoration(
-//                                       color: GlobalColors.primaryBlue.withOpacity(0.1),
-//                                       borderRadius: BorderRadius.circular(12),
-//                                       border: Border.all(
-//                                         color: GlobalColors.primaryBlue.withOpacity(0.3),
-//                                         width: 1,
-//                                       ),
-//                                     ),
-//                                     child: Row(
-//                                       children: [
-//                                         Icon(Icons.info_outline, color: GlobalColors.primaryBlue, size: 20),
-//                                         const SizedBox(width: 8),
-//                                         Expanded(
-//                                           child: Text(
-//                                             "Each bag contains ${categories[selectedCategory]!['weight']} ${categories[selectedCategory]!['unit']}",
-//                                             style: TextStyle(
-//                                               color: GlobalColors.primaryBlue,
-//                                               fontSize: 13,
-//                                             ),
-//                                           ),
-//                                         ),
-//                                       ],
-//                                     ),
-//                                   ),
-//                                   const SizedBox(height: 20),
-//                                   Container(
-//                                     padding: const EdgeInsets.all(16),
-//                                     decoration: BoxDecoration(
-//                                       color: Colors.white,
-//                                       borderRadius: BorderRadius.circular(12),
-//                                       border: Border.all(color: Colors.grey, width: 1),
-//                                     ),
-//                                     child: Row(
-//                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//                                       children: [
-//                                         Column(
-//                                           crossAxisAlignment: CrossAxisAlignment.start,
-//                                           children: const [
-//                                             Text("Total Quantity"),
-//                                             SizedBox(height: 4),
-//                                             Text("Weight"),
-//                                           ],
-//                                         ),
-//                                         Column(
-//                                           crossAxisAlignment: CrossAxisAlignment.end,
-//                                           children: [
-//                                             Text(
-//                                               "$selectedBags Bags",
-//                                               style: TextStyle(
-//                                                 fontSize: 18,
-//                                                 fontWeight: FontWeight.bold,
-//                                                 color: GlobalColors.primaryBlue,
-//                                               ),
-//                                             ),
-//                                             const SizedBox(height: 4),
-//                                             Text(
-//                                               "${(selectedBags * categories[selectedCategory]!['weight'])} ${categories[selectedCategory]!['unit']}",
-//                                               style: const TextStyle(
-//                                                 fontSize: 14,
-//                                                 fontWeight: FontWeight.w500,
-//                                               ),
-//                                             ),
-//                                           ],
-//                                         ),
-//                                       ],
-//                                     ),
-//                                   ),
-//                                 ],
-//                               ),
-//                             ],
-//                           ],
-//                         ),
-//                       ),
-//                     ),
-
-//                     const SizedBox(height: 20),
-
-//                     // Remarks Section
-//                     Padding(
-//                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-//                       child: Text(
-//                         "Additional Information",
-//                         style: TextStyle(
-//                           fontSize: 17,
-//                           fontWeight: FontWeight.w600,
-//                           color: Colors.black,
-//                         ),
-//                       ),
-//                     ),
-//                     Padding(
-//                       padding: const EdgeInsets.symmetric(horizontal: 20),
-//                       child: Container(
-//                         padding: const EdgeInsets.all(20),
-//                         decoration: BoxDecoration(
-//                           color: Colors.white,
-//                           borderRadius: BorderRadius.circular(16),
-//                           boxShadow: [
-//                             BoxShadow(
-//                               color: Colors.grey.withOpacity(0.1),
-//                               blurRadius: 15,
-//                               offset: const Offset(0, 4),
-//                             ),
-//                           ],
-//                           border: Border.all(color: Colors.grey, width: 1),
-//                         ),
-//                         child: Column(
-//                           children: [
-//                             Column(
-//                               crossAxisAlignment: CrossAxisAlignment.start,
-//                               children: [
-//                                 Text(
-//                                   "Remarks (Optional)",
-//                                   style: TextStyle(
-//                                     fontSize: 14,
-//                                     fontWeight: FontWeight.w500,
-//                                     color: Colors.black,
-//                                   ),
-//                                 ),
-//                                 const SizedBox(height: 8),
-//                                 TextFormField(
-//                                   controller: remarksController,
-//                                   maxLines: 3,
-//                                   decoration: InputDecoration(
-//                                     hintText: "Any special instructions or notes...",
-//                                     filled: true,
-//                                     fillColor: Colors.white,
-//                                     prefixIcon: Icon(Icons.note_outlined, color: GlobalColors.primaryBlue),
-//                                     border: OutlineInputBorder(
-//                                       borderRadius: BorderRadius.circular(12),
-//                                       borderSide: BorderSide(color: Colors.grey, width: 1),
-//                                     ),
-//                                   ),
-//                                 ),
-//                               ],
-//                             ),
-//                           ],
-//                         ),
-//                       ),
-//                     ),
-
-//                     const SizedBox(height: 30),
-
-//                     // Place Order Button
-//                     Padding(
-//                       padding: const EdgeInsets.symmetric(horizontal: 20),
-//                       child: SizedBox(
-//                         width: double.infinity,
-//                         child: ElevatedButton(
-//                           style: ElevatedButton.styleFrom(
-//                             backgroundColor: GlobalColors.primaryBlue,
-//                             shape: RoundedRectangleBorder(
-//                               borderRadius: BorderRadius.circular(12),
-//                             ),
-//                             minimumSize: const Size(double.infinity, 56),
-//                           ),
-//                           onPressed: () => _submitOrder(orderProvider),
-//                           child: const Row(
-//                             mainAxisAlignment: MainAxisAlignment.center,
-//                             children: [
-//                               Icon(Icons.check_circle_outline, color: GlobalColors.white, size: 24),
-//                               SizedBox(width: 12),
-//                               Text(
-//                                 "PLACE ORDER",
-//                                 style: TextStyle(
-//                                   fontSize: 16,
-//                                   fontWeight: FontWeight.w600,
-//                                   color: GlobalColors.white,
-//                                 ),
-//                               ),
-//                             ],
-//                           ),
-//                         ),
-//                       ),
-//                     ),
-
-//                     const SizedBox(height: 40),
-//                   ],
-//                 ),
-//               ),
-//             ),
-//     );
-//   }
-
-//   // Success Page Widget
-//   Widget _buildSuccessPage(OrderProvider orderProvider) {
-//     final totalWeight = selectedBags * categories[_orderDetails!['feed_category']]!['weight'];
-//     final unit = categories[_orderDetails!['feed_category']]!['unit'];
-//     final pricePerBag = categories[_orderDetails!['feed_category']]!['price'];
-//     final totalPrice = selectedBags * pricePerBag;
-
-//     return Scaffold(
-//       backgroundColor: GlobalColors.primaryBlue,
-//       appBar: AppBar(
-//         backgroundColor: GlobalColors.primaryBlue,
-//         elevation: 0,
-//         automaticallyImplyLeading: false,
-//         title: const Text(
-//           "Order Confirmed",
-//           style: TextStyle(
-//             color: GlobalColors.white,
-//             fontWeight: FontWeight.w600,
-//             fontSize: 20,
-//           ),
-//         ),
-//       ),
-//       body: Column(
-//         children: [
-//           Expanded(
-//             child: SingleChildScrollView(
-//               padding: const EdgeInsets.all(24),
-//               child: Column(
-//                 mainAxisAlignment: MainAxisAlignment.center,
-//                 children: [
-//                   // Success Icon
-//                   Container(
-//                     width: 120,
-//                     height: 120,
-//                     decoration: BoxDecoration(
-//                       color: GlobalColors.white,
-//                       shape: BoxShape.circle,
-//                       boxShadow: [
-//                         BoxShadow(
-//                           color: GlobalColors.primaryBlue.withOpacity(0.3),
-//                           blurRadius: 20,
-//                           spreadRadius: 2,
-//                         ),
-//                       ],
-//                     ),
-//                     child: Icon(
-//                       Icons.check_circle,
-//                       color: GlobalColors.primaryBlue,
-//                       size: 70,
-//                     ),
-//                   ),
-//                   const SizedBox(height: 32),
-
-//                   // Success Message
-//                   const Text(
-//                     "Order Placed Successfully!",
-//                     style: TextStyle(
-//                       color: GlobalColors.white,
-//                       fontSize: 28,
-//                       fontWeight: FontWeight.bold,
-//                     ),
-//                     textAlign: TextAlign.center,
-//                   ),
-//                   const SizedBox(height: 16),
-//                   Text(
-//                     "Order will appear in production orders",
-//                     style: TextStyle(
-//                       color: GlobalColors.white.withOpacity(0.9),
-//                       fontSize: 16,
-//                       fontWeight: FontWeight.w500,
-//                     ),
-//                   ),
-//                   const SizedBox(height: 40),
-
-//                   // Order Summary Card
-//                   Container(
-//                     width: double.infinity,
-//                     padding: const EdgeInsets.all(24),
-//                     decoration: BoxDecoration(
-//                       color: Colors.white,
-//                       borderRadius: BorderRadius.circular(20),
-//                       boxShadow: [
-//                         BoxShadow(
-//                           color: Colors.black.withOpacity(0.1),
-//                           blurRadius: 10,
-//                           spreadRadius: 2,
-//                         ),
-//                       ),
-//                       border: Border.all(color: Colors.grey, width: 1),
-//                     ),
-//                     child: Column(
-//                       crossAxisAlignment: CrossAxisAlignment.start,
-//                       children: [
-//                         const Text(
-//                           "Order Summary",
-//                           style: TextStyle(
-//                             fontSize: 20,
-//                             fontWeight: FontWeight.bold,
-//                             color: Colors.black,
-//                           ),
-//                         ),
-//                         const SizedBox(height: 20),
-
-//                         // Customer Details
-//                         _buildSuccessDetailRow("Customer", _orderDetails!['customer_name']),
-//                         const SizedBox(height: 12),
-//                         _buildSuccessDetailRow("Mobile", _orderDetails!['customer_mobile']),
-//                         const SizedBox(height: 12),
-//                         if (_orderDetails!['customer_email'] != null && _orderDetails!['customer_email'].isNotEmpty)
-//                           _buildSuccessDetailRow("Email", _orderDetails!['customer_email']),
-//                         const SizedBox(height: 12),
-//                         _buildSuccessDetailRow("Address", _orderDetails!['customer_address']),
-//                         const SizedBox(height: 12),
-//                         _buildSuccessDetailRow("District", _orderDetails!['district']),
-//                         const Divider(height: 24),
-
-//                         // Order Details
-//                         _buildSuccessDetailRow("Category", _orderDetails!['feed_category']),
-//                         const SizedBox(height: 12),
-//                         _buildSuccessDetailRow("Bags", "${_orderDetails!['bags']} Bags"),
-//                         const SizedBox(height: 12),
-//                         _buildSuccessDetailRow("Weight", "$totalWeight $unit"),
-//                         const SizedBox(height: 12),
-//                         _buildSuccessDetailRow("Price per Bag", "₹$pricePerBag"),
-//                         const Divider(height: 24),
-
-//                         // Total Amount
-//                         Row(
-//                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//                           children: [
-//                             const Text(
-//                               "Total Amount",
-//                               style: TextStyle(
-//                                 fontSize: 18,
-//                                 fontWeight: FontWeight.bold,
-//                               ),
-//                             ),
-//                             Text(
-//                               "₹$totalPrice",
-//                               style: TextStyle(
-//                                 fontSize: 24,
-//                                 fontWeight: FontWeight.bold,
-//                                 color: GlobalColors.primaryBlue,
-//                               ),
-//                             ),
-//                           ],
-//                         ),
-//                         const SizedBox(height: 8),
-//                         const Text(
-//                           "Payment: To be collected on delivery",
-//                           style: TextStyle(
-//                             color: Colors.grey,
-//                             fontSize: 13,
-//                             fontStyle: FontStyle.italic,
-//                           ),
-//                         ),
-//                         const SizedBox(height: 20),
-
-//                         // Tracking Information
-//                         Container(
-//                           padding: const EdgeInsets.all(12),
-//                           decoration: BoxDecoration(
-//                             color: Colors.blue[50],
-//                             borderRadius: BorderRadius.circular(12),
-//                             border: Border.all(color: Colors.blue[100]!),
-//                           ),
-//                           child: Column(
-//                             crossAxisAlignment: CrossAxisAlignment.start,
-//                             children: [
-//                               const Row(
-//                                 children: [
-//                                   Icon(Icons.track_changes, size: 16, color: Colors.blue),
-//                                   SizedBox(width: 8),
-//                                   Text(
-//                                     "Tracking Information",
-//                                     style: TextStyle(
-//                                       fontWeight: FontWeight.w600,
-//                                       color: Colors.blue,
-//                                     ),
-//                                   ),
-//                                 ],
-//                               ),
-//                               const SizedBox(height: 8),
-//                               Text(
-//                                 "Tracking ID: ${_orderDetails!['tracking_id']}",
-//                                 style: const TextStyle(fontSize: 12),
-//                               ),
-//                               const SizedBox(height: 4),
-//                               const Text(
-//                                 "Tracking Link:",
-//                                 style: TextStyle(fontSize: 12),
-//                               ),
-//                               GestureDetector(
-//                                 onTap: () {
-//                                   Clipboard.setData(ClipboardData(text: _trackingLink!));
-//                                   ScaffoldMessenger.of(context).showSnackBar(
-//                                     const SnackBar(content: Text("Link copied to clipboard")),
-//                                   );
-//                                 },
-//                                 child: Container(
-//                                   padding: const EdgeInsets.all(8),
-//                                   margin: const EdgeInsets.only(top: 4),
-//                                   decoration: BoxDecoration(
-//                                     color: Colors.white,
-//                                     borderRadius: BorderRadius.circular(8),
-//                                     border: Border.all(color: Colors.grey[300]!),
-//                                   ),
-//                                   child: Row(
-//                                     children: [
-//                                       Expanded(
-//                                         child: Text(
-//                                           _trackingLink!,
-//                                           style: const TextStyle(
-//                                             fontSize: 11,
-//                                             color: Colors.blue,
-//                                             decoration: TextDecoration.underline,
-//                                           ),
-//                                           overflow: TextOverflow.ellipsis,
-//                                         ),
-//                                       ),
-//                                       const Icon(Icons.copy, size: 14, color: Colors.blue),
-//                                     ],
-//                                   ),
-//                                 ),
-//                               ),
-//                               const SizedBox(height: 8),
-//                               const Text(
-//                                 "Share this link with customer for tracking",
-//                                 style: TextStyle(fontSize: 10, color: Colors.grey),
-//                               ),
-//                             ],
-//                           ),
-//                         ),
-//                       ],
-//                     ),
-//                   ),
-//                   const SizedBox(height: 30),
-
-//                   // Instructions
-//                   Container(
-//                     padding: const EdgeInsets.all(16),
-//                     decoration: BoxDecoration(
-//                       color: Colors.white.withOpacity(0.1),
-//                       borderRadius: BorderRadius.circular(12),
-//                       border: Border.all(
-//                         color: Colors.white.withOpacity(0.3),
-//                         width: 1,
-//                       ),
-//                     ),
-//                     child: Column(
-//                       children: [
-//                         Row(
-//                           children: [
-//                             Icon(Icons.info_outline, color: GlobalColors.white, size: 18),
-//                             const SizedBox(width: 8),
-//                             Text(
-//                               "What's Next?",
-//                               style: TextStyle(
-//                                 color: GlobalColors.white,
-//                                 fontSize: 16,
-//                                 fontWeight: FontWeight.w600,
-//                               ),
-//                             ),
-//                           ],
-//                         ),
-//                         const SizedBox(height: 12),
-//                         Text(
-//                           "Our production team will process this order. Customer can track order status using the tracking link.",
-//                           style: TextStyle(
-//                             color: GlobalColors.white.withOpacity(0.7),
-//                             fontSize: 14,
-//                           ),
-//                         ),
-//                       ],
-//                     ),
-//                   ),
-//                   const SizedBox(height: 40),
-//             ),
-//           ),
-//         ],
-//               ),
-//             );
-          
-
-//           // Action Buttons
-//           Container(
-//             padding: const EdgeInsets.all(20),
-//             decoration: BoxDecoration(
-//               color: Colors.white,
-//               border: Border(
-//                 top: BorderSide(color: Colors.grey, width: 1),
-//               ),
-//             ),
-//             child: Row(
-//               children: [
-//                 Expanded(
-//                   child: OutlinedButton(
-//                     onPressed: () {
-//                       setState(() {
-//                         _orderPlaced = false;
-//                         _resetForm();
-//                       });
-//                     },
-//                     style: OutlinedButton.styleFrom(
-//                       side: BorderSide(color: GlobalColors.primaryBlue, width: 2),
-//                       shape: RoundedRectangleBorder(
-//                         borderRadius: BorderRadius.circular(12),
-//                       ),
-//                       padding: const EdgeInsets.symmetric(vertical: 16),
-//                     ),
-//                     child: Text(
-//                       "NEW ORDER",
-//                       style: TextStyle(
-//                         color: GlobalColors.primaryBlue,
-//                         fontWeight: FontWeight.w600,
-//                         fontSize: 16,
-//                       ),
-//                     ),
-//                   ),
-//                 ),
-//                 const SizedBox(width: 16),
-//                 Expanded(
-//                   child: ElevatedButton(
-//                     onPressed: () {
-//                       Navigator.pop(context);
-//                     },
-//                     style: ElevatedButton.styleFrom(
-//                       backgroundColor: GlobalColors.primaryBlue,
-//                       shape: RoundedRectangleBorder(
-//                         borderRadius: BorderRadius.circular(12),
-//                       ),
-//                       padding: const EdgeInsets.symmetric(vertical: 16),
-//                     ),
-//                     child: Text(
-//                       "BACK TO HOME",
-//                       style: TextStyle(
-//                         color: GlobalColors.white,
-//                         fontWeight: FontWeight.w600,
-//                         fontSize: 16,
-//                       ),
-//                     ),
-//                   ),
-//                 ),
-//               ],
-//             ),
-//           );
-//   }
-
-//   Widget _buildSuccessDetailRow(String label, String value) {
-//     return Row(
-//       crossAxisAlignment: CrossAxisAlignment.start,
-//       children: [
-//         SizedBox(
-//           width: 100,
-//           child: Text(
-//             "$label:",
-//             style: const TextStyle(fontWeight: FontWeight.w500),
-//           ),
-//         ),
-//         Expanded(
-//           child: Text(
-//             value,
-//             textAlign: TextAlign.right,
-//             overflow: TextOverflow.ellipsis,
-//             maxLines: 2,
-//           ),
-//         ),
-//       ],
-//     );
-//   }
-
-//   Future<void> _submitOrder(OrderProvider orderProvider) async {
-//     if (!_formKey.currentState!.validate()) {
-//       _showError("Please fill all required fields");
-//       return;
-//     }
-
-//     if (selectedCategory == null) {
-//       _showError("Please select a feed category");
-//       return;
-//     }
-
-//     if (selectedDistrict == null) {
-//       _showError("Please select a district");
-//       return;
-//     }
-
-//     try {
-//       final category = selectedCategory!;
-//       final meta = categories[category]!;
-//       final pricePerBag = meta['price'] as int;
-//       final totalPrice = selectedBags * pricePerBag;
-
-//       final orderData = {
-//         'customer_name': nameController.text.trim(),
-//         'customer_mobile': mobileController.text.trim(),
-//         'customer_email': emailController.text.trim().isNotEmpty ? emailController.text.trim() : null,
-//         'customer_address': addressController.text.trim(),
-//         'district': selectedDistrict,
-//         'feed_category': category,
-//         'bags': selectedBags,
-//         'weight_per_bag': meta['weight'],
-//         'weight_unit': meta['unit'],
-//         'total_weight': selectedBags * meta['weight'],
-//         'price_per_bag': pricePerBag,
-//         'total_price': totalPrice,
-//         'remarks': remarksController.text.trim().isNotEmpty ? remarksController.text.trim() : null,
-//         'status': 'pending',
-//       };
-
-//       print('Submitting order: $orderData');
-
-//       // Create order - tracking ID will be auto-generated by database trigger
-//       final response = await orderProvider.createOrder(orderData);
-
-//       // Get the generated tracking ID from response
-//       final trackingId = response['tracking_id'];
-//       final trackingToken = response['tracking_token'];
-      
-//       // Generate tracking link
-//       _trackingId = trackingId;
-// _trackingLink = 'http://localhost:8000/web_tracker/index.html?id=$trackingId&token=$trackingToken';
-//       setState(() {
-//         _orderDetails = {
-//           'customer_name': nameController.text.trim(),
-//           'customer_mobile': mobileController.text.trim(),
-//           'customer_email': emailController.text.trim(),
-//           'customer_address': addressController.text.trim(),
-//           'district': selectedDistrict!,
-//           'feed_category': category,
-//           'bags': selectedBags,
-//           'price_per_bag': pricePerBag,
-//           'total_price': totalPrice,
-//           'remarks': remarksController.text.trim(),
-//           'tracking_id': trackingId,
-//         };
-//         _orderPlaced = true;
-//       });
-
-//     } catch (e) {
-//       print('Error placing order: $e');
-//       _showError("Failed to place order: ${e.toString()}");
-//     }
-//   }
-
-//   void _resetForm() {
-//     nameController.clear();
-//     mobileController.clear();
-//     emailController.clear();
-//     addressController.clear();
-//     remarksController.clear();
-//     selectedCategory = null;
-//     selectedDistrict = null;
-//     selectedBags = 1;
-//     _orderDetails = null;
-//     _trackingLink = null;
-//     _trackingId = null;
-//   }
-
-//   void _showError(String msg) {
-//     ScaffoldMessenger.of(context).showSnackBar(
-//       SnackBar(
-//         content: Text(msg),
-//         backgroundColor: Colors.red,
-//         duration: const Duration(seconds: 3),
-//       ),
-//     );
-//   }
-// }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import 'package:flutter/material.dart';
 import 'package:mega_pro/global/global_variables.dart';
 import 'package:mega_pro/providers/emp_order_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // Add this import
 
 class CattleFeedOrderScreen extends StatefulWidget {
   const CattleFeedOrderScreen({super.key});
@@ -1191,9 +13,10 @@ class CattleFeedOrderScreen extends StatefulWidget {
 
 class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final supabase = Supabase.instance.client; // Add supabase instance
   int selectedBags = 1;
   String? selectedCategory;
-  String? selectedDistrict; // Added for district dropdown
+  String? selectedDistrict;
   bool _orderPlaced = false;
   Map<String, dynamic>? _orderDetails;
 
@@ -1201,8 +24,10 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
   final TextEditingController addressController = TextEditingController();
   final TextEditingController mobileController = TextEditingController();
   final TextEditingController remarksController = TextEditingController();
+  final TextEditingController emailController =
+      TextEditingController(); // Add email controller
 
-  // District options - you can customize this list
+  // District options
   final List<String> districtOptions = [
     'Select District',
     'Ahmednagar',
@@ -1241,7 +66,7 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
     'Wardha',
     'Washim',
     'Yavatmal',
-    'Other'
+    'Other',
   ];
 
   // Category definitions with bag weights
@@ -1249,11 +74,27 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
     "मिल्क पॉवर / Milk Power": {"weight": 20, "unit": "kg", "price": 350},
     "दुध सरिता / Dugdh Sarita": {"weight": 25, "unit": "kg", "price": 450},
     "दुग्धराज / Dugdh Raj": {"weight": 30, "unit": "kg", "price": 600},
-    "डायमंड संतुलित पशु आहार / Diamond Balanced Animal Feed": {"weight": 10, "unit": "kg", "price": 800},
-    "मिल्क पॉवर प्लस / Milk Power Plus": {"weight": 5, "unit": "kg", "price": 1200},
-    "संतुलित पशु आहार / Santulit Pashu Aahar": {"weight": 5, "unit": "kg", "price": 1200},
+    "डायमंड संतुलित पशु आहार / Diamond Balanced Animal Feed": {
+      "weight": 10,
+      "unit": "kg",
+      "price": 800,
+    },
+    "मिल्क पॉवर प्लस / Milk Power Plus": {
+      "weight": 5,
+      "unit": "kg",
+      "price": 1200,
+    },
+    "संतुलित पशु आहार / Santulit Pashu Aahar": {
+      "weight": 5,
+      "unit": "kg",
+      "price": 1200,
+    },
     "जीवन धारा / Jeevan Dhara": {"weight": 5, "unit": "kg", "price": 1200},
-    "Dairy Special संतुलित पशु आहार": {"weight": 5, "unit": "kg", "price": 1200},
+    "Dairy Special संतुलित पशु आहार": {
+      "weight": 5,
+      "unit": "kg",
+      "price": 1200,
+    },
   };
 
   // Bag quantity options
@@ -1272,7 +113,7 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
       appBar: AppBar(
         backgroundColor: GlobalColors.primaryBlue,
         elevation: 0,
-        centerTitle: true,
+        //centerTitle: true,
         iconTheme: const IconThemeData(color: GlobalColors.white),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: GlobalColors.white),
@@ -1291,9 +132,7 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
       ),
       body: orderProvider.loading
           ? const Center(
-              child: CircularProgressIndicator(
-                color: GlobalColors.primaryBlue,
-              ),
+              child: CircularProgressIndicator(color: GlobalColors.primaryBlue),
             )
           : Form(
               key: _formKey,
@@ -1306,7 +145,10 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                     // Header Section
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 20,
+                        horizontal: 24,
+                      ),
                       decoration: BoxDecoration(
                         color: GlobalColors.primaryBlue,
                         borderRadius: const BorderRadius.only(
@@ -1366,8 +208,27 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                               if (value == null || value.isEmpty) {
                                 return 'Please enter mobile number';
                               }
-                              if (value.length != 10 || int.tryParse(value) == null) {
+                              if (value.length != 10 ||
+                                  int.tryParse(value) == null) {
                                 return 'Enter valid 10-digit mobile number';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          _buildTextField(
+                            controller: emailController,
+                            label: "Email (Optional)",
+                            hintText: "customer@example.com",
+                            icon: Icons.email_outlined,
+                            keyboardType: TextInputType.emailAddress,
+                            validator: (value) {
+                              if (value != null && value.isNotEmpty) {
+                                if (!RegExp(
+                                  r'^[^@]+@[^@]+\.[^@]+',
+                                ).hasMatch(value)) {
+                                  return 'Enter valid email address';
+                                }
                               }
                               return null;
                             },
@@ -1407,7 +268,9 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                                     filled: true,
                                     fillColor: Colors.white,
                                     contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 14),
+                                      horizontal: 16,
+                                      vertical: 14,
+                                    ),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                       borderSide: BorderSide.none,
@@ -1425,14 +288,20 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                                   ),
                                   isExpanded: true,
                                   items: districtOptions
-                                      .map((district) => DropdownMenuItem(
-                                            value: district == 'Select District' ? null : district,
-                                            child: Text(
-                                              district,
-                                              style: const TextStyle(fontSize: 14),
-                                              overflow: TextOverflow.ellipsis,
+                                      .map(
+                                        (district) => DropdownMenuItem(
+                                          value: district == 'Select District'
+                                              ? null
+                                              : district,
+                                          child: Text(
+                                            district,
+                                            style: const TextStyle(
+                                              fontSize: 14,
                                             ),
-                                          ))
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      )
                                       .toList(),
                                   onChanged: (value) =>
                                       setState(() => selectedDistrict = value),
@@ -1477,7 +346,9 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                                     filled: true,
                                     fillColor: Colors.white,
                                     contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 14),
+                                      horizontal: 16,
+                                      vertical: 14,
+                                    ),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                       borderSide: BorderSide.none,
@@ -1495,15 +366,19 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                                   ),
                                   isExpanded: true,
                                   items: categories.keys
-                                      .map((category) => DropdownMenuItem(
-                                            value: category,
-                                            child: Text(
-                                              category,
-                                              style: const TextStyle(fontSize: 14),
-                                              overflow: TextOverflow.ellipsis,
-                                              maxLines: 2,
+                                      .map(
+                                        (category) => DropdownMenuItem(
+                                          value: category,
+                                          child: Text(
+                                            category,
+                                            style: const TextStyle(
+                                              fontSize: 14,
                                             ),
-                                          ))
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 2,
+                                          ),
+                                        ),
+                                      )
                                       .toList(),
                                   onChanged: (value) =>
                                       setState(() => selectedCategory = value),
@@ -1534,11 +409,16 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                                     itemBuilder: (context, index) {
                                       final bags = bagOptions[index];
                                       return Padding(
-                                        padding: const EdgeInsets.only(right: 8),
+                                        padding: const EdgeInsets.only(
+                                          right: 8,
+                                        ),
                                         child: ChoiceChip(
-                                          label: Text('$bags Bag${bags > 1 ? 's' : ''}'),
+                                          label: Text(
+                                            '$bags Bag${bags > 1 ? 's' : ''}',
+                                          ),
                                           selected: selectedBags == bags,
-                                          selectedColor: GlobalColors.primaryBlue,
+                                          selectedColor:
+                                              GlobalColors.primaryBlue,
                                           labelStyle: TextStyle(
                                             color: selectedBags == bags
                                                 ? GlobalColors.white
@@ -1551,7 +431,9 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                                             });
                                           },
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(20),
+                                            borderRadius: BorderRadius.circular(
+                                              20,
+                                            ),
                                           ),
                                         ),
                                       );
@@ -1562,17 +444,23 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                                 Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: GlobalColors.primaryBlue.withOpacity(0.1),
+                                    color: GlobalColors.primaryBlue.withOpacity(
+                                      0.1,
+                                    ),
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                      color: GlobalColors.primaryBlue.withOpacity(0.3),
+                                      color: GlobalColors.primaryBlue
+                                          .withOpacity(0.3),
                                       width: 1,
                                     ),
                                   ),
                                   child: Row(
                                     children: [
-                                      Icon(Icons.info_outline,
-                                          color: GlobalColors.primaryBlue, size: 20),
+                                      Icon(
+                                        Icons.info_outline,
+                                        color: GlobalColors.primaryBlue,
+                                        size: 20,
+                                      ),
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: Text(
@@ -1600,10 +488,12 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                                     ),
                                   ),
                                   child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             "Total Quantity",
@@ -1623,7 +513,8 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                                         ],
                                       ),
                                       Column(
-                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
                                         children: [
                                           Text(
                                             "$selectedBags Bags",
@@ -1690,8 +581,11 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.check_circle_outline,
-                                  color: GlobalColors.white, size: 24),
+                              Icon(
+                                Icons.check_circle_outline,
+                                color: GlobalColors.white,
+                                size: 24,
+                              ),
                               const SizedBox(width: 12),
                               Text(
                                 "PLACE ORDER",
@@ -1715,300 +609,344 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
     );
   }
 
-  // --------------------------------------------------------
-  // Success Page
-  // --------------------------------------------------------
-  Widget _buildSuccessPage(OrderProvider orderProvider) {
-    final totalWeight =
-        selectedBags * categories[_orderDetails!['feed_category']]!['weight'];
-    final unit = categories[_orderDetails!['feed_category']]!['unit'];
-    final pricePerBag = categories[_orderDetails!['feed_category']]!['price'];
-    final totalPrice = selectedBags * pricePerBag;
 
-    return Scaffold(
+// Success Page
+// --------------------------------------------------------
+Widget _buildSuccessPage(OrderProvider orderProvider) {
+  final totalWeight =
+      selectedBags * categories[_orderDetails!['feed_category']]!['weight'];
+  final unit = categories[_orderDetails!['feed_category']]!['unit'];
+  final pricePerBag = categories[_orderDetails!['feed_category']]!['price'];
+  final totalPrice = selectedBags * pricePerBag;
+
+  return Scaffold(
+    backgroundColor: GlobalColors.primaryBlue,
+    appBar: AppBar(
       backgroundColor: GlobalColors.primaryBlue,
-      appBar: AppBar(
-        backgroundColor: GlobalColors.primaryBlue,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        title: const Text(
-          "Order Confirmed",
-          style: TextStyle(
-            color: GlobalColors.white,
-            fontWeight: FontWeight.w600,
-            fontSize: 20,
-          ),
+      elevation: 0,
+      automaticallyImplyLeading: false,
+      title: const Text(
+        "Order Confirmed",
+        style: TextStyle(
+          color: GlobalColors.white,
+          fontWeight: FontWeight.w600,
+          fontSize: 20,
         ),
       ),
-      body: Column(
+    ),
+    body: SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Expanded(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Success Icon
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      color: GlobalColors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: GlobalColors.primaryBlue.withOpacity(0.3),
-                          blurRadius: 20,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.check_circle,
-                      color: GlobalColors.primaryBlue,
-                      size: 70,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Success Message
-                  const Text(
-                    "Order Placed Successfully!",
-                    style: TextStyle(
-                      color: GlobalColors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    "Order will appear in production orders",
-                    style: TextStyle(
-                      color: GlobalColors.white.withOpacity(0.9),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-
-                  // Order Details Card
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 10,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                      border: Border.all(
-                        color: Colors.grey,
-                        width: 1,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Order Summary",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Customer Info
-                        _successDetailRow("Customer", _orderDetails!['customer_name']),
-                        const SizedBox(height: 12),
-                        _successDetailRow("Mobile", _orderDetails!['customer_mobile']),
-                        const SizedBox(height: 12),
-                        _successDetailRow("Address", _orderDetails!['customer_address']),
-                        const SizedBox(height: 12),
-                        _successDetailRow("District", _orderDetails!['district']),
-                        const Divider(height: 24),
-
-                        // Order Info
-                        _successDetailRow("Category", _orderDetails!['feed_category']),
-                        const SizedBox(height: 12),
-                        _successDetailRow("Bags", "${_orderDetails!['bags']} Bags"),
-                        const SizedBox(height: 12),
-                        _successDetailRow("Weight", "$totalWeight $unit"),
-                        const SizedBox(height: 12),
-                        _successDetailRow("Price per Bag", "₹$pricePerBag"),
-                        const Divider(height: 24),
-
-                        // Total Price
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              "Total Amount",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                              ),
-                            ),
-                            Text(
-                              "₹$totalPrice",
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: GlobalColors.primaryBlue,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          "Payment: To be collected on delivery",
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontSize: 13,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 30),
-
-                  // Instructions
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.3),
-                        width: 1,
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.info_outline, color: GlobalColors.white, size: 18),
-                            const SizedBox(width: 8),
-                            Text(
-                              "What's Next?",
-                              style: TextStyle(
-                                color: GlobalColors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          "Our production team will process this order. You can track the order status in the Production Orders section.",
-                          style: TextStyle(
-                            color: GlobalColors.white.withOpacity(0.7),
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-                ],
-              ),
+          // Success Icon
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              color: GlobalColors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: GlobalColors.primaryBlue.withOpacity(0.3),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.check_circle,
+              color: GlobalColors.primaryBlue,
+              size: 70,
             ),
           ),
+          const SizedBox(height: 32),
 
-          // Action Buttons - Fixed at bottom
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(
-                top: BorderSide(
-                  color: Colors.grey,
-                  width: 1,
+          // Success Message
+          const Text(
+            "Order Placed Successfully!",
+            style: TextStyle(
+              color: GlobalColors.white,
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            "Order will appear in production orders",
+            style: TextStyle(
+              color: GlobalColors.white.withOpacity(0.9),
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // WhatsApp Button
+          if (_orderDetails!['customer_mobile'] != null &&
+              _orderDetails!['customer_mobile']!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  await Provider.of<OrderProvider>(
+                    context,
+                    listen: false,
+                  ).sendOrderWhatsAppNotification(
+                    context: context,
+                    orderId: _orderDetails!['id'],
+                    order: _orderDetails,
+                  );
+                },
+                icon: const Icon(Icons.message, color: Colors.white),
+                label: const Text(
+                  'Send WhatsApp Confirmation',
+                  style: TextStyle(color: Colors.white),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  minimumSize: const Size(double.infinity, 50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      setState(() {
-                        _orderPlaced = false;
-                        _resetForm();
-                      });
-                    },
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(
-                        color: GlobalColors.primaryBlue,
-                        width: 2,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: Text(
-                      "NEW ORDER",
-                      style: TextStyle(
-                        color: GlobalColors.primaryBlue,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                    ),
+
+          const SizedBox(height: 10),
+
+          // Email Button
+          if (_orderDetails!['customer_email'] != null &&
+              _orderDetails!['customer_email']!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  await Provider.of<OrderProvider>(
+                    context,
+                    listen: false,
+                  ).sendOrderEmailNotification(
+                    context: context,
+                    orderId: _orderDetails!['id'],
+                    order: _orderDetails,
+                  );
+                },
+                icon: const Icon(Icons.email, color: Colors.white),
+                label: const Text(
+                  'Send Email Confirmation',
+                  style: TextStyle(color: Colors.white),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  minimumSize: const Size(double.infinity, 50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: GlobalColors.primaryBlue,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: Text(
-                      "BACK TO HOME",
-                      style: TextStyle(
-                        color: GlobalColors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
+              ),
+            ),
+          
+          // Add notification message if email was provided
+          if (_orderDetails!['customer_email'] != null &&
+              _orderDetails!['customer_email']!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Text(
+                "Tracking link sent to ${_orderDetails!['customer_email']}",
+                style: TextStyle(
+                  color: GlobalColors.white.withOpacity(0.8),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          const SizedBox(height: 40),
+
+          // Order Details Card
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  spreadRadius: 2,
+                ),
+              ],
+              border: Border.all(color: Colors.grey, width: 1),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Order Summary",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Customer Info
+                _successDetailRow(
+                  "Customer",
+                  _orderDetails!['customer_name'],
+                ),
+                const SizedBox(height: 12),
+                _successDetailRow(
+                  "Mobile",
+                  _orderDetails!['customer_mobile'],
+                ),
+                if (_orderDetails!['customer_email'] != null &&
+                    _orderDetails!['customer_email']!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _successDetailRow(
+                      "Email",
+                      _orderDetails!['customer_email'],
                     ),
                   ),
+                const SizedBox(height: 12),
+                _successDetailRow(
+                  "Address",
+                  _orderDetails!['customer_address'],
+                ),
+                const SizedBox(height: 12),
+                _successDetailRow(
+                  "District",
+                  _orderDetails!['district'],
+                ),
+                const Divider(height: 24),
+
+                // Order Info
+                _successDetailRow(
+                  "Category",
+                  _orderDetails!['feed_category'],
+                ),
+                const SizedBox(height: 12),
+                _successDetailRow(
+                  "Bags",
+                  "${_orderDetails!['bags']} Bags",
+                ),
+                const SizedBox(height: 12),
+                _successDetailRow("Weight", "$totalWeight $unit"),
+                const SizedBox(height: 12),
+                _successDetailRow("Price per Bag", "₹$pricePerBag"),
+                const Divider(height: 24),
+
+                // Total Price
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Total Amount",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                    Text(
+                      "₹$totalPrice",
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: GlobalColors.primaryBlue,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Payment: To be collected on delivery",
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 13,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+                
+                const SizedBox(height: 30),
+                
+                // Action Buttons - Now inside the card at the bottom
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          setState(() {
+                            _orderPlaced = false;
+                            _resetForm();
+                          });
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                            color: GlobalColors.primaryBlue,
+                            width: 2,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: Text(
+                          "NEW ORDER",
+                          style: TextStyle(
+                            color: GlobalColors.primaryBlue,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: GlobalColors.primaryBlue,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: Text(
+                          "BACK TO HOME",
+                          style: TextStyle(
+                            color: GlobalColors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
+          
+          const SizedBox(height: 30),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _successDetailRow(String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 15,
-          ),
-        ),
+        Text(label, style: TextStyle(color: Colors.black, fontSize: 15)),
         Expanded(
           child: Text(
             value,
@@ -2059,10 +997,7 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
               offset: const Offset(0, 4),
             ),
           ],
-          border: Border.all(
-            color: Colors.grey,
-            width: 1,
-          ),
+          border: Border.all(color: Colors.grey, width: 1),
         ),
         child: child,
       ),
@@ -2106,31 +1041,19 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
             prefixIcon: Icon(icon, color: GlobalColors.primaryBlue),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: Colors.grey,
-                width: 1,
-              ),
+              borderSide: BorderSide(color: Colors.grey, width: 1),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: Colors.grey,
-                width: 1,
-              ),
+              borderSide: BorderSide(color: Colors.grey, width: 1),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: GlobalColors.primaryBlue,
-                width: 1,
-              ),
+              borderSide: BorderSide(color: GlobalColors.primaryBlue, width: 1),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: Colors.red,
-                width: 1,
-              ),
+              borderSide: BorderSide(color: Colors.red, width: 1),
             ),
             contentPadding: EdgeInsets.symmetric(
               horizontal: 16,
@@ -2143,7 +1066,7 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
   }
 
   // --------------------------------------------------------
-  // Order Submission Logic
+  // Order Submission Logic - UPDATED
   // --------------------------------------------------------
   Future<void> _submitOrder(OrderProvider orderProvider) async {
     if (!_formKey.currentState!.validate()) {
@@ -2167,12 +1090,15 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
       final pricePerBag = meta['price'] as int;
       final totalPrice = selectedBags * pricePerBag;
 
-      // Prepare order data matching emp_mar_orders table structure
+      // Prepare order data
       final orderData = {
         'customer_name': nameController.text.trim(),
         'customer_mobile': mobileController.text.trim(),
         'customer_address': addressController.text.trim(),
-        'district': selectedDistrict, // Using dropdown value
+        'customer_email': emailController.text.trim().isNotEmpty
+            ? emailController.text.trim()
+            : null,
+        'district': selectedDistrict,
         'feed_category': category,
         'bags': selectedBags,
         'weight_per_bag': meta['weight'],
@@ -2180,29 +1106,29 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
         'total_weight': selectedBags * meta['weight'],
         'price_per_bag': pricePerBag,
         'total_price': totalPrice,
-        'remarks': remarksController.text.trim().isEmpty ? null : remarksController.text.trim(),
-        'status': 'pending', // Default status
+        'remarks': remarksController.text.trim().isEmpty
+            ? null
+            : remarksController.text.trim(),
+        'status': 'pending',
       };
 
       print('Submitting order to emp_mar_orders: $orderData');
 
-      await orderProvider.createOrder(orderData);
+      // Create order using OrderProvider
+      final createdOrder = await orderProvider.createOrder(orderData, context);
 
+      // Update order details for success page
       setState(() {
         _orderDetails = {
-          'customer_name': nameController.text.trim(),
-          'customer_mobile': mobileController.text.trim(),
-          'customer_address': addressController.text.trim(),
-          'district': selectedDistrict!,
-          'feed_category': category,
-          'bags': selectedBags,
-          'price_per_bag': pricePerBag,
-          'total_price': totalPrice,
-          'remarks': remarksController.text.trim(),
+          ...orderData,
+          'id': createdOrder['id'],
+          'order_number': createdOrder['order_number'],
+          'tracking_token': createdOrder['tracking_token'],
+          'tracking_id': createdOrder['tracking_id'],
+          'created_at': createdOrder['created_at'],
         };
         _orderPlaced = true;
       });
-
     } catch (e) {
       print('Error placing order: $e');
       _showError("Failed to place order: ${e.toString()}");
@@ -2213,27 +1139,1093 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
     nameController.clear();
     mobileController.clear();
     addressController.clear();
+    emailController.clear();
     remarksController.clear();
     selectedCategory = null;
     selectedDistrict = null;
     selectedBags = 1;
     _orderDetails = null;
   }
-  
+
   void _showError(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
         backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 3),
       ),
     );
   }
 }
+
+
+
+
+
+
+
+
+
+
+// import 'package:flutter/material.dart';
+// import 'package:mega_pro/global/global_variables.dart';
+// import 'package:mega_pro/providers/emp_order_provider.dart';
+// import 'package:provider/provider.dart';
+
+// class CattleFeedOrderScreen extends StatefulWidget {
+//   const CattleFeedOrderScreen({super.key});
+
+//   @override
+//   State<CattleFeedOrderScreen> createState() => _CattleFeedOrderScreenState();
+// }
+
+// class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
+//   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+//   int selectedBags = 1;
+//   String? selectedCategory;
+//   String? selectedDistrict; // Added for district dropdown
+//   bool _orderPlaced = false;
+//   Map<String, dynamic>? _orderDetails;
+
+//   final TextEditingController nameController = TextEditingController();
+//   final TextEditingController addressController = TextEditingController();
+//   final TextEditingController mobileController = TextEditingController();
+//   final TextEditingController remarksController = TextEditingController();
+
+//   // District options - you can customize this list
+//   final List<String> districtOptions = [
+//     'Select District',
+//     'Ahmednagar',
+//     'Akola',
+//     'Amravati',
+//     'Aurangabad',
+//     'Beed',
+//     'Bhandara',
+//     'Buldhana',
+//     'Chandrapur',
+//     'Dhule',
+//     'Gadchiroli',
+//     'Gondia',
+//     'Hingoli',
+//     'Jalgaon',
+//     'Jalna',
+//     'Kolhapur',
+//     'Latur',
+//     'Mumbai City',
+//     'Mumbai Suburban',
+//     'Nagpur',
+//     'Nanded',
+//     'Nandurbar',
+//     'Nashik',
+//     'Osmanabad',
+//     'Palghar',
+//     'Parbhani',
+//     'Pune',
+//     'Raigad',
+//     'Ratnagiri',
+//     'Sangli',
+//     'Satara',
+//     'Sindhudurg',
+//     'Solapur',
+//     'Thane',
+//     'Wardha',
+//     'Washim',
+//     'Yavatmal',
+//     'Other'
+//   ];
+
+//   // Category definitions with bag weights
+//   final Map<String, Map<String, dynamic>> categories = {
+//     "मिल्क पॉवर / Milk Power": {"weight": 20, "unit": "kg", "price": 350},
+//     "दुध सरिता / Dugdh Sarita": {"weight": 25, "unit": "kg", "price": 450},
+//     "दुग्धराज / Dugdh Raj": {"weight": 30, "unit": "kg", "price": 600},
+//     "डायमंड संतुलित पशु आहार / Diamond Balanced Animal Feed": {"weight": 10, "unit": "kg", "price": 800},
+//     "मिल्क पॉवर प्लस / Milk Power Plus": {"weight": 5, "unit": "kg", "price": 1200},
+//     "संतुलित पशु आहार / Santulit Pashu Aahar": {"weight": 5, "unit": "kg", "price": 1200},
+//     "जीवन धारा / Jeevan Dhara": {"weight": 5, "unit": "kg", "price": 1200},
+//     "Dairy Special संतुलित पशु आहार": {"weight": 5, "unit": "kg", "price": 1200},
+//   };
+
+//   // Bag quantity options
+//   final List<int> bagOptions = [1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 40, 50];
+
+//   @override
+//   Widget build(BuildContext context) {
+//     final orderProvider = Provider.of<OrderProvider>(context);
+
+//     if (_orderPlaced) {
+//       return _buildSuccessPage(orderProvider);
+//     }
+
+//     return Scaffold(
+//       backgroundColor: GlobalColors.background,
+//       appBar: AppBar(
+//         backgroundColor: GlobalColors.primaryBlue,
+//         elevation: 0,
+//         centerTitle: true,
+//         iconTheme: const IconThemeData(color: GlobalColors.white),
+//         leading: IconButton(
+//           icon: const Icon(Icons.arrow_back, color: GlobalColors.white),
+//           onPressed: () {
+//             Navigator.pop(context);
+//           },
+//         ),
+//         title: const Text(
+//           "Cattle Feed Order",
+//           style: TextStyle(
+//             color: GlobalColors.white,
+//             fontWeight: FontWeight.w600,
+//             fontSize: 20,
+//           ),
+//         ),
+//       ),
+//       body: orderProvider.loading
+//           ? const Center(
+//               child: CircularProgressIndicator(
+//                 color: GlobalColors.primaryBlue,
+//               ),
+//             )
+//           : Form(
+//               key: _formKey,
+//               child: SingleChildScrollView(
+//                 physics: const BouncingScrollPhysics(),
+//                 padding: const EdgeInsets.only(bottom: 40),
+//                 child: Column(
+//                   crossAxisAlignment: CrossAxisAlignment.start,
+//                   children: [
+//                     // Header Section
+//                     Container(
+//                       width: double.infinity,
+//                       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+//                       decoration: BoxDecoration(
+//                         color: GlobalColors.primaryBlue,
+//                         borderRadius: const BorderRadius.only(
+//                           bottomLeft: Radius.circular(20),
+//                           bottomRight: Radius.circular(20),
+//                         ),
+//                       ),
+//                       child: const Column(
+//                         crossAxisAlignment: CrossAxisAlignment.start,
+//                         children: [
+//                           Text(
+//                             "New Feed Order",
+//                             style: TextStyle(
+//                               color: GlobalColors.white,
+//                               fontSize: 24,
+//                               fontWeight: FontWeight.bold,
+//                             ),
+//                           ),
+//                           SizedBox(height: 6),
+//                           Text(
+//                             "Fill the details to place order",
+//                             style: TextStyle(
+//                               color: GlobalColors.white,
+//                               fontSize: 14,
+//                             ),
+//                           ),
+//                         ],
+//                       ),
+//                     ),
+//                     const SizedBox(height: 24),
+
+//                     // Customer Details Section
+//                     _buildSectionHeader("Customer Information"),
+//                     _buildCard(
+//                       child: Column(
+//                         children: [
+//                           _buildTextField(
+//                             controller: nameController,
+//                             label: "Customer Name *",
+//                             hintText: "Enter full name",
+//                             icon: Icons.person_outline,
+//                             validator: (value) {
+//                               if (value == null || value.isEmpty) {
+//                                 return 'Please enter customer name';
+//                               }
+//                               return null;
+//                             },
+//                           ),
+//                           const SizedBox(height: 16),
+//                           _buildTextField(
+//                             controller: mobileController,
+//                             label: "Mobile Number *",
+//                             hintText: "10 digit mobile number",
+//                             icon: Icons.phone_outlined,
+//                             keyboardType: TextInputType.phone,
+//                             validator: (value) {
+//                               if (value == null || value.isEmpty) {
+//                                 return 'Please enter mobile number';
+//                               }
+//                               if (value.length != 10 || int.tryParse(value) == null) {
+//                                 return 'Enter valid 10-digit mobile number';
+//                               }
+//                               return null;
+//                             },
+//                           ),
+//                           const SizedBox(height: 16),
+//                           _buildTextField(
+//                             controller: addressController,
+//                             label: "Delivery Address *",
+//                             hintText: "Enter complete delivery address",
+//                             icon: Icons.location_on_outlined,
+//                             maxLines: 2,
+//                             validator: (value) {
+//                               if (value == null || value.isEmpty) {
+//                                 return 'Please enter delivery address';
+//                               }
+//                               return null;
+//                             },
+//                           ),
+//                           const SizedBox(height: 16),
+//                           // District Dropdown
+//                           Column(
+//                             crossAxisAlignment: CrossAxisAlignment.start,
+//                             children: [
+//                               _buildLabel("District *"),
+//                               const SizedBox(height: 8),
+//                               Container(
+//                                 decoration: BoxDecoration(
+//                                   borderRadius: BorderRadius.circular(12),
+//                                   border: Border.all(
+//                                     color: Colors.grey,
+//                                     width: 1,
+//                                   ),
+//                                 ),
+//                                 child: DropdownButtonFormField<String>(
+//                                   value: selectedDistrict,
+//                                   decoration: InputDecoration(
+//                                     filled: true,
+//                                     fillColor: Colors.white,
+//                                     contentPadding: const EdgeInsets.symmetric(
+//                                         horizontal: 16, vertical: 14),
+//                                     border: OutlineInputBorder(
+//                                       borderRadius: BorderRadius.circular(12),
+//                                       borderSide: BorderSide.none,
+//                                     ),
+//                                     enabledBorder: InputBorder.none,
+//                                     focusedBorder: InputBorder.none,
+//                                     prefixIcon: Icon(
+//                                       Icons.map_outlined,
+//                                       color: GlobalColors.primaryBlue,
+//                                     ),
+//                                   ),
+//                                   hint: const Text(
+//                                     "Select district",
+//                                     overflow: TextOverflow.ellipsis,
+//                                   ),
+//                                   isExpanded: true,
+//                                   items: districtOptions
+//                                       .map((district) => DropdownMenuItem(
+//                                             value: district == 'Select District' ? null : district,
+//                                             child: Text(
+//                                               district,
+//                                               style: const TextStyle(fontSize: 14),
+//                                               overflow: TextOverflow.ellipsis,
+//                                             ),
+//                                           ))
+//                                       .toList(),
+//                                   onChanged: (value) =>
+//                                       setState(() => selectedDistrict = value),
+//                                   validator: (value) {
+//                                     if (value == null || value.isEmpty) {
+//                                       return 'Please select a district';
+//                                     }
+//                                     return null;
+//                                   },
+//                                 ),
+//                               ),
+//                             ],
+//                           ),
+//                         ],
+//                       ),
+//                     ),
+
+//                     const SizedBox(height: 20),
+
+//                     // Order Details Section
+//                     _buildSectionHeader("Order Details"),
+//                     _buildCard(
+//                       child: Column(
+//                         children: [
+//                           // Category Dropdown
+//                           Column(
+//                             crossAxisAlignment: CrossAxisAlignment.start,
+//                             children: [
+//                               _buildLabel("Feed Category *"),
+//                               const SizedBox(height: 8),
+//                               Container(
+//                                 decoration: BoxDecoration(
+//                                   borderRadius: BorderRadius.circular(12),
+//                                   border: Border.all(
+//                                     color: Colors.grey,
+//                                     width: 1,
+//                                   ),
+//                                 ),
+//                                 child: DropdownButtonFormField<String>(
+//                                   value: selectedCategory,
+//                                   decoration: InputDecoration(
+//                                     filled: true,
+//                                     fillColor: Colors.white,
+//                                     contentPadding: const EdgeInsets.symmetric(
+//                                         horizontal: 16, vertical: 14),
+//                                     border: OutlineInputBorder(
+//                                       borderRadius: BorderRadius.circular(12),
+//                                       borderSide: BorderSide.none,
+//                                     ),
+//                                     enabledBorder: InputBorder.none,
+//                                     focusedBorder: InputBorder.none,
+//                                     prefixIcon: Icon(
+//                                       Icons.category_outlined,
+//                                       color: GlobalColors.primaryBlue,
+//                                     ),
+//                                   ),
+//                                   hint: const Text(
+//                                     "Select feed category",
+//                                     overflow: TextOverflow.ellipsis,
+//                                   ),
+//                                   isExpanded: true,
+//                                   items: categories.keys
+//                                       .map((category) => DropdownMenuItem(
+//                                             value: category,
+//                                             child: Text(
+//                                               category,
+//                                               style: const TextStyle(fontSize: 14),
+//                                               overflow: TextOverflow.ellipsis,
+//                                               maxLines: 2,
+//                                             ),
+//                                           ))
+//                                       .toList(),
+//                                   onChanged: (value) =>
+//                                       setState(() => selectedCategory = value),
+//                                   validator: (value) {
+//                                     if (value == null || value.isEmpty) {
+//                                       return 'Please select a category';
+//                                     }
+//                                     return null;
+//                                   },
+//                                 ),
+//                               ),
+//                             ],
+//                           ),
+//                           const SizedBox(height: 20),
+
+//                           // Quantity Selection (Bags)
+//                           if (selectedCategory != null)
+//                             Column(
+//                               crossAxisAlignment: CrossAxisAlignment.start,
+//                               children: [
+//                                 _buildLabel("Number of Bags *"),
+//                                 const SizedBox(height: 8),
+//                                 SizedBox(
+//                                   height: 60,
+//                                   child: ListView.builder(
+//                                     scrollDirection: Axis.horizontal,
+//                                     itemCount: bagOptions.length,
+//                                     itemBuilder: (context, index) {
+//                                       final bags = bagOptions[index];
+//                                       return Padding(
+//                                         padding: const EdgeInsets.only(right: 8),
+//                                         child: ChoiceChip(
+//                                           label: Text('$bags Bag${bags > 1 ? 's' : ''}'),
+//                                           selected: selectedBags == bags,
+//                                           selectedColor: GlobalColors.primaryBlue,
+//                                           labelStyle: TextStyle(
+//                                             color: selectedBags == bags
+//                                                 ? GlobalColors.white
+//                                                 : Colors.black,
+//                                             fontWeight: FontWeight.w500,
+//                                           ),
+//                                           onSelected: (selected) {
+//                                             setState(() {
+//                                               selectedBags = bags;
+//                                             });
+//                                           },
+//                                           shape: RoundedRectangleBorder(
+//                                             borderRadius: BorderRadius.circular(20),
+//                                           ),
+//                                         ),
+//                                       );
+//                                     },
+//                                   ),
+//                                 ),
+//                                 const SizedBox(height: 12),
+//                                 Container(
+//                                   padding: const EdgeInsets.all(12),
+//                                   decoration: BoxDecoration(
+//                                     color: GlobalColors.primaryBlue.withOpacity(0.1),
+//                                     borderRadius: BorderRadius.circular(12),
+//                                     border: Border.all(
+//                                       color: GlobalColors.primaryBlue.withOpacity(0.3),
+//                                       width: 1,
+//                                     ),
+//                                   ),
+//                                   child: Row(
+//                                     children: [
+//                                       Icon(Icons.info_outline,
+//                                           color: GlobalColors.primaryBlue, size: 20),
+//                                       const SizedBox(width: 8),
+//                                       Expanded(
+//                                         child: Text(
+//                                           "Each bag contains ${categories[selectedCategory]!['weight']} ${categories[selectedCategory]!['unit']}",
+//                                           style: TextStyle(
+//                                             color: GlobalColors.primaryBlue,
+//                                             fontSize: 13,
+//                                           ),
+//                                         ),
+//                                       ),
+//                                     ],
+//                                   ),
+//                                 ),
+//                                 const SizedBox(height: 20),
+
+//                                 // Total Weight Calculation
+//                                 Container(
+//                                   padding: const EdgeInsets.all(16),
+//                                   decoration: BoxDecoration(
+//                                     color: Colors.white,
+//                                     borderRadius: BorderRadius.circular(12),
+//                                     border: Border.all(
+//                                       color: Colors.grey,
+//                                       width: 1,
+//                                     ),
+//                                   ),
+//                                   child: Row(
+//                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                                     children: [
+//                                       Column(
+//                                         crossAxisAlignment: CrossAxisAlignment.start,
+//                                         children: [
+//                                           Text(
+//                                             "Total Quantity",
+//                                             style: TextStyle(
+//                                               color: Colors.black,
+//                                               fontSize: 14,
+//                                             ),
+//                                           ),
+//                                           const SizedBox(height: 4),
+//                                           Text(
+//                                             "Weight",
+//                                             style: TextStyle(
+//                                               color: Colors.black,
+//                                               fontSize: 12,
+//                                             ),
+//                                           ),
+//                                         ],
+//                                       ),
+//                                       Column(
+//                                         crossAxisAlignment: CrossAxisAlignment.end,
+//                                         children: [
+//                                           Text(
+//                                             "$selectedBags Bags",
+//                                             style: TextStyle(
+//                                               fontSize: 18,
+//                                               fontWeight: FontWeight.bold,
+//                                               color: GlobalColors.primaryBlue,
+//                                             ),
+//                                           ),
+//                                           const SizedBox(height: 4),
+//                                           Text(
+//                                             "${(selectedBags * categories[selectedCategory]!['weight'])} ${categories[selectedCategory]!['unit']}",
+//                                             style: TextStyle(
+//                                               fontSize: 14,
+//                                               color: Colors.black,
+//                                               fontWeight: FontWeight.w500,
+//                                             ),
+//                                           ),
+//                                         ],
+//                                       ),
+//                                     ],
+//                                   ),
+//                                 ),
+//                               ],
+//                             ),
+//                         ],
+//                       ),
+//                     ),
+
+//                     const SizedBox(height: 20),
+
+//                     // Remarks Section
+//                     _buildSectionHeader("Additional Information"),
+//                     _buildCard(
+//                       child: Column(
+//                         children: [
+//                           _buildTextField(
+//                             controller: remarksController,
+//                             label: "Remarks (Optional)",
+//                             hintText: "Any special instructions or notes...",
+//                             icon: Icons.note_outlined,
+//                             maxLines: 3,
+//                           ),
+//                         ],
+//                       ),
+//                     ),
+
+//                     const SizedBox(height: 30),
+
+//                     // Place Order Button
+//                     Padding(
+//                       padding: const EdgeInsets.symmetric(horizontal: 20),
+//                       child: SizedBox(
+//                         width: double.infinity,
+//                         child: ElevatedButton(
+//                           style: ElevatedButton.styleFrom(
+//                             backgroundColor: GlobalColors.primaryBlue,
+//                             shape: RoundedRectangleBorder(
+//                               borderRadius: BorderRadius.circular(12),
+//                             ),
+//                             minimumSize: const Size(double.infinity, 56),
+//                           ),
+//                           onPressed: () => _submitOrder(orderProvider),
+//                           child: Row(
+//                             mainAxisAlignment: MainAxisAlignment.center,
+//                             children: [
+//                               Icon(Icons.check_circle_outline,
+//                                   color: GlobalColors.white, size: 24),
+//                               const SizedBox(width: 12),
+//                               Text(
+//                                 "PLACE ORDER",
+//                                 style: TextStyle(
+//                                   fontSize: 16,
+//                                   fontWeight: FontWeight.w600,
+//                                   color: GlobalColors.white,
+//                                 ),
+//                               ),
+//                             ],
+//                           ),
+//                         ),
+//                       ),
+//                     ),
+
+//                     const SizedBox(height: 40),
+//                   ],
+//                 ),
+//               ),
+//             ),
+//     );
+//   }
+
+//   // --------------------------------------------------------
+//   // Success Page
+//   // --------------------------------------------------------
+//   Widget _buildSuccessPage(OrderProvider orderProvider) {
+//     final totalWeight =
+//         selectedBags * categories[_orderDetails!['feed_category']]!['weight'];
+//     final unit = categories[_orderDetails!['feed_category']]!['unit'];
+//     final pricePerBag = categories[_orderDetails!['feed_category']]!['price'];
+//     final totalPrice = selectedBags * pricePerBag;
+
+//     return Scaffold(
+//       backgroundColor: GlobalColors.primaryBlue,
+//       appBar: AppBar(
+//         backgroundColor: GlobalColors.primaryBlue,
+//         elevation: 0,
+//         automaticallyImplyLeading: false,
+//         title: const Text(
+//           "Order Confirmed",
+//           style: TextStyle(
+//             color: GlobalColors.white,
+//             fontWeight: FontWeight.w600,
+//             fontSize: 20,
+//           ),
+//         ),
+//       ),
+//       body: Column(
+//         children: [
+//           Expanded(
+//             child: SingleChildScrollView(
+//               physics: const BouncingScrollPhysics(),
+//               padding: const EdgeInsets.all(24),
+//               child: Column(
+//                 mainAxisAlignment: MainAxisAlignment.center,
+//                 children: [
+//                   // Success Icon
+//                   Container(
+//                     width: 120,
+//                     height: 120,
+//                     decoration: BoxDecoration(
+//                       color: GlobalColors.white,
+//                       shape: BoxShape.circle,
+//                       boxShadow: [
+//                         BoxShadow(
+//                           color: GlobalColors.primaryBlue.withOpacity(0.3),
+//                           blurRadius: 20,
+//                           spreadRadius: 2,
+//                         ),
+//                       ],
+//                     ),
+//                     child: Icon(
+//                       Icons.check_circle,
+//                       color: GlobalColors.primaryBlue,
+//                       size: 70,
+//                     ),
+//                   ),
+//                   const SizedBox(height: 32),
+
+//                   // Success Message
+//                   const Text(
+//                     "Order Placed Successfully!",
+//                     style: TextStyle(
+//                       color: GlobalColors.white,
+//                       fontSize: 28,
+//                       fontWeight: FontWeight.bold,
+//                     ),
+//                     textAlign: TextAlign.center,
+//                   ),
+//                   const SizedBox(height: 16),
+//                   Text(
+//                     "Order will appear in production orders",
+//                     style: TextStyle(
+//                       color: GlobalColors.white.withOpacity(0.9),
+//                       fontSize: 16,
+//                       fontWeight: FontWeight.w500,
+//                     ),
+//                   ),
+//                   const SizedBox(height: 40),
+
+//                   // Order Details Card
+//                   Container(
+//                     width: double.infinity,
+//                     padding: const EdgeInsets.all(24),
+//                     decoration: BoxDecoration(
+//                       color: Colors.white,
+//                       borderRadius: BorderRadius.circular(20),
+//                       boxShadow: [
+//                         BoxShadow(
+//                           color: Colors.black.withOpacity(0.1),
+//                           blurRadius: 10,
+//                           spreadRadius: 2,
+//                         ),
+//                       ],
+//                       border: Border.all(
+//                         color: Colors.grey,
+//                         width: 1,
+//                       ),
+//                     ),
+//                     child: Column(
+//                       crossAxisAlignment: CrossAxisAlignment.start,
+//                       children: [
+//                         Text(
+//                           "Order Summary",
+//                           style: TextStyle(
+//                             fontSize: 20,
+//                             fontWeight: FontWeight.bold,
+//                             color: Colors.black,
+//                           ),
+//                         ),
+//                         const SizedBox(height: 20),
+
+//                         // Customer Info
+//                         _successDetailRow("Customer", _orderDetails!['customer_name']),
+//                         const SizedBox(height: 12),
+//                         _successDetailRow("Mobile", _orderDetails!['customer_mobile']),
+//                         const SizedBox(height: 12),
+//                         _successDetailRow("Address", _orderDetails!['customer_address']),
+//                         const SizedBox(height: 12),
+//                         _successDetailRow("District", _orderDetails!['district']),
+//                         const Divider(height: 24),
+
+//                         // Order Info
+//                         _successDetailRow("Category", _orderDetails!['feed_category']),
+//                         const SizedBox(height: 12),
+//                         _successDetailRow("Bags", "${_orderDetails!['bags']} Bags"),
+//                         const SizedBox(height: 12),
+//                         _successDetailRow("Weight", "$totalWeight $unit"),
+//                         const SizedBox(height: 12),
+//                         _successDetailRow("Price per Bag", "₹$pricePerBag"),
+//                         const Divider(height: 24),
+
+//                         // Total Price
+//                         Row(
+//                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                           children: [
+//                             Text(
+//                               "Total Amount",
+//                               style: TextStyle(
+//                                 fontSize: 18,
+//                                 fontWeight: FontWeight.bold,
+//                                 color: Colors.black,
+//                               ),
+//                             ),
+//                             Text(
+//                               "₹$totalPrice",
+//                               style: TextStyle(
+//                                 fontSize: 24,
+//                                 fontWeight: FontWeight.bold,
+//                                 color: GlobalColors.primaryBlue,
+//                               ),
+//                             ),
+//                           ],
+//                         ),
+//                         const SizedBox(height: 8),
+//                         Text(
+//                           "Payment: To be collected on delivery",
+//                           style: TextStyle(
+//                             color: Colors.grey,
+//                             fontSize: 13,
+//                             fontStyle: FontStyle.italic,
+//                           ),
+//                         ),
+//                       ],
+//                     ),
+//                   ),
+//                   const SizedBox(height: 30),
+
+//                   // Instructions
+//                   Container(
+//                     padding: const EdgeInsets.all(16),
+//                     decoration: BoxDecoration(
+//                       color: Colors.white.withOpacity(0.1),
+//                       borderRadius: BorderRadius.circular(12),
+//                       border: Border.all(
+//                         color: Colors.white.withOpacity(0.3),
+//                         width: 1,
+//                       ),
+//                     ),
+//                     child: Column(
+//                       children: [
+//                         Row(
+//                           children: [
+//                             Icon(Icons.info_outline, color: GlobalColors.white, size: 18),
+//                             const SizedBox(width: 8),
+//                             Text(
+//                               "What's Next?",
+//                               style: TextStyle(
+//                                 color: GlobalColors.white,
+//                                 fontSize: 16,
+//                                 fontWeight: FontWeight.w600,
+//                               ),
+//                             ),
+//                           ],
+//                         ),
+//                         const SizedBox(height: 12),
+//                         Text(
+//                           "Our production team will process this order. You can track the order status in the Production Orders section.",
+//                           style: TextStyle(
+//                             color: GlobalColors.white.withOpacity(0.7),
+//                             fontSize: 14,
+//                           ),
+//                         ),
+//                       ],
+//                     ),
+//                   ),
+//                   const SizedBox(height: 40),
+//                 ],
+//               ),
+//             ),
+//           ),
+
+//           // Action Buttons - Fixed at bottom
+//           Container(
+//             padding: const EdgeInsets.all(20),
+//             decoration: BoxDecoration(
+//               color: Colors.white,
+//               border: Border(
+//                 top: BorderSide(
+//                   color: Colors.grey,
+//                   width: 1,
+//                 ),
+//               ),
+//             ),
+//             child: Row(
+//               children: [
+//                 Expanded(
+//                   child: OutlinedButton(
+//                     onPressed: () {
+//                       setState(() {
+//                         _orderPlaced = false;
+//                         _resetForm();
+//                       });
+//                     },
+//                     style: OutlinedButton.styleFrom(
+//                       side: BorderSide(
+//                         color: GlobalColors.primaryBlue,
+//                         width: 2,
+//                       ),
+//                       shape: RoundedRectangleBorder(
+//                         borderRadius: BorderRadius.circular(12),
+//                       ),
+//                       padding: const EdgeInsets.symmetric(vertical: 16),
+//                     ),
+//                     child: Text(
+//                       "NEW ORDER",
+//                       style: TextStyle(
+//                         color: GlobalColors.primaryBlue,
+//                         fontWeight: FontWeight.w600,
+//                         fontSize: 16,
+//                       ),
+//                     ),
+//                   ),
+//                 ),
+//                 const SizedBox(width: 16),
+//                 Expanded(
+//                   child: ElevatedButton(
+//                     onPressed: () {
+//                       Navigator.pop(context);
+//                     },
+//                     style: ElevatedButton.styleFrom(
+//                       backgroundColor: GlobalColors.primaryBlue,
+//                       shape: RoundedRectangleBorder(
+//                         borderRadius: BorderRadius.circular(12),
+//                       ),
+//                       padding: const EdgeInsets.symmetric(vertical: 16),
+//                     ),
+//                     child: Text(
+//                       "BACK TO HOME",
+//                       style: TextStyle(
+//                         color: GlobalColors.white,
+//                         fontWeight: FontWeight.w600,
+//                         fontSize: 16,
+//                       ),
+//                     ),
+//                   ),
+//                 ),
+//               ],
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   Widget _successDetailRow(String label, String value) {
+//     return Row(
+//       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//       children: [
+//         Text(
+//           label,
+//           style: TextStyle(
+//             color: Colors.black,
+//             fontSize: 15,
+//           ),
+//         ),
+//         Expanded(
+//           child: Text(
+//             value,
+//             textAlign: TextAlign.right,
+//             style: TextStyle(
+//               color: Colors.black,
+//               fontSize: 15,
+//               fontWeight: FontWeight.w500,
+//             ),
+//             overflow: TextOverflow.ellipsis,
+//             maxLines: 2,
+//           ),
+//         ),
+//       ],
+//     );
+//   }
+
+//   // --------------------------------------------------------
+//   // Helper Methods
+//   // --------------------------------------------------------
+
+//   Widget _buildSectionHeader(String title) {
+//     return Padding(
+//       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+//       child: Text(
+//         title,
+//         style: TextStyle(
+//           fontSize: 17,
+//           fontWeight: FontWeight.w600,
+//           color: Colors.black,
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildCard({required Widget child}) {
+//     return Padding(
+//       padding: const EdgeInsets.symmetric(horizontal: 20),
+//       child: Container(
+//         padding: const EdgeInsets.all(20),
+//         decoration: BoxDecoration(
+//           color: Colors.white,
+//           borderRadius: BorderRadius.circular(16),
+//           boxShadow: [
+//             BoxShadow(
+//               color: Colors.grey.withOpacity(0.1),
+//               blurRadius: 15,
+//               offset: const Offset(0, 4),
+//             ),
+//           ],
+//           border: Border.all(
+//             color: Colors.grey,
+//             width: 1,
+//           ),
+//         ),
+//         child: child,
+//       ),
+//     );
+//   }
+
+//   Widget _buildLabel(String text) {
+//     return Text(
+//       text,
+//       style: TextStyle(
+//         fontSize: 14,
+//         fontWeight: FontWeight.w500,
+//         color: Colors.black,
+//       ),
+//     );
+//   }
+
+//   Widget _buildTextField({
+//     required TextEditingController controller,
+//     required String label,
+//     required String hintText,
+//     required IconData icon,
+//     int maxLines = 1,
+//     TextInputType keyboardType = TextInputType.text,
+//     String? Function(String?)? validator,
+//   }) {
+//     return Column(
+//       crossAxisAlignment: CrossAxisAlignment.start,
+//       children: [
+//         _buildLabel(label),
+//         const SizedBox(height: 8),
+//         TextFormField(
+//           controller: controller,
+//           maxLines: maxLines,
+//           keyboardType: keyboardType,
+//           validator: validator,
+//           decoration: InputDecoration(
+//             hintText: hintText,
+//             filled: true,
+//             fillColor: Colors.white,
+//             prefixIcon: Icon(icon, color: GlobalColors.primaryBlue),
+//             border: OutlineInputBorder(
+//               borderRadius: BorderRadius.circular(12),
+//               borderSide: BorderSide(
+//                 color: Colors.grey,
+//                 width: 1,
+//               ),
+//             ),
+//             enabledBorder: OutlineInputBorder(
+//               borderRadius: BorderRadius.circular(12),
+//               borderSide: BorderSide(
+//                 color: Colors.grey,
+//                 width: 1,
+//               ),
+//             ),
+//             focusedBorder: OutlineInputBorder(
+//               borderRadius: BorderRadius.circular(12),
+//               borderSide: BorderSide(
+//                 color: GlobalColors.primaryBlue,
+//                 width: 1,
+//               ),
+//             ),
+//             errorBorder: OutlineInputBorder(
+//               borderRadius: BorderRadius.circular(12),
+//               borderSide: BorderSide(
+//                 color: Colors.red,
+//                 width: 1,
+//               ),
+//             ),
+//             contentPadding: EdgeInsets.symmetric(
+//               horizontal: 16,
+//               vertical: maxLines > 1 ? 16 : 0,
+//             ),
+//           ),
+//         ),
+//       ],
+//     );
+//   }
+
+//   // --------------------------------------------------------
+//   // Order Submission Logic
+//   // --------------------------------------------------------
+//   Future<void> _submitOrder(OrderProvider orderProvider) async {
+//     if (!_formKey.currentState!.validate()) {
+//       _showError("Please fill all required fields");
+//       return;
+//     }
+
+//     if (selectedCategory == null) {
+//       _showError("Please select a feed category");
+//       return;
+//     }
+
+//     if (selectedDistrict == null || selectedDistrict!.isEmpty) {
+//       _showError("Please select a district");
+//       return;
+//     }
+
+//     try {
+//       final category = selectedCategory!;
+//       final meta = categories[category]!;
+//       final pricePerBag = meta['price'] as int;
+//       final totalPrice = selectedBags * pricePerBag;
+
+//       // Prepare order data matching emp_mar_orders table structure
+//       final orderData = {
+//         'customer_name': nameController.text.trim(),
+//         'customer_mobile': mobileController.text.trim(),
+//         'customer_address': addressController.text.trim(),
+//         'district': selectedDistrict, // Using dropdown value
+//         'feed_category': category,
+//         'bags': selectedBags,
+//         'weight_per_bag': meta['weight'],
+//         'weight_unit': meta['unit'],
+//         'total_weight': selectedBags * meta['weight'],
+//         'price_per_bag': pricePerBag,
+//         'total_price': totalPrice,
+//         'remarks': remarksController.text.trim().isEmpty ? null : remarksController.text.trim(),
+//         'status': 'pending', // Default status
+//       };
+
+//       print('Submitting order to emp_mar_orders: $orderData');
+
+//       await orderProvider.createOrder(orderData);
+
+//       setState(() {
+//         _orderDetails = {
+//           'customer_name': nameController.text.trim(),
+//           'customer_mobile': mobileController.text.trim(),
+//           'customer_address': addressController.text.trim(),
+//           'district': selectedDistrict!,
+//           'feed_category': category,
+//           'bags': selectedBags,
+//           'price_per_bag': pricePerBag,
+//           'total_price': totalPrice,
+//           'remarks': remarksController.text.trim(),
+//         };
+//         _orderPlaced = true;
+//       });
+
+//     } catch (e) {
+//       print('Error placing order: $e');
+//       _showError("Failed to place order: ${e.toString()}");
+//     }
+//   }
+
+//   void _resetForm() {
+//     nameController.clear();
+//     mobileController.clear();
+//     addressController.clear();
+//     remarksController.clear();
+//     selectedCategory = null;
+//     selectedDistrict = null;
+//     selectedBags = 1;
+//     _orderDetails = null;
+//   }
+  
+//   void _showError(String msg) {
+//     ScaffoldMessenger.of(context).showSnackBar(
+//       SnackBar(
+//         content: Text(msg),
+//         backgroundColor: Colors.red,
+//         behavior: SnackBarBehavior.floating,
+//         shape: RoundedRectangleBorder(
+//           borderRadius: BorderRadius.circular(12),
+//         ),
+//         duration: const Duration(seconds: 3),
+//       ),
+//     );
+//   }
+// }
 
 
 

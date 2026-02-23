@@ -246,43 +246,38 @@ class InventoryProvider extends ChangeNotifier {
           .order('name', ascending: true)
           .timeout(const Duration(seconds: 10));
 
-      if (response != null && response is List) {
-        print('Received ${response.length} inventory items');
-        
-        // Clear existing items
-        _inventoryItems.clear();
-        
-        // Process each item safely
-        int successCount = 0;
-        int errorCount = 0;
-        
-        for (var itemData in response) {
-          try {
-            final item = InventoryItem.fromMap(itemData);
-            if (item.id.isNotEmpty && !item.id.startsWith('error_')) {
-              _inventoryItems.add(item);
-              successCount++;
-            } else {
-              errorCount++;
-              print('Skipping invalid item: ${itemData['id']}');
-            }
-          } catch (e) {
+      print('Received ${response.length} inventory items');
+      
+      // Clear existing items
+      _inventoryItems.clear();
+      
+      // Process each item safely
+      int successCount = 0;
+      int errorCount = 0;
+      
+      for (var itemData in response) {
+        try {
+          final item = InventoryItem.fromMap(itemData);
+          if (item.id.isNotEmpty && !item.id.startsWith('error_')) {
+            _inventoryItems.add(item);
+            successCount++;
+          } else {
             errorCount++;
-            print('Error processing inventory item: $e');
-            print('Item data: $itemData');
+            print('Skipping invalid item: ${itemData['id']}');
           }
+        } catch (e) {
+          errorCount++;
+          print('Error processing inventory item: $e');
+          print('Item data: $itemData');
         }
-        
-        print('Inventory loaded: $successCount items, $errorCount errors');
-        
-        if (errorCount > 0 && successCount == 0) {
-          _error = 'Failed to load any inventory items. Please check database connection.';
-        }
-      } else {
-        print('No data or invalid response from Supabase');
-        _error = 'No inventory data available';
       }
-    } catch (e, stackTrace) {
+      
+      print('Inventory loaded: $successCount items, $errorCount errors');
+      
+      if (errorCount > 0 && successCount == 0) {
+        _error = 'Failed to load any inventory items. Please check database connection.';
+      }
+        } catch (e, stackTrace) {
       print('Error loading inventory: $e');
       print('Stack trace: $stackTrace');
       
@@ -391,7 +386,7 @@ class InventoryProvider extends ChangeNotifier {
           .single()
           .timeout(const Duration(seconds: 10));
 
-      if (response != null && response.isNotEmpty) {
+      if (response.isNotEmpty) {
         // Add log
         try {
           await _supabase.from('inventory_logs').insert({

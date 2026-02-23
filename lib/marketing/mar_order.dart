@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mega_pro/global/global_variables.dart';
 import 'package:mega_pro/providers/emp_order_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // Add this import
 
 class CattleFeedOrderScreen extends StatefulWidget {
   const CattleFeedOrderScreen({super.key});
@@ -12,8 +13,10 @@ class CattleFeedOrderScreen extends StatefulWidget {
 
 class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final supabase = Supabase.instance.client; // Add supabase instance
   int selectedBags = 1;
   String? selectedCategory;
+  String? selectedDistrict;
   bool _orderPlaced = false;
   Map<String, dynamic>? _orderDetails;
 
@@ -21,6 +24,49 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
   final TextEditingController addressController = TextEditingController();
   final TextEditingController mobileController = TextEditingController();
   final TextEditingController remarksController = TextEditingController();
+  final TextEditingController emailController = TextEditingController(); // Add email controller
+
+  // District options
+  final List<String> districtOptions = [
+    'Select District',
+    'Ahmednagar',
+    'Akola',
+    'Amravati',
+    'Aurangabad',
+    'Beed',
+    'Bhandara',
+    'Buldhana',
+    'Chandrapur',
+    'Dhule',
+    'Gadchiroli',
+    'Gondia',
+    'Hingoli',
+    'Jalgaon',
+    'Jalna',
+    'Kolhapur',
+    'Latur',
+    'Mumbai City',
+    'Mumbai Suburban',
+    'Nagpur',
+    'Nanded',
+    'Nandurbar',
+    'Nashik',
+    'Osmanabad',
+    'Palghar',
+    'Parbhani',
+    'Pune',
+    'Raigad',
+    'Ratnagiri',
+    'Sangli',
+    'Satara',
+    'Sindhudurg',
+    'Solapur',
+    'Thane',
+    'Wardha',
+    'Washim',
+    'Yavatmal',
+    'Other'
+  ];
 
   // Category definitions with bag weights
   final Map<String, Map<String, dynamic>> categories = {
@@ -46,7 +92,27 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
     }
 
     return Scaffold(
-      backgroundColor: GlobalColors.background,      
+      backgroundColor: GlobalColors.background,
+      appBar: AppBar(
+        backgroundColor: GlobalColors.primaryBlue,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: GlobalColors.white),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: GlobalColors.white),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+        title: const Text(
+          "Cattle Feed Order",
+          style: TextStyle(
+            color: GlobalColors.white,
+            fontWeight: FontWeight.w600,
+            fontSize: 20,
+          ),
+        ),
+      ),
       body: orderProvider.loading
           ? const Center(
               child: CircularProgressIndicator(
@@ -132,6 +198,22 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                           ),
                           const SizedBox(height: 16),
                           _buildTextField(
+                            controller: emailController,
+                            label: "Email (Optional)",
+                            hintText: "customer@example.com",
+                            icon: Icons.email_outlined,
+                            keyboardType: TextInputType.emailAddress,
+                            validator: (value) {
+                              if (value != null && value.isNotEmpty) {
+                                if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                                  return 'Enter valid email address';
+                                }
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          _buildTextField(
                             controller: addressController,
                             label: "Delivery Address *",
                             hintText: "Enter complete delivery address",
@@ -143,6 +225,66 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                               }
                               return null;
                             },
+                          ),
+                          const SizedBox(height: 16),
+                          // District Dropdown
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildLabel("District *"),
+                              const SizedBox(height: 8),
+                              Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.grey,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: DropdownButtonFormField<String>(
+                                  value: selectedDistrict,
+                                  decoration: InputDecoration(
+                                    filled: true,
+                                    fillColor: Colors.white,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 14),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    prefixIcon: Icon(
+                                      Icons.map_outlined,
+                                      color: GlobalColors.primaryBlue,
+                                    ),
+                                  ),
+                                  hint: const Text(
+                                    "Select district",
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  isExpanded: true,
+                                  items: districtOptions
+                                      .map((district) => DropdownMenuItem(
+                                            value: district == 'Select District' ? null : district,
+                                            child: Text(
+                                              district,
+                                              style: const TextStyle(fontSize: 14),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ))
+                                      .toList(),
+                                  onChanged: (value) =>
+                                      setState(() => selectedDistrict = value),
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Please select a district';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -489,6 +631,20 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
+                  // Add notification message if email was provided
+                  if (_orderDetails!['customer_email'] != null && _orderDetails!['customer_email']!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        "Tracking link sent to ${_orderDetails!['customer_email']}",
+                        style: TextStyle(
+                          color: GlobalColors.white.withOpacity(0.8),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                   const SizedBox(height: 40),
 
                   // Order Details Card
@@ -527,8 +683,15 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                         _successDetailRow("Customer", _orderDetails!['customer_name']),
                         const SizedBox(height: 12),
                         _successDetailRow("Mobile", _orderDetails!['customer_mobile']),
+                        if (_orderDetails!['customer_email'] != null && _orderDetails!['customer_email']!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _successDetailRow("Email", _orderDetails!['customer_email']),
+                          ),
                         const SizedBox(height: 12),
                         _successDetailRow("Address", _orderDetails!['customer_address']),
+                        const SizedBox(height: 12),
+                        _successDetailRow("District", _orderDetails!['district']),
                         const Divider(height: 24),
 
                         // Order Info
@@ -577,7 +740,7 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                   ),
                   const SizedBox(height: 30),
 
-                  // Instructions
+                  // Instructions with tracking info
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -595,7 +758,7 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                             Icon(Icons.info_outline, color: GlobalColors.white, size: 18),
                             const SizedBox(width: 8),
                             Text(
-                              "What's Next?",
+                              "Track Your Order",
                               style: TextStyle(
                                 color: GlobalColors.white,
                                 fontSize: 16,
@@ -606,12 +769,23 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          "Our production team will process this order. You can track the order status in the Production Orders section.",
+                          "You will receive tracking updates via WhatsApp and email. You can track the order status in the Production Orders section.",
                           style: TextStyle(
                             color: GlobalColors.white.withOpacity(0.7),
                             fontSize: 14,
                           ),
                         ),
+                        if (_orderDetails!['customer_email'] != null && _orderDetails!['customer_email']!.isNotEmpty)
+                          const SizedBox(height: 8),
+                        if (_orderDetails!['customer_email'] != null && _orderDetails!['customer_email']!.isNotEmpty)
+                          Text(
+                            "Check your email for tracking link.",
+                            style: TextStyle(
+                              color: GlobalColors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -839,71 +1013,79 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
   }
 
   // --------------------------------------------------------
-  // Order Submission Logic
-  // --------------------------------------------------------
-  Future<void> _submitOrder(OrderProvider orderProvider) async {
-    if (!_formKey.currentState!.validate()) {
-      _showError("Please fill all required fields");
-      return;
-    }
-
-    if (selectedCategory == null) {
-      _showError("Please select a feed category");
-      return;
-    }
-
-    try {
-      final category = selectedCategory!;
-      final meta = categories[category]!;
-      final pricePerBag = meta['price'] as int;
-      final totalPrice = selectedBags * pricePerBag;
-
-      // Prepare order data matching emp_mar_orders table structure
-      final orderData = {
-        'customer_name': nameController.text.trim(),
-        'customer_mobile': mobileController.text.trim(),
-        'customer_address': addressController.text.trim(),
-        'feed_category': category,
-        'bags': selectedBags,
-        'weight_per_bag': meta['weight'],
-        'weight_unit': meta['unit'],
-        'total_weight': selectedBags * meta['weight'],
-        'price_per_bag': pricePerBag,
-        'total_price': totalPrice,
-        'remarks': remarksController.text.trim().isEmpty ? null : remarksController.text.trim(),
-        'status': 'pending', // Default status
-      };
-
-      print('Submitting order to emp_mar_orders: $orderData');
-
-      await orderProvider.createOrder(orderData);
-
-      setState(() {
-        _orderDetails = {
-          'customer_name': nameController.text.trim(),
-          'customer_mobile': mobileController.text.trim(),
-          'customer_address': addressController.text.trim(),
-          'feed_category': category,
-          'bags': selectedBags,
-          'price_per_bag': pricePerBag,
-          'total_price': totalPrice,
-          'remarks': remarksController.text.trim(),
-        };
-        _orderPlaced = true;
-      });
-
-    } catch (e) {
-      print('Error placing order: $e');
-      _showError("Failed to place order: ${e.toString()}");
-    }
+// Order Submission Logic - UPDATED
+// --------------------------------------------------------
+Future<void> _submitOrder(OrderProvider orderProvider) async {
+  if (!_formKey.currentState!.validate()) {
+    _showError("Please fill all required fields");
+    return;
   }
 
+  if (selectedCategory == null) {
+    _showError("Please select a feed category");
+    return;
+  }
+
+  if (selectedDistrict == null || selectedDistrict!.isEmpty) {
+    _showError("Please select a district");
+    return;
+  }
+
+  try {
+    final category = selectedCategory!;
+    final meta = categories[category]!;
+    final pricePerBag = meta['price'] as int;
+    final totalPrice = selectedBags * pricePerBag;
+
+    // Prepare order data
+    final orderData = {
+      'customer_name': nameController.text.trim(),
+      'customer_mobile': mobileController.text.trim(),
+      'customer_address': addressController.text.trim(),
+      'customer_email': emailController.text.trim().isNotEmpty ? emailController.text.trim() : null,
+      'district': selectedDistrict,
+      'feed_category': category,
+      'bags': selectedBags,
+      'weight_per_bag': meta['weight'],
+      'weight_unit': meta['unit'],
+      'total_weight': selectedBags * meta['weight'],
+      'price_per_bag': pricePerBag,
+      'total_price': totalPrice,
+      'remarks': remarksController.text.trim().isEmpty ? null : remarksController.text.trim(),
+      'status': 'pending',
+    };
+
+    print('Submitting order to emp_mar_orders: $orderData');
+
+    // Create order using OrderProvider
+    final createdOrder = await orderProvider.createOrder(orderData, context);
+    
+    // Update order details for success page
+    setState(() {
+      _orderDetails = {
+        ...orderData,
+        'id': createdOrder['id'],
+        'order_number': createdOrder['order_number'],
+        'tracking_token': createdOrder['tracking_token'],
+        'tracking_id': createdOrder['tracking_id'],
+        'created_at': createdOrder['created_at'],
+      };
+      _orderPlaced = true;
+    });
+
+  } catch (e) {
+    print('Error placing order: $e');
+    _showError("Failed to place order: ${e.toString()}");
+  }
+}
   void _resetForm() {
     nameController.clear();
     mobileController.clear();
     addressController.clear();
+    emailController.clear();
     remarksController.clear();
     selectedCategory = null;
+    selectedDistrict = null;
     selectedBags = 1;
     _orderDetails = null;
   }

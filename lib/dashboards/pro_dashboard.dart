@@ -34,6 +34,17 @@ class _ProductionDashboardState extends State<ProductionDashboard> {
     '/profile',
   ];
 
+  void _navigateToPage(int index) {
+    if (_currentIndex != index) {
+      setState(() {
+        _currentIndex = index;
+      });
+      _navigatorKey.currentState?.pushReplacementNamed(_routeNames[index]);
+    }
+    // Close drawer if open
+    _scaffoldKey.currentState?.closeDrawer();
+  }
+
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
@@ -42,8 +53,7 @@ class _ProductionDashboardState extends State<ProductionDashboard> {
           _navigatorKey.currentState?.pop();
           return false;
         } else if (_currentIndex != 0) {
-          setState(() => _currentIndex = 0);
-          _navigatorKey.currentState?.pushReplacementNamed('/dashboard');
+          _navigateToPage(0);
           return false;
         } else {
           _showExitDialog(context);
@@ -53,6 +63,7 @@ class _ProductionDashboardState extends State<ProductionDashboard> {
       child: Scaffold(
         key: _scaffoldKey,
         backgroundColor: GlobalColors.white,
+        drawer: _buildDrawer(),
         body: Navigator(
           key: _navigatorKey,
           initialRoute: '/dashboard',
@@ -66,6 +77,392 @@ class _ProductionDashboardState extends State<ProductionDashboard> {
           },
         ),
         bottomNavigationBar: _buildBottomNavigationBar(),
+      ),
+    );
+  }
+
+  Widget _buildDrawer() {
+    final userData = widget.userData;
+    final userName = userData['name'] ?? userData['employee_name'] ?? 'Production User';
+    final userRole = userData['role'] ?? userData['designation'] ?? 'Production Manager';
+    final userEmail = userData['email'] ?? 'production@mega-pro.com';
+    
+    return Drawer(
+      backgroundColor: Colors.white,
+      width: MediaQuery.of(context).size.width * 0.75,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topRight: Radius.circular(20),
+          bottomRight: Radius.circular(20),
+        ),
+      ),
+      child: Column(
+        children: [
+          // Header with user info
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 40, 20, 24),
+            decoration: BoxDecoration(
+              color: GlobalColors.primaryBlue,
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(20),
+                bottomRight: Radius.circular(20),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: GlobalColors.primaryBlue.withOpacity(0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: Center(
+                        child: Text(
+                          userName.isNotEmpty ? userName[0].toUpperCase() : 'P',
+                          style: GoogleFonts.poppins(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: GlobalColors.primaryBlue,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            userName,
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              userRole,
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.email_outlined, size: 16, color: Colors.white.withOpacity(0.8)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          userEmail,
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: Colors.white.withOpacity(0.9),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Navigation Menu Items
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              children: [
+                _buildDrawerItem(
+                  index: 0,
+                  icon: Icons.dashboard_outlined,
+                  label: 'Dashboard',
+                  selectedIcon: Icons.dashboard,
+                ),
+                _buildDrawerItem(
+                  index: 1,
+                  icon: Icons.inventory_2_outlined,
+                  label: 'Inventory',
+                  selectedIcon: Icons.inventory_2,
+                ),
+                _buildDrawerItem(
+                  index: 2,
+                  icon: Icons.assignment_outlined,
+                  label: 'Orders',
+                  selectedIcon: Icons.assignment,
+                ),
+                _buildDrawerItem(
+                  index: 3,
+                  icon: Icons.person_outline,
+                  label: 'Profile',
+                  selectedIcon: Icons.person,
+                ),
+                
+                const Divider(height: 32, thickness: 1),
+                
+                // Additional Items
+                _buildDrawerItem(
+                  index: -1,
+                  icon: Icons.inventory,
+                  label: 'Raw Material Entry',
+                  selectedIcon: Icons.inventory,
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ProRawMaterialEntryPage(),
+                      ),
+                    );
+                  },
+                ),
+                
+                _buildDrawerItem(
+                  index: -2,
+                  icon: Icons.analytics_outlined,
+                  label: 'Analytics',
+                  selectedIcon: Icons.analytics,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showAnalyticsDialog();
+                  },
+                ),
+                
+                const SizedBox(height: 20),
+                
+                // Settings and Support Section
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Text(
+                    'SUPPORT',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[500],
+                    ),
+                  ),
+                ),
+                
+                _buildDrawerItem(
+                  index: -3,
+                  icon: Icons.help_outline,
+                  label: 'Help & Support',
+                  selectedIcon: Icons.help,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showHelpDialog();
+                  },
+                ),
+                
+                _buildDrawerItem(
+                  index: -4,
+                  icon: Icons.settings_outlined,
+                  label: 'Settings',
+                  selectedIcon: Icons.settings,
+                  onTap: () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Settings coming soon...')),
+                    );
+                  },
+                ),
+                
+                const Divider(height: 32, thickness: 1),
+                
+                // Logout Button
+                _buildDrawerItem(
+                  index: -5,
+                  icon: Icons.logout,
+                  label: 'Logout',
+                  selectedIcon: Icons.logout,
+                  color: Colors.red,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showLogoutDialog();
+                  },
+                ),
+                
+                const SizedBox(height: 20),
+                
+                // Version Info
+                Center(
+                  child: Text(
+                    'Version 1.0.0',
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      color: Colors.grey[400],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem({
+    required int index,
+    required IconData icon,
+    required String label,
+    required IconData selectedIcon,
+    VoidCallback? onTap,
+    Color? color,
+  }) {
+    final isSelected = index >= 0 && _currentIndex == index;
+    final itemColor = color ?? (isSelected ? GlobalColors.primaryBlue : Colors.grey[700]);
+    
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isSelected ? GlobalColors.primaryBlue.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(
+          isSelected ? selectedIcon : icon,
+          color: itemColor,
+          size: 22,
+        ),
+      ),
+      title: Text(
+        label,
+        style: GoogleFonts.poppins(
+          fontSize: 14,
+          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+          color: itemColor,
+        ),
+      ),
+      selected: isSelected,
+      selectedTileColor: GlobalColors.primaryBlue.withOpacity(0.05),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+      onTap: onTap ?? () => _navigateToPage(index),
+    );
+  }
+
+  void _showAnalyticsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Analytics', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        content: Text(
+          'Detailed analytics will be available soon.\n\nTrack production metrics, efficiency, and performance in real-time.',
+          style: GoogleFonts.poppins(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('OK', style: GoogleFonts.poppins()),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showHelpDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Help & Support', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildContactItem(Icons.email, 'support@mega-pro.in'),
+            const SizedBox(height: 12),
+            _buildContactItem(Icons.phone, '+91 1234567890'),
+            const SizedBox(height: 12),
+            _buildContactItem(Icons.access_time, '24/7 Support Available'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Close', style: GoogleFonts.poppins()),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContactItem(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: GlobalColors.primaryBlue),
+        const SizedBox(width: 12),
+        Text(text, style: GoogleFonts.poppins(fontSize: 13)),
+      ],
+    );
+  }
+
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Logout', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        content: Text(
+          'Are you sure you want to logout?',
+          style: GoogleFonts.poppins(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: GoogleFonts.poppins()),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _logoutAndGoToMainPage(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: Text('Logout', style: GoogleFonts.poppins()),
+          ),
+        ],
       ),
     );
   }
@@ -138,10 +535,10 @@ class _ProductionDashboardState extends State<ProductionDashboard> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildNavItem(0, Icons.dashboard, "Dashboard"),
-              _buildNavItem(1, Icons.inventory_2, "Inventory"),
-              _buildNavItem(2, Icons.assignment, "Orders"),
-              _buildNavItem(3, Icons.person, "Profile"),
+              _buildNavItem(0, Icons.dashboard_outlined, Icons.dashboard, "Dashboard"),
+              _buildNavItem(1, Icons.inventory_2_outlined, Icons.inventory_2, "Inventory"),
+              _buildNavItem(2, Icons.assignment_outlined, Icons.assignment, "Orders"),
+              _buildNavItem(3, Icons.person_outline, Icons.person, "Profile"),
             ],
           ),
         ),
@@ -149,16 +546,9 @@ class _ProductionDashboardState extends State<ProductionDashboard> {
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon, String label) {
+  Widget _buildNavItem(int index, IconData icon, IconData selectedIcon, String label) {
     return GestureDetector(
-      onTap: () {
-        if (_currentIndex != index) {
-          setState(() {
-            _currentIndex = index;
-          });
-          _navigatorKey.currentState?.pushReplacementNamed(_routeNames[index]);
-        }
-      },
+      onTap: () => _navigateToPage(index),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
@@ -171,7 +561,7 @@ class _ProductionDashboardState extends State<ProductionDashboard> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              icon,
+              _currentIndex == index ? selectedIcon : icon,
               color: _currentIndex == index
                   ? GlobalColors.primaryBlue
                   : Colors.grey[600],
@@ -194,6 +584,11 @@ class _ProductionDashboardState extends State<ProductionDashboard> {
         ),
       ),
     );
+  }
+
+  void _logoutAndGoToMainPage(BuildContext context) {
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    Navigator.pushReplacementNamed(context, '/');
   }
 
   void _showExitDialog(BuildContext context) {
@@ -297,11 +692,6 @@ class _ProductionDashboardState extends State<ProductionDashboard> {
       },
     );
   }
-
-  void _logoutAndGoToMainPage(BuildContext context) {
-    Navigator.of(context).popUntil((route) => route.isFirst);
-    Navigator.pushReplacementNamed(context, '/');
-  }
 }
 
 // Enhanced Dashboard Content with Profit Calculation
@@ -371,32 +761,35 @@ class _DashboardContentState extends State<DashboardContent> {
     if (!mounted) return;
     
     try {
-      // Set loading state
       if (mounted) {
         setState(() {
           _isLoading = true;
         });
       }
 
-      // Fetch all data in sequence to avoid conflicts
-      await _fetchInventoryData();
-      await _fetchProducts();
-      await _fetchProductionMetrics();
-      await _fetchMachineStatus();
-      await _fetchRecentOrders();
-      await _calculateProfitMetrics();
-      await _fetchTotalInventoryBags();
+      // Run all fetches in parallel for better performance
+      await Future.wait([
+        _fetchInventoryData(),
+        _fetchProducts(),
+        _fetchProductionMetrics(),
+        _fetchMachineStatus(),
+        _fetchRecentOrders(),
+        _fetchTotalInventoryBags(),
+        _calculateProfitMetrics(),
+      ]);
       
       if (mounted) {
         setState(() {
           _lastUpdated = DateTime.now();
           _isLoading = false;
         });
+        
+        debugPrint('✅ All data fetched successfully at ${_lastUpdated}');
+        debugPrint('📦 Total bags: $_totalInventoryBags');
+        debugPrint('💰 Revenue: $_totalRevenue');
+        debugPrint('💸 Material Cost: $_totalRawMaterialCost');
+        debugPrint('📈 Profit: $_totalProfit');
       }
-      
-      debugPrint('✅ All data fetched successfully');
-      debugPrint('📦 Total bags: $_totalInventoryBags');
-      debugPrint('💰 Revenue: $_totalRevenue');
     } catch (e) {
       debugPrint('❌ Error fetching data: $e');
       if (mounted) {
@@ -461,10 +854,10 @@ class _DashboardContentState extends State<DashboardContent> {
   Future<void> _fetchProducts() async {
     try {
       final response = await _supabase
-          .from('production_products') // Use same table as inventory
+          .from('production_products')
           .select('*')
           .eq('is_active', true)
-          .order('name', ascending:true);
+          .order('name', ascending: true);
 
       if (mounted) {
         setState(() {
@@ -485,15 +878,19 @@ class _DashboardContentState extends State<DashboardContent> {
       final monthStart = DateTime(today.year, today.month, 1);
       
       double totalRevenue = 0.0;
+      double totalRawMaterialCost = 0.0;
       Map<String, double> rawMaterialCosts = {};
 
-      // Get revenue from completed orders this month
+      // Format dates for Supabase query
       final monthStartStr = "${monthStart.year}-${monthStart.month.toString().padLeft(2, '0')}-01";
       final todayStr = "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
 
+      debugPrint('📊 Calculating profit metrics for period: $monthStartStr to $todayStr');
+
+      // Get revenue from completed orders this month
       final revenueResponse = await _supabase
           .from('emp_mar_orders')
-          .select('total_price, created_at')
+          .select('total_price')
           .eq('status', 'completed')
           .gte('created_at', monthStartStr)
           .lte('created_at', todayStr);
@@ -502,7 +899,7 @@ class _DashboardContentState extends State<DashboardContent> {
         totalRevenue += (order['total_price'] ?? 0).toDouble();
       }
       
-      debugPrint('💰 Total revenue from Supabase: ₹$totalRevenue');
+      debugPrint('💰 Revenue fetched: ₹$totalRevenue');
 
       // Get raw material usage cost for this month
       final materialResponse = await _supabase
@@ -510,8 +907,6 @@ class _DashboardContentState extends State<DashboardContent> {
           .select('total_cost, raw_material_id, pro_inventory!inner(name)')
           .gte('usage_date', monthStartStr)
           .lte('usage_date', todayStr);
-
-      double totalRawMaterialCost = 0.0;
 
       for (var usage in materialResponse) {
         final cost = (usage['total_cost'] ?? 0).toDouble();
@@ -523,7 +918,7 @@ class _DashboardContentState extends State<DashboardContent> {
         rawMaterialCosts[materialName] = (rawMaterialCosts[materialName] ?? 0) + cost;
       }
 
-      debugPrint('📊 Total raw material cost: ₹$totalRawMaterialCost');
+      debugPrint('💰 Material cost fetched: ₹$totalRawMaterialCost');
 
       // Calculate profit
       double totalProfit = totalRevenue - totalRawMaterialCost;
@@ -546,6 +941,16 @@ class _DashboardContentState extends State<DashboardContent> {
       }
     } catch (e) {
       debugPrint('❌ Profit calculation error: $e');
+      if (mounted) {
+        // Set default values on error
+        setState(() {
+          _totalRevenue = 0.0;
+          _totalRawMaterialCost = 0.0;
+          _totalProfit = 0.0;
+          _profitMargin = 0.0;
+          _rawMaterialUsage = {};
+        });
+      }
     }
   }
 
@@ -781,7 +1186,6 @@ class _DashboardBody extends StatelessWidget {
     required this.currencyFormat,
     required this.onRefresh,
   });
-
 
   Widget _buildInventorySummary() {
     return Container(
@@ -1138,7 +1542,7 @@ class _DashboardBody extends StatelessWidget {
                 ),
                 GestureDetector(
                   onTap: () {
-                    // This would navigate to raw material entry page
+                    // Navigate to raw material entry page
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1344,32 +1748,31 @@ class _DashboardBody extends StatelessWidget {
           if (inventoryData.isEmpty)
             Container(
               height: 200,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.inventory_2_outlined,
-                      size: 48,
-                      color: Colors.grey[400],
+              alignment: Alignment.center,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.inventory_2_outlined,
+                    size: 48,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    "No inventory data",
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: Colors.grey[600],
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      "No inventory data",
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             )
           else
             Column(
               children: inventoryData.take(4).map((item) {
-                final stock = (item['bags'] ?? 0).toDouble(); // Use bags instead of stock
-                final reorder = (item['min_bags_stock'] ?? 10).toDouble(); // Use min_bags_stock
+                final stock = (item['bags'] ?? 0).toDouble();
+                final reorder = (item['min_bags_stock'] ?? 10).toDouble();
                 final isLow = stock < reorder;
                 final percentage = reorder > 0 ? (stock / reorder) : 0;
 
@@ -1474,8 +1877,6 @@ class _DashboardBody extends StatelessWidget {
     );
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -1486,9 +1887,6 @@ class _DashboardBody extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // _buildProductionMetrics(),
-              // const SizedBox(height: 20),
-              
               _buildInventorySummary(),
               const SizedBox(height: 20),
               
@@ -1500,8 +1898,6 @@ class _DashboardBody extends StatelessWidget {
               
               _buildInventoryStatus(),
               const SizedBox(height: 20),
-              
-              
             ],
           ),
         ),
@@ -1521,7 +1917,32 @@ class _DashboardBody extends StatelessWidget {
 
 
 
-// //manual refresh issue
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//liitle error in refesh profit calculation in dashboard, need to check and fix
+
 
 // import 'dart:async';
 // import 'package:flutter/material.dart';
@@ -1712,7 +2133,7 @@ class _DashboardBody extends StatelessWidget {
 //                     : FontWeight.normal,
 //                 color: _currentIndex == index
 //                     ? GlobalColors.primaryBlue
-//                   : Colors.grey[600],
+//                     : Colors.grey[600],
 //               ),
 //             ),
 //           ],
@@ -1877,27 +2298,40 @@ class _DashboardBody extends StatelessWidget {
 //   @override
 //   void initState() {
 //     super.initState();
-//     _fetchAllData();
+//     // Delay initial load to ensure providers are ready
+//     Future.delayed(const Duration(milliseconds: 100), () {
+//       _fetchAllData();
+//     });
 //     _startRealtimeUpdates();
 //   }
 
 //   void _startRealtimeUpdates() {
 //     _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-//       _fetchAllData();
+//       if (mounted) {
+//         _fetchAllData();
+//       }
 //     });
 //   }
 
 //   Future<void> _fetchAllData() async {
+//     if (!mounted) return;
+    
 //     try {
-//       await Future.wait([
-//         _fetchInventoryData(),
-//         _fetchProducts(),
-//         _fetchProductionMetrics(),
-//         _fetchMachineStatus(),
-//         _fetchRecentOrders(),
-//         _calculateProfitMetrics(),
-//         _fetchTotalInventoryBags(),
-//       ]);
+//       // Set loading state
+//       if (mounted) {
+//         setState(() {
+//           _isLoading = true;
+//         });
+//       }
+
+//       // Fetch all data in sequence to avoid conflicts
+//       await _fetchInventoryData();
+//       await _fetchProducts();
+//       await _fetchProductionMetrics();
+//       await _fetchMachineStatus();
+//       await _fetchRecentOrders();
+//       await _calculateProfitMetrics();
+//       await _fetchTotalInventoryBags();
       
 //       if (mounted) {
 //         setState(() {
@@ -1905,8 +2339,12 @@ class _DashboardBody extends StatelessWidget {
 //           _isLoading = false;
 //         });
 //       }
+      
+//       debugPrint('✅ All data fetched successfully');
+//       debugPrint('📦 Total bags: $_totalInventoryBags');
+//       debugPrint('💰 Revenue: $_totalRevenue');
 //     } catch (e) {
-//       debugPrint('Error fetching data: $e');
+//       debugPrint('❌ Error fetching data: $e');
 //       if (mounted) {
 //         setState(() {
 //           _isLoading = false;
@@ -1916,48 +2354,41 @@ class _DashboardBody extends StatelessWidget {
 //   }
 
 //   Future<void> _fetchTotalInventoryBags() async {
-//   try {
-//     WidgetsBinding.instance.addPostFrameCallback((_) async {
-//       try {
-//         // Access the InventoryProvider after frame is built
-//         final inventoryProvider = context.read<InventoryProvider>();
-        
-//         // Calculate total bags directly
-//         final totalBags = inventoryProvider.activeItems.fold(
-//           0.0, 
-//           (sum, item) => sum + item.bags
-//         );
-        
-//         if (mounted) {
-//           setState(() {
-//             _totalInventoryBags = totalBags;
-//           });
-//         }
-        
-//         debugPrint('Total inventory bags: $totalBags');
-//       } catch (e) {
-//         debugPrint('Error in post frame callback: $e');
-//         if (mounted) {
-//           setState(() {
-//             _totalInventoryBags = 0.0;
-//           });
-//         }
+//     try {
+//       // Direct database query for total bags
+//       final response = await _supabase
+//           .from('production_products')
+//           .select('bags')
+//           .eq('is_active', true);
+
+//       double totalBags = 0.0;
+//       for (var item in response) {
+//         totalBags += (item['bags'] ?? 0).toDouble();
 //       }
-//     });
-//   } catch (e) {
-//     debugPrint('Error fetching total bags: $e');
-//     if (mounted) {
-//       setState(() {
-//         _totalInventoryBags = 0.0;
-//       });
+
+//       if (mounted) {
+//         setState(() {
+//           _totalInventoryBags = totalBags;
+//         });
+//       }
+      
+//       debugPrint('📊 Direct DB query - Total bags: $totalBags');
+//     } catch (e) {
+//       debugPrint('Error fetching total bags: $e');
+//       if (mounted) {
+//         setState(() {
+//           _totalInventoryBags = 0.0;
+//         });
+//       }
 //     }
 //   }
-// }
+
 //   Future<void> _fetchInventoryData() async {
 //     try {
 //       final response = await _supabase
-//           .from('pro_inventory')
+//           .from('production_products')
 //           .select('*')
+//           .eq('is_active', true)
 //           .order('name', ascending: true);
 
 //       if (mounted) {
@@ -1966,6 +2397,8 @@ class _DashboardBody extends StatelessWidget {
 //           _inventoryData.addAll(List<Map<String, dynamic>>.from(response));
 //         });
 //       }
+      
+//       debugPrint('📦 Inventory data fetched: ${_inventoryData.length} items');
 //     } catch (e) {
 //       debugPrint('Error fetching inventory: $e');
 //     }
@@ -1974,9 +2407,10 @@ class _DashboardBody extends StatelessWidget {
 //   Future<void> _fetchProducts() async {
 //     try {
 //       final response = await _supabase
-//           .from('pro_products')
+//           .from('production_products') // Use same table as inventory
 //           .select('*')
-//           .order('name', ascending: true);
+//           .eq('is_active', true)
+//           .order('name', ascending:true);
 
 //       if (mounted) {
 //         setState(() {
@@ -1984,12 +2418,13 @@ class _DashboardBody extends StatelessWidget {
 //           _products.addAll(List<Map<String, dynamic>>.from(response));
 //         });
 //       }
+      
+//       debugPrint('📋 Products fetched: ${_products.length} items');
 //     } catch (e) {
 //       debugPrint('Error fetching products: $e');
 //     }
 //   }
 
-//   // ENHANCED PROFIT CALCULATION METHOD
 //   Future<void> _calculateProfitMetrics() async {
 //     try {
 //       final today = DateTime.now();
@@ -1998,49 +2433,24 @@ class _DashboardBody extends StatelessWidget {
 //       double totalRevenue = 0.0;
 //       Map<String, double> rawMaterialCosts = {};
 
-//       // METHOD 1: Get revenue from Provider (primary method)
-//       try {
-//         final ordersProvider = context.read<ProductionOrdersProvider>();
-//         final completedOrders = ordersProvider.orders
-//             .where((order) => order.status.toLowerCase() == 'completed')
-//             .toList();
-        
-//         debugPrint('Found ${completedOrders.length} completed orders from provider');
-        
-//         // Sum revenue for current month
-//         for (var order in completedOrders) {
-//           if (order.createdAt.isAfter(monthStart) && order.createdAt.isBefore(today.add(const Duration(days: 1)))) {
-//             totalRevenue += order.totalPrice;
-//             debugPrint('Added order revenue: ₹${order.totalPrice} - Date: ${order.createdAt}');
-//           }
-//         }
-        
-//         debugPrint('Total revenue from provider: ₹$totalRevenue');
-//       } catch (e) {
-//         debugPrint('Error accessing provider for revenue: $e');
-        
-//         // METHOD 2: Fallback to Supabase
-//         final monthStartStr = "${monthStart.year}-${monthStart.month.toString().padLeft(2, '0')}-01";
-//         final todayStr = "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
-
-//         final revenueResponse = await _supabase
-//             .from('emp_mar_orders')
-//             .select('total_price, created_at')
-//             .eq('status', 'completed')
-//             .gte('created_at', monthStartStr)
-//             .lte('created_at', todayStr);
-
-//         for (var order in revenueResponse) {
-//           totalRevenue += (order['total_price'] ?? 0).toDouble();
-//         }
-        
-//         debugPrint('Total revenue from Supabase: ₹$totalRevenue');
-//       }
-
-//       // Get raw material usage cost for this month
+//       // Get revenue from completed orders this month
 //       final monthStartStr = "${monthStart.year}-${monthStart.month.toString().padLeft(2, '0')}-01";
 //       final todayStr = "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
 
+//       final revenueResponse = await _supabase
+//           .from('emp_mar_orders')
+//           .select('total_price, created_at')
+//           .eq('status', 'completed')
+//           .gte('created_at', monthStartStr)
+//           .lte('created_at', todayStr);
+
+//       for (var order in revenueResponse) {
+//         totalRevenue += (order['total_price'] ?? 0).toDouble();
+//       }
+      
+//       debugPrint('💰 Total revenue from Supabase: ₹$totalRevenue');
+
+//       // Get raw material usage cost for this month
 //       final materialResponse = await _supabase
 //           .from('pro_raw_material_usage')
 //           .select('total_cost, raw_material_id, pro_inventory!inner(name)')
@@ -2059,8 +2469,7 @@ class _DashboardBody extends StatelessWidget {
 //         rawMaterialCosts[materialName] = (rawMaterialCosts[materialName] ?? 0) + cost;
 //       }
 
-//       debugPrint('Total raw material cost: ₹$totalRawMaterialCost');
-//       debugPrint('Raw material breakdown: $rawMaterialCosts');
+//       debugPrint('📊 Total raw material cost: ₹$totalRawMaterialCost');
 
 //       // Calculate profit
 //       double totalProfit = totalRevenue - totalRawMaterialCost;
@@ -2075,73 +2484,15 @@ class _DashboardBody extends StatelessWidget {
 //           _rawMaterialUsage = rawMaterialCosts;
 //         });
         
-//         debugPrint('Profit Calculation Complete:');
+//         debugPrint('✅ Profit Calculation Complete:');
 //         debugPrint('  Revenue: ₹$_totalRevenue');
 //         debugPrint('  Material Cost: ₹$_totalRawMaterialCost');
 //         debugPrint('  Profit: ₹$_totalProfit');
 //         debugPrint('  Margin: ${_profitMargin.toStringAsFixed(2)}%');
 //       }
 //     } catch (e) {
-//       debugPrint('Profit calculation error: $e');
+//       debugPrint('❌ Profit calculation error: $e');
 //     }
-//   }
-
-//   // GET MONTHLY STATISTICS
-//   Future<Map<String, dynamic>> getMonthlyStatistics() async {
-//     final today = DateTime.now();
-//     final monthStart = DateTime(today.year, today.month, 1);
-//     final monthStartStr = "${monthStart.year}-${monthStart.month.toString().padLeft(2, '0')}-01";
-//     final todayStr = "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
-
-//     Map<String, dynamic> stats = {
-//       'revenue': 0.0,
-//       'material_cost': 0.0,
-//       'profit': 0.0,
-//       'margin': 0.0,
-//       'order_count': 0,
-//     };
-
-//     try {
-//       // Get revenue from completed orders
-//       final ordersProvider = context.read<ProductionOrdersProvider>();
-//       final completedOrders = ordersProvider.orders
-//           .where((order) => order.status.toLowerCase() == 'completed')
-//           .toList();
-      
-//       int orderCount = 0;
-//       double revenue = 0.0;
-      
-//       for (var order in completedOrders) {
-//         if (order.createdAt.isAfter(monthStart) && order.createdAt.isBefore(today.add(const Duration(days: 1)))) {
-//           revenue += order.totalPrice;
-//           orderCount++;
-//         }
-//       }
-      
-//       stats['revenue'] = revenue;
-//       stats['order_count'] = orderCount;
-
-//       // Get raw material costs
-//       final materialResponse = await _supabase
-//           .from('pro_raw_material_usage')
-//           .select('total_cost')
-//           .gte('usage_date', monthStartStr)
-//           .lte('usage_date', todayStr);
-
-//       double materialCost = 0.0;
-//       for (var usage in materialResponse) {
-//         materialCost += (usage['total_cost'] ?? 0).toDouble();
-//       }
-      
-//       stats['material_cost'] = materialCost;
-//       stats['profit'] = revenue - materialCost;
-//       stats['margin'] = revenue > 0 ? ((revenue - materialCost) / revenue) * 100 : 0;
-
-//     } catch (e) {
-//       debugPrint('Error getting monthly statistics: $e');
-//     }
-    
-//     return stats;
 //   }
 
 //   Future<void> _fetchProductionMetrics() async {
@@ -2268,14 +2619,11 @@ class _DashboardBody extends StatelessWidget {
 //           onPressed: () => widget.scaffoldKey.currentState?.openDrawer(),
 //         ),
 //         actions: [
-         
 //           IconButton(
 //             icon: const Icon(Icons.analytics),
 //             onPressed: () async {
 //               _showRefreshSnackBar(context);
 //               await _calculateProfitMetrics();
-//               final stats = await getMonthlyStatistics();
-//               _showMonthlyStatsDialog(context, stats);
 //             },
 //             tooltip: 'View Monthly Stats',
 //           ),
@@ -2287,32 +2635,42 @@ class _DashboardBody extends StatelessWidget {
 //             },
 //             tooltip: 'Refresh All Data',
 //           ),
-          
-          
 //         ],
 //       ),
-//       body: _DashboardBody(
-//         inventoryData: _inventoryData,
-//         products: _products,
-//         recentOrders: _recentOrders,
-//         isLoading: _isLoading,
-//         todayProduction: _todayProduction,
-//         productionTarget: _productionTarget,
-//         activeMachines: _activeMachines,
-//         totalMachines: _totalMachines,
-//         qualityRate: _qualityRate,
-//         totalRevenue: _totalRevenue,
-//         totalRawMaterialCost: _totalRawMaterialCost,
-//         totalProfit: _totalProfit,
-//         profitMargin: _profitMargin,
-//         rawMaterialUsage: _rawMaterialUsage,
-//         totalInventoryBags: _totalInventoryBags,
-//         currencyFormat: _currencyFormat,
-//         onRefresh: () {
-//           _fetchAllData();
-//           _showRefreshSnackBar(context);
-//         },
-//       ),
+//       body: _isLoading
+//           ? const Center(
+//               child: CircularProgressIndicator(
+//                 color: GlobalColors.primaryBlue,
+//               ),
+//             )
+//           : RefreshIndicator(
+//               onRefresh: () async {
+//                 await _fetchAllData();
+//                 _showRefreshSnackBar(context);
+//               },
+//               child: _DashboardBody(
+//                 inventoryData: _inventoryData,
+//                 products: _products,
+//                 recentOrders: _recentOrders,
+//                 isLoading: _isLoading,
+//                 todayProduction: _todayProduction,
+//                 productionTarget: _productionTarget,
+//                 activeMachines: _activeMachines,
+//                 totalMachines: _totalMachines,
+//                 qualityRate: _qualityRate,
+//                 totalRevenue: _totalRevenue,
+//                 totalRawMaterialCost: _totalRawMaterialCost,
+//                 totalProfit: _totalProfit,
+//                 profitMargin: _profitMargin,
+//                 rawMaterialUsage: _rawMaterialUsage,
+//                 totalInventoryBags: _totalInventoryBags,
+//                 currencyFormat: _currencyFormat,
+//                 onRefresh: () {
+//                   _fetchAllData();
+//                   _showRefreshSnackBar(context);
+//                 },
+//               ),
+//             ),
 //       floatingActionButton: FloatingActionButton(
 //         onPressed: () {
 //           Navigator.push(
@@ -2328,69 +2686,6 @@ class _DashboardBody extends StatelessWidget {
 //       ),
 //     );
 //   }
-
-//   void _showMonthlyStatsDialog(BuildContext context, Map<String, dynamic> stats) {
-//     showDialog(
-//       context: context,
-//       builder: (context) {
-//         return AlertDialog(
-//           title: Text(
-//             'Monthly Statistics',
-//             style: GoogleFonts.poppins(
-//               fontWeight: FontWeight.w600,
-//             ),
-//           ),
-//           content: Column(
-//             mainAxisSize: MainAxisSize.min,
-//             crossAxisAlignment: CrossAxisAlignment.start,
-//             children: [
-//               _statItem('Total Revenue', '₹${stats['revenue'].toStringAsFixed(2)}', Colors.green),
-//               _statItem('Raw Material Cost', '₹${stats['material_cost'].toStringAsFixed(2)}', Colors.orange),
-//               _statItem('Net Profit', '₹${stats['profit'].toStringAsFixed(2)}', 
-//                   (stats['profit'] as double) >= 0 ? Colors.green : Colors.red),
-//               _statItem('Profit Margin', '${stats['margin'].toStringAsFixed(2)}%', 
-//                   (stats['margin'] as double) >= 20 ? Colors.green : Colors.orange),
-//               _statItem('Completed Orders', stats['order_count'].toString(), Colors.blue),
-//             ],
-//           ),
-//           actions: [
-//             TextButton(
-//               onPressed: () => Navigator.pop(context),
-//               child: const Text('Close'),
-//             ),
-//           ],
-//         );
-//       },
-//     );
-//   }
-
-//   Widget _statItem(String label, String value, Color color) {
-//     return Padding(
-//       padding: const EdgeInsets.symmetric(vertical: 8),
-//       child: Row(
-//         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//         children: [
-//           Text(
-//             label,
-//             style: GoogleFonts.poppins(
-//               fontSize: 14,
-//               color: Colors.grey[700],
-//             ),
-//           ),
-//           Text(
-//             value,
-//             style: GoogleFonts.poppins(
-//               fontSize: 16,
-//               fontWeight: FontWeight.w600,
-//               color: color,
-//             ),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-
-
 // }
 
 // // Enhanced Dashboard Body Widget with Profit Calculation
@@ -2433,127 +2728,6 @@ class _DashboardBody extends StatelessWidget {
 //     required this.onRefresh,
 //   });
 
-//   Widget _buildProductionMetrics() {
-//     final progress = productionTarget > 0 ? todayProduction / productionTarget : 0;
-//     final isTargetAchieved = todayProduction >= productionTarget;
-    
-//     return Container(
-//       padding: const EdgeInsets.all(20),
-//       decoration: BoxDecoration(
-//         gradient: LinearGradient(
-//           begin: Alignment.topLeft,
-//           end: Alignment.bottomRight,
-//           colors: [
-//             GlobalColors.primaryBlue,
-//             Colors.blue[700]!,
-//           ],
-//         ),
-//         borderRadius: BorderRadius.circular(16),
-//         boxShadow: [
-//           BoxShadow(
-//             color: GlobalColors.primaryBlue.withOpacity(0.3),
-//             blurRadius: 15,
-//             offset: const Offset(0, 5),
-//           ),
-//         ],
-//       ),
-//       child: Column(
-//         children: [
-//           Row(
-//             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//             children: [
-//               Expanded(
-//                 child: Column(
-//                   crossAxisAlignment: CrossAxisAlignment.start,
-//                   children: [
-//                     Text(
-//                       "Today's Production",
-//                       style: GoogleFonts.poppins(
-//                         color: Colors.white.withOpacity(0.9),
-//                         fontSize: 14,
-//                       ),
-//                     ),
-//                     const SizedBox(height: 8),
-//                     Text(
-//                       "${todayProduction.toStringAsFixed(0)} Bags",
-//                       style: GoogleFonts.poppins(
-//                         color: Colors.white,
-//                         fontSize: 28,
-//                         fontWeight: FontWeight.bold,
-//                       ),
-//                     ),
-//                   ],
-//                 ),
-//               ),
-//               Container(
-//                 width: 80,
-//                 height: 80,
-//                 decoration: BoxDecoration(
-//                   color: Colors.white.withOpacity(0.2),
-//                   borderRadius: BorderRadius.circular(12),
-//                 ),
-//                 child: Stack(
-//                   alignment: Alignment.center,
-//                   children: [
-//                     CircularProgressIndicator(
-//                       value: progress > 1 ? 1.0 : progress.toDouble(),
-//                       strokeWidth: 6,
-//                       backgroundColor: Colors.white.withOpacity(0.3),
-//                       valueColor: AlwaysStoppedAnimation<Color>(
-//                         isTargetAchieved ? Colors.green : Colors.amber,
-//                       ),
-//                     ),
-//                     Text(
-//                       "${(progress * 100).toStringAsFixed(0)}%",
-//                       style: GoogleFonts.poppins(
-//                         color: Colors.white,
-//                         fontSize: 14,
-//                         fontWeight: FontWeight.bold,
-//                       ),
-//                     ),
-//                   ],
-//                 ),
-//               ),
-//             ],
-//           ),
-//           const SizedBox(height: 16),
-//           Row(
-//             children: [
-//               Expanded(
-//                 child: Container(
-//                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-//                   decoration: BoxDecoration(
-//                     color: Colors.white.withOpacity(0.2),
-//                     borderRadius: BorderRadius.circular(6),
-//                   ),
-//                   child: Row(
-//                     mainAxisSize: MainAxisSize.min,
-//                     children: [
-//                       const Icon(Icons.flag, size: 14, color: Colors.white),
-//                       const SizedBox(width: 6),
-//                       Text(
-//                         "Target: ${productionTarget.toStringAsFixed(0)} Bags",
-//                         style: GoogleFonts.poppins(
-//                           color: Colors.white,
-//                           fontSize: 12,
-//                         ),
-//                       ),
-//                     ],
-//                   ),
-//                 ),
-//               ),
-//               const SizedBox(width: 8),
-//               IconButton(
-//                 icon: const Icon(Icons.refresh, size: 18, color: Colors.white),
-//                 onPressed: onRefresh,
-//                 tooltip: 'Refresh Production',
-//               ),
-//             ],
-//           ),
-//         ],
-//       ),
-//     );
-//   }
 
 //   Widget _buildInventorySummary() {
 //     return Container(
@@ -2576,7 +2750,7 @@ class _DashboardBody extends StatelessWidget {
 //             mainAxisAlignment: MainAxisAlignment.spaceBetween,
 //             children: [
 //               Text(
-//                 "Total Inventory",
+//                 "Inventory Summary",
 //                 style: GoogleFonts.poppins(
 //                   fontSize: 16,
 //                   fontWeight: FontWeight.w600,
@@ -3113,14 +3287,7 @@ class _DashboardBody extends StatelessWidget {
 //           ),
 //           const SizedBox(height: 12),
 
-//           if (isLoading)
-//             Container(
-//               height: 200,
-//               child: const Center(
-//                 child: CircularProgressIndicator(color: GlobalColors.primaryBlue),
-//               ),
-//             )
-//           else if (inventoryData.isEmpty)
+//           if (inventoryData.isEmpty)
 //             Container(
 //               height: 200,
 //               child: Center(
@@ -3147,8 +3314,8 @@ class _DashboardBody extends StatelessWidget {
 //           else
 //             Column(
 //               children: inventoryData.take(4).map((item) {
-//                 final stock = (item['stock'] ?? 0).toDouble();
-//                 final reorder = (item['reorder_level'] ?? 100).toDouble();
+//                 final stock = (item['bags'] ?? 0).toDouble(); // Use bags instead of stock
+//                 final reorder = (item['min_bags_stock'] ?? 10).toDouble(); // Use min_bags_stock
 //                 final isLow = stock < reorder;
 //                 final percentage = reorder > 0 ? (stock / reorder) : 0;
 
@@ -3187,7 +3354,7 @@ class _DashboardBody extends StatelessWidget {
 //                               borderRadius: BorderRadius.circular(6),
 //                             ),
 //                             child: Text(
-//                               "${stock.toStringAsFixed(0)} ${item['unit'] ?? 'kg'}",
+//                               "${stock.toStringAsFixed(0)} bags",
 //                               style: GoogleFonts.poppins(
 //                                 fontSize: 12,
 //                                 fontWeight: FontWeight.w600,
@@ -3234,7 +3401,7 @@ class _DashboardBody extends StatelessWidget {
 //                               ),
 //                               const SizedBox(width: 6),
 //                               Text(
-//                                 "Below reorder level (${reorder.toStringAsFixed(0)} ${item['unit'] ?? 'kg'})",
+//                                 "Below reorder level (${reorder.toStringAsFixed(0)} bags)",
 //                                 style: GoogleFonts.poppins(
 //                                   fontSize: 11,
 //                                   color: Colors.red,
@@ -3253,105 +3420,7 @@ class _DashboardBody extends StatelessWidget {
 //     );
 //   }
 
-//   Widget _buildQuickStats() {
-//     return Container(
-//       padding: const EdgeInsets.all(16),
-//       decoration: BoxDecoration(
-//         color: Colors.white,
-//         borderRadius: BorderRadius.circular(16),
-//         boxShadow: [
-//           BoxShadow(
-//             color: Colors.black.withOpacity(0.05),
-//             blurRadius: 10,
-//             offset: const Offset(0, 4),
-//           ),
-//         ],
-//       ),
-//       child: Column(
-//         crossAxisAlignment: CrossAxisAlignment.start,
-//         children: [
-//           Text(
-//             "Quick Stats",
-//             style: GoogleFonts.poppins(
-//               fontSize: 16,
-//               fontWeight: FontWeight.w600,
-//               color: Colors.grey[800],
-//             ),
-//           ),
-//           const SizedBox(height: 16),
-//           GridView.count(
-//             shrinkWrap: true,
-//             physics: const NeverScrollableScrollPhysics(),
-//             crossAxisCount: 2,
-//             crossAxisSpacing: 12,
-//             mainAxisSpacing: 12,
-//             childAspectRatio: 1.3,
-//             children: [
-//               _statCard(
-//                 "Active Machines",
-//                 "$activeMachines/$totalMachines",
-//                 Icons.settings,
-//                 Colors.blue,
-//               ),
-//               _statCard(
-//                 "Quality Rate",
-//                 "${qualityRate.toStringAsFixed(1)}%",
-//                 Icons.verified,
-//                 Colors.green,
-//               ),
-//               _statCard(
-//                 "Products",
-//                 "${products.length}",
-//                 Icons.category,
-//                 Colors.purple,
-//               ),
-//               _statCard(
-//                 "Monthly Orders",
-//                 "${recentOrders.length}",
-//                 Icons.shopping_cart,
-//                 Colors.orange,
-//               ),
-//             ],
-//           ),
-//         ],
-//       ),
-//     );
-//   }
 
-//   Widget _statCard(String title, String value, IconData icon, Color color) {
-//     return Container(
-//       padding: const EdgeInsets.all(12),
-//       decoration: BoxDecoration(
-//         color: color.withOpacity(0.05),
-//         borderRadius: BorderRadius.circular(12),
-//         border: Border.all(color: color.withOpacity(0.2)),
-//       ),
-//       child: Column(
-//         crossAxisAlignment: CrossAxisAlignment.start,
-//         mainAxisAlignment: MainAxisAlignment.center,
-//         children: [
-//           Icon(icon, size: 20, color: color),
-//           const SizedBox(height: 8),
-//           Text(
-//             title,
-//             style: GoogleFonts.poppins(
-//               fontSize: 11,
-//               color: Colors.grey[600],
-//             ),
-//           ),
-//           const SizedBox(height: 4),
-//           Text(
-//             value,
-//             style: GoogleFonts.poppins(
-//               fontSize: 16,
-//               fontWeight: FontWeight.w700,
-//               color: color,
-//             ),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
 
 //   @override
 //   Widget build(BuildContext context) {
@@ -3363,8 +3432,8 @@ class _DashboardBody extends StatelessWidget {
 //           child: Column(
 //             crossAxisAlignment: CrossAxisAlignment.start,
 //             children: [
-//               _buildProductionMetrics(),
-//               const SizedBox(height: 20),
+//               // _buildProductionMetrics(),
+//               // const SizedBox(height: 20),
               
 //               _buildInventorySummary(),
 //               const SizedBox(height: 20),
@@ -3386,11 +3455,6 @@ class _DashboardBody extends StatelessWidget {
 //     );
 //   }
 // }
-
-
-
-
-
 
 
 
