@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -7,6 +8,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mega_pro/global/global_variables.dart';
 import 'package:provider/provider.dart';
 import 'package:mega_pro/providers/emp_attendance_provider.dart';
+import 'package:mega_pro/providers/emp_order_provider.dart';
+import 'package:mega_pro/providers/emp_provider.dart';
 
 class EmployeeProfileDashboard extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -39,6 +42,15 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
   int _totalOrdersCount = 0;
   int _attendedDays = 0;
   int _totalWorkingDays = 0;
+  
+  // IDs
+  String? _employeeId;  // Employee ID from profile (for orders)
+  String? _userId;       // Auth user ID (for attendance)
+  
+  // Realtime subscription
+  RealtimeChannel? _attendanceChannel;
+  RealtimeChannel? _ordersChannel;
+  Timer? _pollingTimer;
 
   late TextEditingController _nameController;
   late TextEditingController _emailController;
@@ -49,7 +61,11 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
   void initState() {
     super.initState();
     _initializeControllers();
-    _loadProfileAndMetrics();
+    
+    // Load data after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeData();
+    });
   }
 
   void _initializeControllers() {
@@ -65,233 +81,313 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
     _emailController.dispose();
     _phoneController.dispose();
     _positionController.dispose();
+    _attendanceChannel?.unsubscribe();
+    _ordersChannel?.unsubscribe();
+    _pollingTimer?.cancel();
     super.dispose();
   }
 
-  Future<void> _loadProfileAndMetrics() async {
+  Future<void> _initializeData() async {
+    setState(() => isLoading = true);
+    
     try {
+      // Get current user from auth
+      final supabase = Supabase.instance.client;
+      final user = supabase.auth.currentUser;
+      if (user != null) {
+        _userId = user.id;
+        print('👤 Auth User ID: $_userId');
+      }
+      
+      // Load employee profile first
       await _loadProfile();
-      await _calculatePerformanceMetrics();
+      
+      if (_userId != null) {
+        // Set up real-time listeners
+        _setupRealtimeListeners();
+        
+        // Set up polling fallback (every 10 seconds)
+        _setupPolling();
+        
+        // Load initial data
+        await _refreshAllData();
+      }
     } catch (e) {
-      debugPrint('Error loading profile and metrics: $e');
-      _createDefaultProfile('employee@mega.com');
+      debugPrint('Error initializing data: $e');
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
+  }
+
+  void _setupPolling() {
+    // Poll every 10 seconds as fallback
+    _pollingTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      if (mounted && !isLoading) {
+        print('🔄 Polling for updates...');
+        _refreshAllData();
+      }
+    });
+  }
+
+  void _setupRealtimeListeners() {
+    final supabase = Supabase.instance.client;
+    
+    // Listen for attendance changes
+    _attendanceChannel = supabase.channel('profile_attendance_changes');
+    _attendanceChannel!
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'emp_attendance',
+          callback: (payload) {
+            print('🔄 Attendance record changed - refreshing data');
+            // Check if this change is for current user
+            final newRecord = payload.newRecord;
+            final oldRecord = payload.oldRecord;
+            
+            bool shouldRefresh = false;
+            
+            if (payload.eventType == 'INSERT') {
+              final recordUserId = newRecord['employee_id']?.toString();
+              if (recordUserId == _userId) {
+                shouldRefresh = true;
+                print('✅ New attendance record for current user');
+              }
+            } else if (payload.eventType == 'UPDATE') {
+              final recordUserId = newRecord['employee_id']?.toString();
+              if (recordUserId == _userId) {
+                shouldRefresh = true;
+                print('✅ Attendance record updated for current user');
+              }
+            } else if (payload.eventType == 'DELETE') {
+              final recordUserId = oldRecord['employee_id']?.toString();
+              if (recordUserId == _userId) {
+                shouldRefresh = true;
+                print('✅ Attendance record deleted for current user');
+              }
+            }
+            
+            if (shouldRefresh) {
+              _refreshAttendanceData();
+            }
+          },
+        )
+        .subscribe();
+    
+    // Listen for order changes
+    _ordersChannel = supabase.channel('profile_orders_changes');
+    _ordersChannel!
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'emp_mar_orders',
+          callback: (payload) {
+            print('🔄 Order changed - refreshing data');
+            // Check if this change is for current employee
+            final newRecord = payload.newRecord;
+            final oldRecord = payload.oldRecord;
+            
+            bool shouldRefresh = false;
+            
+            if (payload.eventType == 'INSERT') {
+              final recordEmpId = newRecord['employee_id']?.toString();
+              if (recordEmpId == _employeeId) {
+                shouldRefresh = true;
+                print('✅ New order for current employee');
+              }
+            } else if (payload.eventType == 'UPDATE') {
+              final recordEmpId = newRecord['employee_id']?.toString();
+              if (recordEmpId == _employeeId) {
+                shouldRefresh = true;
+                print('✅ Order updated for current employee');
+              }
+            } else if (payload.eventType == 'DELETE') {
+              final recordEmpId = oldRecord['employee_id']?.toString();
+              if (recordEmpId == _employeeId) {
+                shouldRefresh = true;
+                print('✅ Order deleted for current employee');
+              }
+            }
+            
+            if (shouldRefresh) {
+              _refreshOrderData();
+            }
+          },
+        )
+        .subscribe();
+  }
+
+  Future<void> _refreshAllData() async {
+    await Future.wait([
+      _refreshAttendanceData(),
+      _refreshOrderData(),
+    ]);
+  }
+
+  Future<void> _refreshAttendanceData() async {
+    await _loadAttendanceData();
+    _calculatePerformanceMetrics();
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _refreshOrderData() async {
+    await _loadOrderData();
+    _calculatePerformanceMetrics();
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadProfile() async {
     try {
-      // If userData is passed from dashboard, use it directly
-      if (widget.userData != null && widget.userData!.isNotEmpty) {
-        _processUserData(widget.userData!);
-        return;
+      final empProvider = Provider.of<EmployeeProvider>(context, listen: false);
+      
+      // If profile not loaded, load it
+      if (empProvider.profile == null) {
+        await empProvider.loadProfile();
       }
-
-      final supabase = Supabase.instance.client;
-      final user = supabase.auth.currentUser;
-      if (user == null) {
-        _createDefaultProfile();
-        return;
-      }
-
-      // Get data from emp_profile table using user_id
-      final data = await supabase
-          .from('emp_profile')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-      if (data == null) {
-        // Try with email as fallback
-        final emailData = await supabase
-            .from('emp_profile')
-            .select('*')
-            .eq('email', user.email!)
-            .maybeSingle();
-
-        if (emailData != null) {
-          _processUserData(emailData);
-        } else {
-          _createDefaultProfile(user.email!);
-        }
+      
+      final profile = empProvider.profile;
+      
+      if (profile != null) {
+        _processUserData(profile);
       } else {
-        _processUserData(data);
+        _createDefaultProfile();
       }
     } catch (e) {
       debugPrint('Error loading profile: $e');
-      _createDefaultProfile('employee@mega.com');
+      _createDefaultProfile();
     }
   }
 
-  Future<void> _calculatePerformanceMetrics() async {
-  try {
-    final supabase = Supabase.instance.client;
-    final user = supabase.auth.currentUser;
-    
-    if (user == null) return;
-
-    // Get employee ID from profile
-    final empId = employeeData?['empId']?.toString();
-    if (empId == null || empId.isEmpty) return;
-
-    final now = DateTime.now();
-    final currentMonth = now.month;
-    final currentYear = now.year;
-
-    // 1. Calculate Task Completion Rate (based on completed orders)
-    final ordersData = await supabase
-        .from('emp_mar_orders')
-        .select('id, status, created_at, employee_id')
-        .eq('employee_id', empId)
-        .or('status.eq.completed,status.eq.pending,status.eq.processing')
-        .gte('created_at', '$currentYear-${currentMonth.toString().padLeft(2, '0')}-01')
-        .lte('created_at', '$currentYear-${currentMonth.toString().padLeft(2, '0')}-31');
-
-    _totalOrdersCount = ordersData.length;
-    _completedOrdersCount = ordersData.where((order) => order['status'] == 'completed').length;
-    
-    _taskCompletionRate = _totalOrdersCount > 0 
-        ? (_completedOrdersCount / _totalOrdersCount) * 100
-        : 0.0;
-
-    // 2. Calculate Work Quality Score (based on order value and completion time)
-    final completedOrders = await supabase
-        .from('emp_mar_orders')
-        .select('total_price, created_at, completed_at')
-        .eq('employee_id', empId)
-        .eq('status', 'completed')
-        .gte('created_at', '$currentYear-01-01')
-        .lte('created_at', '$currentYear-12-31');
-
-    double totalOrderValue = 0;
-    int totalCompletionDays = 0;
-    int completedOrdersCount = completedOrders.length;
-
-    for (var order in completedOrders) {
-      final price = (order['total_price'] as num?)?.toDouble() ?? 0;
-      totalOrderValue += price;
-
-      final createdAt = order['created_at'] != null 
-          ? DateTime.tryParse(order['created_at'].toString())
-          : null;
-      final completedAt = order['completed_at'] != null
-          ? DateTime.tryParse(order['completed_at'].toString())
-          : null;
-
-      if (createdAt != null && completedAt != null) {
-        final daysToComplete = completedAt.difference(createdAt).inDays;
-        totalCompletionDays += daysToComplete;
+  Future<void> _loadAttendanceData() async {
+    try {
+      final attendanceProvider = Provider.of<AttendanceProvider>(context, listen: false);
+      
+      // Load attendance history using user_id
+      if (_userId != null) {
+        await attendanceProvider.loadAttendanceHistory(_userId!);
       }
-    }
-
-    // Calculate work quality score (higher for higher value orders completed quickly)
-    if (completedOrdersCount > 0) {
-      final avgOrderValue = totalOrderValue / completedOrdersCount;
-      final avgCompletionDays = totalCompletionDays / completedOrdersCount;
       
-      // Normalize scores (adjust these factors based on your business logic)
-      final valueScore = (avgOrderValue / 1000).clamp(0.0, 10.0) * 5; // Max 50 points
-      final speedScore = (30 / (avgCompletionDays + 1)).clamp(0.0, 10.0) * 5; // Max 50 points
+      // Get present dates from provider
+      final presentDates = attendanceProvider.presentDates;
       
-      _workQualityScore = (valueScore + speedScore).clamp(0.0, 100.0);
-    }
-
-    // 3. Calculate Attendance Percentage using the attendance provider
-    // First, ensure we're in a valid context
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (mounted) {
+      final now = DateTime.now();
+      final currentMonth = now.month;
+      final currentYear = now.year;
+      
+      print('📅 All present dates: $presentDates');
+      
+      // Filter for current month
+      final currentMonthAttendance = presentDates.where((dateStr) {
         try {
-          final attendanceProvider = context.read<AttendanceProvider>();
-          
-          // Load attendance history for the employee
-          await attendanceProvider.loadAttendanceHistory(empId);
-          
-          // Get present dates from the provider
-          final presentDates = attendanceProvider.presentDates;
-          
-          // Filter for current month
-          final currentMonthAttendance = presentDates.where((dateStr) {
-            try {
-              final date = DateTime.parse(dateStr);
-              return date.year == currentYear && date.month == currentMonth;
-            } catch (e) {
-              return false;
-            }
-          }).toList();
-
-          _attendedDays = currentMonthAttendance.length;
-          
-          // Calculate total working days in current month (excluding weekends)
-          final firstDay = DateTime(currentYear, currentMonth, 1);
-          final lastDay = DateTime(currentYear, currentMonth + 1, 0);
-          int workingDays = 0;
-          
-          for (var day = firstDay; day.isBefore(lastDay) || day.isAtSameMomentAs(lastDay); day = day.add(const Duration(days: 1))) {
-            // Exclude weekends (Saturday = 6, Sunday = 7)
-            if (day.weekday != DateTime.saturday && day.weekday != DateTime.sunday) {
-              workingDays++;
-            }
-          }
-          
-          _totalWorkingDays = workingDays;
-          _attendancePercentage = workingDays > 0 ? (_attendedDays / workingDays) * 100 : 0.0;
-
-          // 4. Calculate Team Collaboration Score
-          _teamCollaborationScore = 80.0 + (_taskCompletionRate / 100 * 20).clamp(0.0, 20.0);
-
-          // 5. Calculate Overall Performance Score
-          _performanceScore = (
-            _taskCompletionRate * 0.35 +        // 35% weight to task completion
-            _workQualityScore * 0.25 +          // 25% weight to work quality
-            _attendancePercentage * 0.25 +      // 25% weight to attendance
-            _teamCollaborationScore * 0.15      // 15% weight to collaboration
-          ).clamp(0.0, 100.0);
-
-          // Update UI
-          if (mounted) {
-            setState(() {});
-          }
-
-          print('📊 Performance Metrics Calculated:');
-          print('  Task Completion: $_taskCompletionRate%');
-          print('  Work Quality: $_workQualityScore%');
-          print('  Attendance: $_attendancePercentage% ($_attendedDays/$_totalWorkingDays )');
-          print('  Team Collaboration: $_teamCollaborationScore%');
-          print('  Overall Performance: $_performanceScore%');
-
+          final date = DateTime.parse(dateStr);
+          return date.year == currentYear && date.month == currentMonth;
         } catch (e) {
-          debugPrint('Error calculating attendance metrics: $e');
-          
-          // Set default values if attendance calculation fails
-          _attendancePercentage = 0.0;
-          _attendedDays = 0;
-          _totalWorkingDays = 22; // Default average working days
-          
-          // Calculate other scores without attendance
-          _teamCollaborationScore = 80.0 + (_taskCompletionRate / 100 * 20).clamp(0.0, 20.0);
-          _performanceScore = (
-            _taskCompletionRate * 0.50 +        // 50% weight to task completion
-            _workQualityScore * 0.35 +          // 35% weight to work quality
-            _teamCollaborationScore * 0.15      // 15% weight to collaboration
-          ).clamp(0.0, 100.0);
-          
-          if (mounted) {
-            setState(() {});
-          }
+          return false;
+        }
+      }).toList();
+
+      _attendedDays = currentMonthAttendance.length;
+      
+      // Calculate total working days in current month (excluding weekends)
+      final firstDay = DateTime(currentYear, currentMonth, 1);
+      final lastDay = DateTime(currentYear, currentMonth + 1, 0);
+      int workingDays = 0;
+      
+      for (var day = firstDay; 
+           day.isBefore(lastDay) || day.isAtSameMomentAs(lastDay); 
+           day = day.add(const Duration(days: 1))) {
+        // Exclude weekends (Saturday = 6, Sunday = 7)
+        if (day.weekday != DateTime.saturday && day.weekday != DateTime.sunday) {
+          workingDays++;
         }
       }
-    });
+      
+      _totalWorkingDays = workingDays;
+      _attendancePercentage = workingDays > 0 ? (_attendedDays / workingDays) * 100 : 0.0;
 
-  } catch (e) {
-    debugPrint('Error calculating performance metrics: $e');
+      print('📊 Attendance Data: $_attendedDays/$workingDays days (${_attendancePercentage.toStringAsFixed(1)}%)');
+
+    } catch (e) {
+      debugPrint('Error loading attendance data: $e');
+      _attendancePercentage = 0.0;
+      _attendedDays = 0;
+      _totalWorkingDays = 22;
+    }
   }
-}
+
+  Future<void> _loadOrderData() async {
+    try {
+      final orderProvider = Provider.of<OrderProvider>(context, listen: false);
+      
+      // Refresh order counts to get latest data
+      await orderProvider.fetchOrderCounts();
+      
+      // Get order counts from provider
+      _totalOrdersCount = orderProvider.totalOrders;
+      _completedOrdersCount = orderProvider.completedOrders;
+      
+      _taskCompletionRate = _totalOrdersCount > 0 
+          ? (_completedOrdersCount / _totalOrdersCount) * 100
+          : 0.0;
+
+      // Calculate work quality score using provider data
+      final completedOrders = orderProvider.completed;
+      
+      if (completedOrders.isNotEmpty) {
+        double totalOrderValue = 0;
+        
+        for (var order in completedOrders) {
+          totalOrderValue += (order['total_price'] as num?)?.toDouble() ?? 0;
+        }
+
+        final avgOrderValue = totalOrderValue / completedOrders.length;
+        
+        // Work quality score based on average order value (max 5000 = 100%)
+        _workQualityScore = (avgOrderValue / 5000 * 100).clamp(0.0, 100.0);
+      }
+
+      print('📊 Order Data: $_completedOrdersCount/$_totalOrdersCount completed (${_taskCompletionRate.toStringAsFixed(1)}%)');
+
+    } catch (e) {
+      debugPrint('Error loading order data: $e');
+      _totalOrdersCount = 0;
+      _completedOrdersCount = 0;
+      _taskCompletionRate = 0.0;
+      _workQualityScore = 0.0;
+    }
+  }
+
+  void _calculatePerformanceMetrics() {
+    // Team collaboration score (based on task completion rate)
+    _teamCollaborationScore = 70.0 + (_taskCompletionRate / 100 * 20).clamp(0.0, 20.0);
+
+    // Overall performance score with weighted factors
+    _performanceScore = (
+      _taskCompletionRate * 0.35 +        // 35% weight to task completion
+      _workQualityScore * 0.25 +          // 25% weight to work quality
+      _attendancePercentage * 0.25 +      // 25% weight to attendance
+      _teamCollaborationScore * 0.15      // 15% weight to collaboration
+    ).clamp(0.0, 100.0);
+
+    print('📈 Performance Score: ${_performanceScore.toStringAsFixed(1)}%');
+    
+    if (mounted) setState(() {});
+  }
 
   void _processUserData(Map<String, dynamic> data) {
+    // Extract employee ID from various possible field names
+    _employeeId = data['emp_id']?.toString() ?? 
+                  data['employee_id']?.toString() ?? 
+                  data['id']?.toString() ??
+                  data['user_id']?.toString();
+    
     setState(() {
       employeeData = {
-        'empId': data['emp_id'] ?? 'N/A',
-        'empName': data['full_name'] ?? 'Employee',
-        'position': data['position'] ?? 'Employee',
+        'empId': _employeeId ?? 'N/A',
+        'empName': data['full_name'] ?? data['name'] ?? 'Employee',
+        'position': data['position'] ?? data['role'] ?? 'Employee',
         'branch': data['branch'] ?? 'Not Set',
         'district': data['district'] ?? 'Not Set',
         'department': data['department'] ?? 'Not Set',
@@ -306,10 +402,12 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
         'profile_image': data['profile_image'],
       };
 
-      _nameController.text = data['full_name']?.toString() ?? '';
+      _nameController.text = data['full_name']?.toString() ?? 
+                             data['name']?.toString() ?? '';
       _emailController.text = data['email']?.toString() ?? '';
       _phoneController.text = data['phone']?.toString() ?? '';
-      _positionController.text = data['position']?.toString() ?? '';
+      _positionController.text = data['position']?.toString() ?? 
+                                 data['role']?.toString() ?? '';
 
       isLoading = false;
     });
@@ -367,31 +465,34 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
               })
               .eq('user_id', user.id);
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Profile updated successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Profile updated successfully!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
 
-          setState(() {
-            _isEditing = false;
-          });
-
+          setState(() => _isEditing = false);
+          
+          // Reload profile
+          final empProvider = Provider.of<EmployeeProvider>(context, listen: false);
+          await empProvider.loadProfile();
           await _loadProfile();
         }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error updating profile: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error updating profile: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
-
-  // ... rest of the EmployeeProfileDashboard code remains the same ...
 
   @override
   Widget build(BuildContext context) {
@@ -424,7 +525,7 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
               ),
               const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: _loadProfileAndMetrics,
+                onPressed: _initializeData,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: GlobalColors.primaryBlue,
                 ),
@@ -455,24 +556,55 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
+          // Live indicator
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: Colors.green,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.green.withOpacity(0.5),
+                        blurRadius: 4,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Text(
+                  'Live',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: () async {
-              setState(() {
-                isLoading = true;
-              });
-              await _loadProfileAndMetrics();
-              setState(() {
-                isLoading = false;
-              });
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Performance metrics updated!'),
-                  backgroundColor: Colors.green,
-                ),
-              );
+              setState(() => isLoading = true);
+              await _refreshAllData();
+              setState(() => isLoading = false);
+              
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Data refreshed successfully!'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
             },
-            tooltip: 'Refresh Metrics',
+            tooltip: 'Refresh Data',
           ),
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
@@ -489,11 +621,11 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
                     ),
                     TextButton(
                       onPressed: () {
-                        Navigator.push(
+                        Supabase.instance.client.auth.signOut();
+                        Navigator.pushAndRemoveUntil(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => RoleSelectionScreen(),
-                          ),
+                          MaterialPageRoute(builder: (context) => const RoleSelectionScreen()),
+                          (route) => false,
                         );
                       },
                       child: const Text(
@@ -509,16 +641,97 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Column(
-          children: [
-            _buildProfileHeader(employee),
-            const SizedBox(height: 20),
-            _buildTabSection(employee),
-            const SizedBox(height: 20),
-          ],
-        ),
+      body: Consumer2<AttendanceProvider, OrderProvider>(
+        builder: (context, attendanceProvider, orderProvider, child) {
+          // Listen to provider changes and update UI
+          Future.microtask(() {
+            if (_userId != null && mounted) {
+              // Update attendance data from provider
+              final now = DateTime.now();
+              final currentMonth = now.month;
+              final currentYear = now.year;
+              
+              final currentMonthAttendance = attendanceProvider.presentDates.where((dateStr) {
+                try {
+                  final date = DateTime.parse(dateStr);
+                  return date.year == currentYear && date.month == currentMonth;
+                } catch (e) {
+                  return false;
+                }
+              }).toList();
+
+              final newAttendedDays = currentMonthAttendance.length;
+              
+              // Calculate working days
+              final firstDay = DateTime(currentYear, currentMonth, 1);
+              final lastDay = DateTime(currentYear, currentMonth + 1, 0);
+              int workingDays = 0;
+              
+              for (var day = firstDay; 
+                   day.isBefore(lastDay) || day.isAtSameMomentAs(lastDay); 
+                   day = day.add(const Duration(days: 1))) {
+                if (day.weekday != DateTime.saturday && day.weekday != DateTime.sunday) {
+                  workingDays++;
+                }
+              }
+              
+              final newTotalWorkingDays = workingDays;
+              final newAttendancePercentage = workingDays > 0 ? (newAttendedDays / workingDays) * 100 : 0.0;
+              
+              // Update order data from provider
+              final newTotalOrders = orderProvider.totalOrders;
+              final newCompletedOrders = orderProvider.completedOrders;
+              final newTaskCompletionRate = newTotalOrders > 0 
+                  ? (newCompletedOrders / newTotalOrders) * 100
+                  : 0.0;
+              
+              // Check if values changed
+              bool hasChanged = false;
+              
+              if (_attendedDays != newAttendedDays ||
+                  _totalWorkingDays != newTotalWorkingDays ||
+                  _attendancePercentage != newAttendancePercentage ||
+                  _totalOrdersCount != newTotalOrders ||
+                  _completedOrdersCount != newCompletedOrders ||
+                  _taskCompletionRate != newTaskCompletionRate) {
+                
+                hasChanged = true;
+                
+                _attendedDays = newAttendedDays;
+                _totalWorkingDays = newTotalWorkingDays;
+                _attendancePercentage = newAttendancePercentage;
+                _totalOrdersCount = newTotalOrders;
+                _completedOrdersCount = newCompletedOrders;
+                _taskCompletionRate = newTaskCompletionRate;
+                
+                // Recalculate performance
+                _teamCollaborationScore = 70.0 + (_taskCompletionRate / 100 * 20).clamp(0.0, 20.0);
+                _performanceScore = (
+                  _taskCompletionRate * 0.35 +
+                  _workQualityScore * 0.25 +
+                  _attendancePercentage * 0.25 +
+                  _teamCollaborationScore * 0.15
+                ).clamp(0.0, 100.0);
+              }
+              
+              if (hasChanged && mounted) {
+                setState(() {});
+              }
+            }
+          });
+          
+          return SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              children: [
+                _buildProfileHeader(employee),
+                const SizedBox(height: 20),
+                _buildTabSection(employee),
+                const SizedBox(height: 20),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -551,9 +764,10 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
                       backgroundColor: Colors.white,
                       backgroundImage: profileImage != null
                           ? FileImage(profileImage!)
-                          : null,
-                      child:
-                          profileImage == null &&
+                          : (employee['profile_image'] != null
+                              ? NetworkImage(employee['profile_image'])
+                              : null),
+                      child: profileImage == null &&
                               employee['profile_image'] == null
                           ? Text(
                               (employee['empName'] is String &&
@@ -731,10 +945,7 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Edit Form or Display Info
             _isEditing ? _buildEditForm() : _buildDisplayInfo(employee),
-
-            // Additional Information (only when not editing)
             if (!_isEditing) ...[
               const SizedBox(height: 20),
               _buildAdditionalInfo(employee),
@@ -764,8 +975,6 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Name Field
               TextFormField(
                 controller: _nameController,
                 decoration: InputDecoration(
@@ -783,8 +992,6 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
                 },
               ),
               const SizedBox(height: 16),
-
-              // Email Field (read-only)
               TextFormField(
                 controller: _emailController,
                 decoration: InputDecoration(
@@ -799,8 +1006,6 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
                 readOnly: true,
               ),
               const SizedBox(height: 16),
-
-              // Phone Field
               TextFormField(
                 controller: _phoneController,
                 decoration: InputDecoration(
@@ -818,8 +1023,6 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
                 },
               ),
               const SizedBox(height: 16),
-
-              // Position Field
               TextFormField(
                 controller: _positionController,
                 decoration: InputDecoration(
@@ -836,10 +1039,7 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
                   return null;
                 },
               ),
-
               const SizedBox(height: 24),
-
-              // Action Buttons
               Row(
                 children: [
                   Expanded(
@@ -910,29 +1110,13 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _infoItem(
-              Icons.email,
-              "Email",
-              employee['email']?.toString() ?? 'N/A',
-            ),
+            _infoItem(Icons.email, "Email", employee['email']?.toString() ?? 'N/A'),
             const Divider(),
-            _infoItem(
-              Icons.phone,
-              "Phone",
-              employee['phone']?.toString() ?? 'N/A',
-            ),
+            _infoItem(Icons.phone, "Phone", employee['phone']?.toString() ?? 'N/A'),
             const Divider(),
-            _infoItem(
-              Icons.location_on,
-              "District",
-              employee['district']?.toString() ?? 'N/A',
-            ),
+            _infoItem(Icons.location_on, "District", employee['district']?.toString() ?? 'N/A'),
             const Divider(),
-            _infoItem(
-              Icons.business,
-              "Branch",
-              employee['branch']?.toString() ?? 'N/A',
-            ),
+            _infoItem(Icons.business, "Branch", employee['branch']?.toString() ?? 'N/A'),
             const Divider(),
             _infoItem(
               Icons.calendar_today,
@@ -945,19 +1129,11 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
             ),
             if (employee['role'] != null) ...[
               const Divider(),
-              _infoItem(
-                Icons.work,
-                "Role",
-                employee['role']?.toString() ?? 'N/A',
-              ),
+              _infoItem(Icons.work, "Role", employee['role']?.toString() ?? 'N/A'),
             ],
             if (employee['salary'] != null && employee['salary'] > 0) ...[
               const Divider(),
-              _infoItem(
-                Icons.currency_rupee,
-                "Salary",
-                "₹${employee['salary']}",
-              ),
+              _infoItem(Icons.currency_rupee, "Salary", "₹${employee['salary']}"),
             ],
           ],
         ),
@@ -1022,13 +1198,46 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      "Current Month (${DateFormat('MMMM yyyy').format(DateTime.now())})",
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Current Month (${DateFormat('MMMM yyyy').format(DateTime.now())})",
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: Colors.green,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Live',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -1036,19 +1245,19 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
                         _statItem(
                           "Completed Orders",
                           _completedOrdersCount.toString(),
-                          Colors.blue,
+                          Colors.green,
                         ),
                         const SizedBox(width: 12),
                         _statItem(
                           "Total Orders",
                           _totalOrdersCount.toString(),
-                          Colors.blue,
+                          GlobalColors.primaryBlue,
                         ),
                         const SizedBox(width: 12),
                         _statItem(
                           "Present Days",
-                          "$_attendedDays/$_totalWorkingDays ",
-                          Colors.blue,
+                          "$_attendedDays/$_totalWorkingDays",
+                          _attendedDays >= (_totalWorkingDays * 0.8) ? Colors.green : Colors.orange,
                         ),
                       ],
                     ),
@@ -1085,8 +1294,6 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
               ),
             ),
             const SizedBox(height: 20),
-
-           
           ],
         ),
       ),
@@ -1158,7 +1365,7 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
             ),
             child: FractionallySizedBox(
               alignment: Alignment.centerLeft,
-              widthFactor: value / 100,
+              widthFactor: (value / 100).clamp(0.0, 1.0),
               child: Container(
                 decoration: BoxDecoration(
                   color: color,
@@ -1172,7 +1379,6 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
     );
   }
 
-
   Color _getPerformanceColor(double score) {
     if (score >= 85) return Colors.green;
     if (score >= 70) return Colors.orange;
@@ -1181,12 +1387,11 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
   }
 
   Color _getAttendanceColor(double percentage) {
-    if (percentage >= 95) return Colors.green;
-    if (percentage >= 80) return Colors.blue;
+    if (percentage >= 90) return Colors.green;
+    if (percentage >= 75) return Colors.blue;
     if (percentage >= 60) return Colors.orange;
     return Colors.red;
   }
-
 
   Widget _buildAdditionalInfo(Map<String, dynamic> employee) {
     return Card(
@@ -1197,19 +1402,19 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Action Buttons
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () {
-                      // Change password
+                      setState(() => _isEditing = true);
                     },
-                    icon: const Icon(Icons.lock, size: 16),
-                    label: const Text('Change Password'),
+                    icon: const Icon(Icons.edit, size: 16),
+                    label: const Text('Edit Profile'),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      side: BorderSide(color: Colors.grey.shade300),
+                      side: BorderSide(color: GlobalColors.primaryBlue),
+                      foregroundColor: GlobalColors.primaryBlue,
                     ),
                   ),
                 ),
@@ -1217,25 +1422,24 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () async {
-                      setState(() {
-                        isLoading = true;
-                      });
-                      await _calculatePerformanceMetrics();
-                      setState(() {
-                        isLoading = false;
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Metrics recalculated!'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
+                      setState(() => isLoading = true);
+                      await _refreshAllData();
+                      setState(() => isLoading = false);
+                      
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Metrics refreshed successfully!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
                     },
-                    icon: const Icon(Icons.calculate, size: 16),
-                    label: const Text('Recalculate Metrics'),
+                    icon: const Icon(Icons.refresh, size: 16),
+                    label: const Text('Refresh Data'),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      side: BorderSide(color: Colors.grey.shade300),
+                      side: BorderSide(color: Colors.grey.shade400),
                     ),
                   ),
                 ),
@@ -1247,6 +1451,1269 @@ class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
     );
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+//performance no
+
+// import 'dart:io';
+// import 'package:flutter/material.dart';
+// import 'package:intl/intl.dart';
+// import 'package:image_picker/image_picker.dart';
+// import 'package:mega_pro/main.dart';
+// import 'package:supabase_flutter/supabase_flutter.dart';
+// import 'package:mega_pro/global/global_variables.dart';
+// import 'package:provider/provider.dart';
+// import 'package:mega_pro/providers/emp_attendance_provider.dart';
+
+// class EmployeeProfileDashboard extends StatefulWidget {
+//   final Map<String, dynamic>? userData;
+
+//   const EmployeeProfileDashboard({super.key, this.userData});
+
+//   @override
+//   State<EmployeeProfileDashboard> createState() =>
+//       _EmployeeProfileDashboardState();
+// }
+
+// class _EmployeeProfileDashboardState extends State<EmployeeProfileDashboard> {
+//   final ImagePicker picker = ImagePicker();
+//   File? profileImage;
+
+//   Map<String, dynamic>? employeeData;
+//   bool isLoading = true;
+//   bool _isEditing = false;
+//   final _formKey = GlobalKey<FormState>();
+
+//   // Performance metrics
+//   double _performanceScore = 0.0;
+//   double _attendancePercentage = 0.0;
+//   double _taskCompletionRate = 0.0;
+//   double _workQualityScore = 0.0;
+//   double _teamCollaborationScore = 0.0;
+  
+//   // Real-time data
+//   int _completedOrdersCount = 0;
+//   int _totalOrdersCount = 0;
+//   int _attendedDays = 0;
+//   int _totalWorkingDays = 0;
+
+//   late TextEditingController _nameController;
+//   late TextEditingController _emailController;
+//   late TextEditingController _phoneController;
+//   late TextEditingController _positionController;
+
+//   @override
+//   void initState() {
+//     super.initState();
+//     _initializeControllers();
+//     _loadProfileAndMetrics();
+//   }
+
+//   void _initializeControllers() {
+//     _nameController = TextEditingController();
+//     _emailController = TextEditingController();
+//     _phoneController = TextEditingController();
+//     _positionController = TextEditingController();
+//   }
+
+//   @override
+//   void dispose() {
+//     _nameController.dispose();
+//     _emailController.dispose();
+//     _phoneController.dispose();
+//     _positionController.dispose();
+//     super.dispose();
+//   }
+
+//   Future<void> _loadProfileAndMetrics() async {
+//     try {
+//       await _loadProfile();
+//       await _calculatePerformanceMetrics();
+//     } catch (e) {
+//       debugPrint('Error loading profile and metrics: $e');
+//       _createDefaultProfile('employee@mega.com');
+//     }
+//   }
+
+//   Future<void> _loadProfile() async {
+//     try {
+//       // If userData is passed from dashboard, use it directly
+//       if (widget.userData != null && widget.userData!.isNotEmpty) {
+//         _processUserData(widget.userData!);
+//         return;
+//       }
+
+//       final supabase = Supabase.instance.client;
+//       final user = supabase.auth.currentUser;
+//       if (user == null) {
+//         _createDefaultProfile();
+//         return;
+//       }
+
+//       // Get data from emp_profile table using user_id
+//       final data = await supabase
+//           .from('emp_profile')
+//           .select('*')
+//           .eq('user_id', user.id)
+//           .maybeSingle();
+
+//       if (data == null) {
+//         // Try with email as fallback
+//         final emailData = await supabase
+//             .from('emp_profile')
+//             .select('*')
+//             .eq('email', user.email!)
+//             .maybeSingle();
+
+//         if (emailData != null) {
+//           _processUserData(emailData);
+//         } else {
+//           _createDefaultProfile(user.email!);
+//         }
+//       } else {
+//         _processUserData(data);
+//       }
+//     } catch (e) {
+//       debugPrint('Error loading profile: $e');
+//       _createDefaultProfile('employee@mega.com');
+//     }
+//   }
+
+//   Future<void> _calculatePerformanceMetrics() async {
+//   try {
+//     final supabase = Supabase.instance.client;
+//     final user = supabase.auth.currentUser;
+    
+//     if (user == null) return;
+
+//     // Get employee ID from profile
+//     final empId = employeeData?['empId']?.toString();
+//     if (empId == null || empId.isEmpty) return;
+
+//     final now = DateTime.now();
+//     final currentMonth = now.month;
+//     final currentYear = now.year;
+
+//     // 1. Calculate Task Completion Rate (based on completed orders)
+//     final ordersData = await supabase
+//         .from('emp_mar_orders')
+//         .select('id, status, created_at, employee_id')
+//         .eq('employee_id', empId)
+//         .or('status.eq.completed,status.eq.pending,status.eq.processing')
+//         .gte('created_at', '$currentYear-${currentMonth.toString().padLeft(2, '0')}-01')
+//         .lte('created_at', '$currentYear-${currentMonth.toString().padLeft(2, '0')}-31');
+
+//     _totalOrdersCount = ordersData.length;
+//     _completedOrdersCount = ordersData.where((order) => order['status'] == 'completed').length;
+    
+//     _taskCompletionRate = _totalOrdersCount > 0 
+//         ? (_completedOrdersCount / _totalOrdersCount) * 100
+//         : 0.0;
+
+//     // 2. Calculate Work Quality Score (based on order value and completion time)
+//     final completedOrders = await supabase
+//         .from('emp_mar_orders')
+//         .select('total_price, created_at, completed_at')
+//         .eq('employee_id', empId)
+//         .eq('status', 'completed')
+//         .gte('created_at', '$currentYear-01-01')
+//         .lte('created_at', '$currentYear-12-31');
+
+//     double totalOrderValue = 0;
+//     int totalCompletionDays = 0;
+//     int completedOrdersCount = completedOrders.length;
+
+//     for (var order in completedOrders) {
+//       final price = (order['total_price'] as num?)?.toDouble() ?? 0;
+//       totalOrderValue += price;
+
+//       final createdAt = order['created_at'] != null 
+//           ? DateTime.tryParse(order['created_at'].toString())
+//           : null;
+//       final completedAt = order['completed_at'] != null
+//           ? DateTime.tryParse(order['completed_at'].toString())
+//           : null;
+
+//       if (createdAt != null && completedAt != null) {
+//         final daysToComplete = completedAt.difference(createdAt).inDays;
+//         totalCompletionDays += daysToComplete;
+//       }
+//     }
+
+//     // Calculate work quality score (higher for higher value orders completed quickly)
+//     if (completedOrdersCount > 0) {
+//       final avgOrderValue = totalOrderValue / completedOrdersCount;
+//       final avgCompletionDays = totalCompletionDays / completedOrdersCount;
+      
+//       // Normalize scores (adjust these factors based on your business logic)
+//       final valueScore = (avgOrderValue / 1000).clamp(0.0, 10.0) * 5; // Max 50 points
+//       final speedScore = (30 / (avgCompletionDays + 1)).clamp(0.0, 10.0) * 5; // Max 50 points
+      
+//       _workQualityScore = (valueScore + speedScore).clamp(0.0, 100.0);
+//     }
+
+//     // 3. Calculate Attendance Percentage using the attendance provider
+//     // First, ensure we're in a valid context
+//     WidgetsBinding.instance.addPostFrameCallback((_) async {
+//       if (mounted) {
+//         try {
+//           final attendanceProvider = context.read<AttendanceProvider>();
+          
+//           // Load attendance history for the employee
+//           await attendanceProvider.loadAttendanceHistory(empId);
+          
+//           // Get present dates from the provider
+//           final presentDates = attendanceProvider.presentDates;
+          
+//           // Filter for current month
+//           final currentMonthAttendance = presentDates.where((dateStr) {
+//             try {
+//               final date = DateTime.parse(dateStr);
+//               return date.year == currentYear && date.month == currentMonth;
+//             } catch (e) {
+//               return false;
+//             }
+//           }).toList();
+
+//           _attendedDays = currentMonthAttendance.length;
+          
+//           // Calculate total working days in current month (excluding weekends)
+//           final firstDay = DateTime(currentYear, currentMonth, 1);
+//           final lastDay = DateTime(currentYear, currentMonth + 1, 0);
+//           int workingDays = 0;
+          
+//           for (var day = firstDay; day.isBefore(lastDay) || day.isAtSameMomentAs(lastDay); day = day.add(const Duration(days: 1))) {
+//             // Exclude weekends (Saturday = 6, Sunday = 7)
+//             if (day.weekday != DateTime.saturday && day.weekday != DateTime.sunday) {
+//               workingDays++;
+//             }
+//           }
+          
+//           _totalWorkingDays = workingDays;
+//           _attendancePercentage = workingDays > 0 ? (_attendedDays / workingDays) * 100 : 0.0;
+
+//           // 4. Calculate Team Collaboration Score
+//           _teamCollaborationScore = 80.0 + (_taskCompletionRate / 100 * 20).clamp(0.0, 20.0);
+
+//           // 5. Calculate Overall Performance Score
+//           _performanceScore = (
+//             _taskCompletionRate * 0.35 +        // 35% weight to task completion
+//             _workQualityScore * 0.25 +          // 25% weight to work quality
+//             _attendancePercentage * 0.25 +      // 25% weight to attendance
+//             _teamCollaborationScore * 0.15      // 15% weight to collaboration
+//           ).clamp(0.0, 100.0);
+
+//           // Update UI
+//           if (mounted) {
+//             setState(() {});
+//           }
+
+//           print('📊 Performance Metrics Calculated:');
+//           print('  Task Completion: $_taskCompletionRate%');
+//           print('  Work Quality: $_workQualityScore%');
+//           print('  Attendance: $_attendancePercentage% ($_attendedDays/$_totalWorkingDays )');
+//           print('  Team Collaboration: $_teamCollaborationScore%');
+//           print('  Overall Performance: $_performanceScore%');
+
+//         } catch (e) {
+//           debugPrint('Error calculating attendance metrics: $e');
+          
+//           // Set default values if attendance calculation fails
+//           _attendancePercentage = 0.0;
+//           _attendedDays = 0;
+//           _totalWorkingDays = 22; // Default average working days
+          
+//           // Calculate other scores without attendance
+//           _teamCollaborationScore = 80.0 + (_taskCompletionRate / 100 * 20).clamp(0.0, 20.0);
+//           _performanceScore = (
+//             _taskCompletionRate * 0.50 +        // 50% weight to task completion
+//             _workQualityScore * 0.35 +          // 35% weight to work quality
+//             _teamCollaborationScore * 0.15      // 15% weight to collaboration
+//           ).clamp(0.0, 100.0);
+          
+//           if (mounted) {
+//             setState(() {});
+//           }
+//         }
+//       }
+//     });
+
+//   } catch (e) {
+//     debugPrint('Error calculating performance metrics: $e');
+//   }
+// }
+
+//   void _processUserData(Map<String, dynamic> data) {
+//     setState(() {
+//       employeeData = {
+//         'empId': data['emp_id'] ?? 'N/A',
+//         'empName': data['full_name'] ?? 'Employee',
+//         'position': data['position'] ?? 'Employee',
+//         'branch': data['branch'] ?? 'Not Set',
+//         'district': data['district'] ?? 'Not Set',
+//         'department': data['department'] ?? 'Not Set',
+//         'joiningDate': data['joining_date'] != null
+//             ? DateTime.parse(data['joining_date'])
+//             : DateTime.now(),
+//         'status': data['status'] ?? 'Active',
+//         'phone': data['phone'] ?? 'Not Provided',
+//         'email': data['email'] ?? 'N/A',
+//         'role': data['role'] ?? 'Employee',
+//         'salary': data['salary'] ?? 0,
+//         'profile_image': data['profile_image'],
+//       };
+
+//       _nameController.text = data['full_name']?.toString() ?? '';
+//       _emailController.text = data['email']?.toString() ?? '';
+//       _phoneController.text = data['phone']?.toString() ?? '';
+//       _positionController.text = data['position']?.toString() ?? '';
+
+//       isLoading = false;
+//     });
+//   }
+
+//   void _createDefaultProfile([String email = 'employee@mega.com']) {
+//     setState(() {
+//       employeeData = {
+//         'empId': 'EMP${DateTime.now().millisecondsSinceEpoch % 1000}',
+//         'empName': 'Employee',
+//         'position': 'Employee',
+//         'branch': 'Main Branch',
+//         'district': 'Corporate',
+//         'department': 'General',
+//         'joiningDate': DateTime.now(),
+//         'status': 'Active',
+//         'phone': '9876543210',
+//         'email': email,
+//         'role': 'Employee',
+//         'salary': 0,
+//       };
+
+//       _nameController.text = 'Employee';
+//       _emailController.text = email;
+//       _phoneController.text = '9876543210';
+//       _positionController.text = 'Employee';
+
+//       isLoading = false;
+//     });
+//   }
+
+//   Future<void> _pickProfileImage() async {
+//     final XFile? file = await picker.pickImage(
+//       source: ImageSource.gallery,
+//       imageQuality: 75,
+//     );
+//     if (file != null) {
+//       setState(() => profileImage = File(file.path));
+//     }
+//   }
+
+//   Future<void> _updateProfile() async {
+//     if (_formKey.currentState!.validate()) {
+//       try {
+//         final supabase = Supabase.instance.client;
+//         final user = supabase.auth.currentUser;
+//         if (user != null) {
+//           await supabase
+//               .from('emp_profile')
+//               .update({
+//                 'full_name': _nameController.text,
+//                 'phone': _phoneController.text,
+//                 'position': _positionController.text,
+//                 'updated_at': DateTime.now().toIso8601String(),
+//               })
+//               .eq('user_id', user.id);
+
+//           ScaffoldMessenger.of(context).showSnackBar(
+//             const SnackBar(
+//               content: Text('Profile updated successfully!'),
+//               backgroundColor: Colors.green,
+//             ),
+//           );
+
+//           setState(() {
+//             _isEditing = false;
+//           });
+
+//           await _loadProfile();
+//         }
+//       } catch (e) {
+//         ScaffoldMessenger.of(context).showSnackBar(
+//           SnackBar(
+//             content: Text('Error updating profile: $e'),
+//             backgroundColor: Colors.red,
+//           ),
+//         );
+//       }
+//     }
+//   }
+
+//   // ... rest of the EmployeeProfileDashboard code remains the same ...
+
+//   @override
+//   Widget build(BuildContext context) {
+//     if (isLoading) {
+//       return Scaffold(
+//         backgroundColor: GlobalColors.background,
+//         body: const Center(
+//           child: CircularProgressIndicator(color: GlobalColors.primaryBlue),
+//         ),
+//       );
+//     }
+
+//     if (employeeData == null) {
+//       return Scaffold(
+//         backgroundColor: GlobalColors.background,
+//         body: Center(
+//           child: Column(
+//             mainAxisAlignment: MainAxisAlignment.center,
+//             children: [
+//               const Icon(Icons.error_outline, size: 64, color: Colors.grey),
+//               const SizedBox(height: 16),
+//               const Text(
+//                 'Profile Not Found',
+//                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+//               ),
+//               const SizedBox(height: 8),
+//               const Text(
+//                 'Contact administrator to set up your profile',
+//                 style: TextStyle(color: Colors.grey),
+//               ),
+//               const SizedBox(height: 20),
+//               ElevatedButton(
+//                 onPressed: _loadProfileAndMetrics,
+//                 style: ElevatedButton.styleFrom(
+//                   backgroundColor: GlobalColors.primaryBlue,
+//                 ),
+//                 child: const Text(
+//                   'Retry',
+//                   style: TextStyle(color: Colors.white),
+//                 ),
+//               ),
+//             ],
+//           ),
+//         ),
+//       );
+//     }
+
+//     final employee = employeeData!;
+
+//     return Scaffold(
+//       backgroundColor: GlobalColors.background,
+//       appBar: AppBar(
+//         backgroundColor: GlobalColors.primaryBlue,
+//         elevation: 0,
+//         title: const Text(
+//           'My Profile',
+//           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+//         ),
+//         leading: IconButton(
+//           icon: const Icon(Icons.arrow_back, color: Colors.white),
+//           onPressed: () => Navigator.pop(context),
+//         ),
+//         actions: [
+//           IconButton(
+//             icon: const Icon(Icons.refresh, color: Colors.white),
+//             onPressed: () async {
+//               setState(() {
+//                 isLoading = true;
+//               });
+//               await _loadProfileAndMetrics();
+//               setState(() {
+//                 isLoading = false;
+//               });
+//               ScaffoldMessenger.of(context).showSnackBar(
+//                 const SnackBar(
+//                   content: Text('Performance metrics updated!'),
+//                   backgroundColor: Colors.green,
+//                 ),
+//               );
+//             },
+//             tooltip: 'Refresh Metrics',
+//           ),
+//           IconButton(
+//             icon: const Icon(Icons.logout, color: Colors.white),
+//             onPressed: () {
+//               showDialog(
+//                 context: context,
+//                 builder: (context) => AlertDialog(
+//                   title: const Text('Confirm Logout'),
+//                   content: const Text('Are you sure you want to logout?'),
+//                   actions: [
+//                     TextButton(
+//                       onPressed: () => Navigator.pop(context),
+//                       child: const Text('Cancel'),
+//                     ),
+//                     TextButton(
+//                       onPressed: () {
+//                         Navigator.push(
+//                           context,
+//                           MaterialPageRoute(
+//                             builder: (context) => RoleSelectionScreen(),
+//                           ),
+//                         );
+//                       },
+//                       child: const Text(
+//                         'Logout',
+//                         style: TextStyle(color: Colors.red),
+//                       ),
+//                     ),
+//                   ],
+//                 ),
+//               );
+//             },
+//             tooltip: 'Logout',
+//           ),
+//         ],
+//       ),
+//       body: SingleChildScrollView(
+//         physics: const BouncingScrollPhysics(),
+//         child: Column(
+//           children: [
+//             _buildProfileHeader(employee),
+//             const SizedBox(height: 20),
+//             _buildTabSection(employee),
+//             const SizedBox(height: 20),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildProfileHeader(Map<String, dynamic> employee) {
+//     return Container(
+//       padding: const EdgeInsets.all(24),
+//       decoration: BoxDecoration(
+//         color: GlobalColors.primaryBlue,
+//         borderRadius: const BorderRadius.only(
+//           bottomLeft: Radius.circular(24),
+//           bottomRight: Radius.circular(24),
+//         ),
+//       ),
+//       child: Column(
+//         children: [
+//           Row(
+//             children: [
+//               Stack(
+//                 children: [
+//                   Container(
+//                     width: 80,
+//                     height: 80,
+//                     decoration: BoxDecoration(
+//                       shape: BoxShape.circle,
+//                       border: Border.all(color: Colors.white, width: 3),
+//                     ),
+//                     child: CircleAvatar(
+//                       radius: 40,
+//                       backgroundColor: Colors.white,
+//                       backgroundImage: profileImage != null
+//                           ? FileImage(profileImage!)
+//                           : null,
+//                       child:
+//                           profileImage == null &&
+//                               employee['profile_image'] == null
+//                           ? Text(
+//                               (employee['empName'] is String &&
+//                                       employee['empName'].isNotEmpty)
+//                                   ? employee['empName']
+//                                         .substring(0, 2)
+//                                         .toUpperCase()
+//                                   : "EMP",
+//                               style: TextStyle(
+//                                 fontSize: 28,
+//                                 fontWeight: FontWeight.bold,
+//                                 color: GlobalColors.primaryBlue,
+//                               ),
+//                             )
+//                           : null,
+//                     ),
+//                   ),
+//                   if (_isEditing)
+//                     Positioned(
+//                       bottom: 0,
+//                       right: 0,
+//                       child: GestureDetector(
+//                         onTap: _pickProfileImage,
+//                         child: Container(
+//                           padding: const EdgeInsets.all(6),
+//                           decoration: BoxDecoration(
+//                             color: Colors.white,
+//                             shape: BoxShape.circle,
+//                             boxShadow: [
+//                               BoxShadow(
+//                                 color: Colors.black.withOpacity(0.15),
+//                                 blurRadius: 4,
+//                               ),
+//                             ],
+//                           ),
+//                           child: Icon(
+//                             Icons.camera_alt,
+//                             size: 18,
+//                             color: GlobalColors.primaryBlue,
+//                           ),
+//                         ),
+//                       ),
+//                     ),
+//                 ],
+//               ),
+//               const SizedBox(width: 20),
+//               Expanded(
+//                 child: Column(
+//                   crossAxisAlignment: CrossAxisAlignment.start,
+//                   children: [
+//                     Text(
+//                       employee['empName']?.toString() ?? 'Employee',
+//                       style: const TextStyle(
+//                         fontSize: 22,
+//                         fontWeight: FontWeight.bold,
+//                         color: Colors.white,
+//                       ),
+//                     ),
+//                     const SizedBox(height: 6),
+//                     Text(
+//                       employee['position']?.toString() ?? 'Employee',
+//                       style: TextStyle(
+//                         color: Colors.white.withOpacity(0.9),
+//                         fontSize: 14,
+//                       ),
+//                     ),
+//                     const SizedBox(height: 10),
+//                     Container(
+//                       padding: const EdgeInsets.symmetric(
+//                         horizontal: 16,
+//                         vertical: 6,
+//                       ),
+//                       decoration: BoxDecoration(
+//                         color: Colors.white.withOpacity(0.2),
+//                         borderRadius: BorderRadius.circular(20),
+//                       ),
+//                       child: Text(
+//                         employee['status']?.toString() ?? 'Active',
+//                         style: const TextStyle(
+//                           color: Colors.white,
+//                           fontWeight: FontWeight.w600,
+//                           fontSize: 12,
+//                         ),
+//                       ),
+//                     ),
+//                   ],
+//                 ),
+//               ),
+//             ],
+//           ),
+//           const SizedBox(height: 20),
+//           _buildEmployeeIdCard(employee),
+//         ],
+//       ),
+//     );
+//   }
+
+//   Widget _buildEmployeeIdCard(Map<String, dynamic> employee) {
+//     return Container(
+//       padding: const EdgeInsets.all(16),
+//       decoration: BoxDecoration(
+//         color: Colors.white.withOpacity(0.1),
+//         borderRadius: BorderRadius.circular(16),
+//         border: Border.all(color: Colors.white.withOpacity(0.2)),
+//       ),
+//       child: Row(
+//         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//         children: [
+//           _idItem("Employee ID", employee['empId']?.toString() ?? 'N/A'),
+//           _idItem("Department", employee['department']?.toString() ?? 'N/A'),
+//           _idItem(
+//             "Since",
+//             DateFormat("MMM yyyy").format(
+//               employee['joiningDate'] is DateTime
+//                   ? employee['joiningDate']
+//                   : DateTime.now(),
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   Widget _idItem(String title, String value) {
+//     return Column(
+//       crossAxisAlignment: CrossAxisAlignment.start,
+//       children: [
+//         Text(
+//           title,
+//           style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
+//         ),
+//         const SizedBox(height: 4),
+//         Text(
+//           value,
+//           style: const TextStyle(
+//             color: Colors.white,
+//             fontWeight: FontWeight.bold,
+//             fontSize: 15,
+//           ),
+//         ),
+//       ],
+//     );
+//   }
+
+//   Widget _buildTabSection(Map<String, dynamic> employee) {
+//     return Container(
+//       constraints: const BoxConstraints(minHeight: 450),
+//       child: DefaultTabController(
+//         length: 2,
+//         child: Column(
+//           mainAxisSize: MainAxisSize.min,
+//           children: [
+//             const TabBar(
+//               labelColor: GlobalColors.primaryBlue,
+//               tabs: [
+//                 Tab(text: "Details"),
+//                 Tab(text: "Performance"),
+//               ],
+//             ),
+//             SizedBox(
+//               height: 500,
+//               child: TabBarView(
+//                 children: [_detailsTab(employee), _performanceTab(employee)],
+//               ),
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _detailsTab(Map<String, dynamic> employee) {
+//     return SingleChildScrollView(
+//       child: Padding(
+//         padding: const EdgeInsets.all(16),
+//         child: Column(
+//           children: [
+//             // Edit Form or Display Info
+//             _isEditing ? _buildEditForm() : _buildDisplayInfo(employee),
+
+//             // Additional Information (only when not editing)
+//             if (!_isEditing) ...[
+//               const SizedBox(height: 20),
+//               _buildAdditionalInfo(employee),
+//             ],
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildEditForm() {
+//     return Card(
+//       elevation: 4,
+//       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+//       child: Padding(
+//         padding: const EdgeInsets.all(20),
+//         child: Form(
+//           key: _formKey,
+//           child: Column(
+//             children: [
+//               const Text(
+//                 'Edit Profile Information',
+//                 style: TextStyle(
+//                   fontSize: 18,
+//                   fontWeight: FontWeight.bold,
+//                   color: Colors.black87,
+//                 ),
+//               ),
+//               const SizedBox(height: 20),
+
+//               // Name Field
+//               TextFormField(
+//                 controller: _nameController,
+//                 decoration: InputDecoration(
+//                   labelText: 'Full Name',
+//                   prefixIcon: const Icon(Icons.person),
+//                   border: OutlineInputBorder(
+//                     borderRadius: BorderRadius.circular(8),
+//                   ),
+//                 ),
+//                 validator: (value) {
+//                   if (value == null || value.isEmpty) {
+//                     return 'Please enter your name';
+//                   }
+//                   return null;
+//                 },
+//               ),
+//               const SizedBox(height: 16),
+
+//               // Email Field (read-only)
+//               TextFormField(
+//                 controller: _emailController,
+//                 decoration: InputDecoration(
+//                   labelText: 'Email Address',
+//                   prefixIcon: const Icon(Icons.email),
+//                   border: OutlineInputBorder(
+//                     borderRadius: BorderRadius.circular(8),
+//                   ),
+//                   filled: true,
+//                   fillColor: Colors.grey.shade100,
+//                 ),
+//                 readOnly: true,
+//               ),
+//               const SizedBox(height: 16),
+
+//               // Phone Field
+//               TextFormField(
+//                 controller: _phoneController,
+//                 decoration: InputDecoration(
+//                   labelText: 'Phone Number',
+//                   prefixIcon: const Icon(Icons.phone),
+//                   border: OutlineInputBorder(
+//                     borderRadius: BorderRadius.circular(8),
+//                   ),
+//                 ),
+//                 validator: (value) {
+//                   if (value == null || value.isEmpty) {
+//                     return 'Please enter your phone number';
+//                   }
+//                   return null;
+//                 },
+//               ),
+//               const SizedBox(height: 16),
+
+//               // Position Field
+//               TextFormField(
+//                 controller: _positionController,
+//                 decoration: InputDecoration(
+//                   labelText: 'Position',
+//                   prefixIcon: const Icon(Icons.work),
+//                   border: OutlineInputBorder(
+//                     borderRadius: BorderRadius.circular(8),
+//                   ),
+//                 ),
+//                 validator: (value) {
+//                   if (value == null || value.isEmpty) {
+//                     return 'Please enter your position';
+//                   }
+//                   return null;
+//                 },
+//               ),
+
+//               const SizedBox(height: 24),
+
+//               // Action Buttons
+//               Row(
+//                 children: [
+//                   Expanded(
+//                     child: ElevatedButton(
+//                       onPressed: _updateProfile,
+//                       style: ElevatedButton.styleFrom(
+//                         backgroundColor: GlobalColors.primaryBlue,
+//                         padding: const EdgeInsets.symmetric(vertical: 14),
+//                         shape: RoundedRectangleBorder(
+//                           borderRadius: BorderRadius.circular(8),
+//                         ),
+//                       ),
+//                       child: const Text(
+//                         'Save Changes',
+//                         style: TextStyle(
+//                           fontSize: 16,
+//                           fontWeight: FontWeight.w600,
+//                           color: Colors.white,
+//                         ),
+//                       ),
+//                     ),
+//                   ),
+//                   const SizedBox(width: 12),
+//                   Expanded(
+//                     child: OutlinedButton(
+//                       onPressed: () {
+//                         setState(() {
+//                           _isEditing = false;
+//                           _nameController.text =
+//                               employeeData!['empName']?.toString() ?? '';
+//                           _phoneController.text =
+//                               employeeData!['phone']?.toString() ?? '';
+//                           _positionController.text =
+//                               employeeData!['position']?.toString() ?? '';
+//                         });
+//                       },
+//                       style: OutlinedButton.styleFrom(
+//                         padding: const EdgeInsets.symmetric(vertical: 14),
+//                         shape: RoundedRectangleBorder(
+//                           borderRadius: BorderRadius.circular(8),
+//                         ),
+//                         side: BorderSide(color: Colors.grey.shade300),
+//                       ),
+//                       child: Text(
+//                         'Cancel',
+//                         style: TextStyle(
+//                           fontSize: 16,
+//                           color: Colors.grey.shade700,
+//                         ),
+//                       ),
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//             ],
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildDisplayInfo(Map<String, dynamic> employee) {
+//     return Card(
+//       elevation: 4,
+//       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+//       child: Padding(
+//         padding: const EdgeInsets.all(20),
+//         child: Column(
+//           mainAxisSize: MainAxisSize.min,
+//           children: [
+//             _infoItem(
+//               Icons.email,
+//               "Email",
+//               employee['email']?.toString() ?? 'N/A',
+//             ),
+//             const Divider(),
+//             _infoItem(
+//               Icons.phone,
+//               "Phone",
+//               employee['phone']?.toString() ?? 'N/A',
+//             ),
+//             const Divider(),
+//             _infoItem(
+//               Icons.location_on,
+//               "District",
+//               employee['district']?.toString() ?? 'N/A',
+//             ),
+//             const Divider(),
+//             _infoItem(
+//               Icons.business,
+//               "Branch",
+//               employee['branch']?.toString() ?? 'N/A',
+//             ),
+//             const Divider(),
+//             _infoItem(
+//               Icons.calendar_today,
+//               "Joining Date",
+//               DateFormat('dd MMMM yyyy').format(
+//                 employee['joiningDate'] is DateTime
+//                     ? employee['joiningDate']
+//                     : DateTime.now(),
+//               ),
+//             ),
+//             if (employee['role'] != null) ...[
+//               const Divider(),
+//               _infoItem(
+//                 Icons.work,
+//                 "Role",
+//                 employee['role']?.toString() ?? 'N/A',
+//               ),
+//             ],
+//             if (employee['salary'] != null && employee['salary'] > 0) ...[
+//               const Divider(),
+//               _infoItem(
+//                 Icons.currency_rupee,
+//                 "Salary",
+//                 "₹${employee['salary']}",
+//               ),
+//             ],
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _infoItem(IconData icon, String label, String value) {
+//     return Padding(
+//       padding: const EdgeInsets.symmetric(vertical: 12),
+//       child: Row(
+//         children: [
+//           Container(
+//             padding: const EdgeInsets.all(8),
+//             decoration: BoxDecoration(
+//               color: GlobalColors.primaryBlue.withOpacity(0.1),
+//               borderRadius: BorderRadius.circular(8),
+//             ),
+//             child: Icon(icon, color: GlobalColors.primaryBlue, size: 20),
+//           ),
+//           const SizedBox(width: 16),
+//           Expanded(
+//             child: Column(
+//               crossAxisAlignment: CrossAxisAlignment.start,
+//               children: [
+//                 Text(
+//                   label,
+//                   style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+//                 ),
+//                 const SizedBox(height: 4),
+//                 Text(
+//                   value,
+//                   style: TextStyle(
+//                     fontSize: 16,
+//                     fontWeight: FontWeight.w500,
+//                     color: Colors.grey[800],
+//                   ),
+//                 ),
+//               ],
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   Widget _performanceTab(Map<String, dynamic> employee) {
+//     return SingleChildScrollView(
+//       child: Padding(
+//         padding: const EdgeInsets.all(16),
+//         child: Column(
+//           mainAxisSize: MainAxisSize.min,
+//           children: [
+//             // Current Month Summary
+//             Card(
+//               elevation: 4,
+//               shape: RoundedRectangleBorder(
+//                 borderRadius: BorderRadius.circular(16),
+//               ),
+//               child: Padding(
+//                 padding: const EdgeInsets.all(16),
+//                 child: Column(
+//                   crossAxisAlignment: CrossAxisAlignment.start,
+//                   children: [
+//                     Text(
+//                       "Current Month (${DateFormat('MMMM yyyy').format(DateTime.now())})",
+//                       style: const TextStyle(
+//                         fontSize: 16,
+//                         fontWeight: FontWeight.bold,
+//                         color: Colors.black87,
+//                       ),
+//                     ),
+//                     const SizedBox(height: 12),
+//                     Row(
+//                       children: [
+//                         _statItem(
+//                           "Completed Orders",
+//                           _completedOrdersCount.toString(),
+//                           Colors.blue,
+//                         ),
+//                         const SizedBox(width: 12),
+//                         _statItem(
+//                           "Total Orders",
+//                           _totalOrdersCount.toString(),
+//                           Colors.blue,
+//                         ),
+//                         const SizedBox(width: 12),
+//                         _statItem(
+//                           "Present Days",
+//                           "$_attendedDays/$_totalWorkingDays ",
+//                           Colors.blue,
+//                         ),
+//                       ],
+//                     ),
+//                   ],
+//                 ),
+//               ),
+//             ),
+//             const SizedBox(height: 20),
+
+//             // Performance Metrics
+//             Card(
+//               elevation: 4,
+//               shape: RoundedRectangleBorder(
+//                 borderRadius: BorderRadius.circular(16),
+//               ),
+//               child: Padding(
+//                 padding: const EdgeInsets.all(20),
+//                 child: Row(
+//                   mainAxisAlignment: MainAxisAlignment.spaceAround,
+//                   children: [
+//                     _metricCard(
+//                       "Overall Performance",
+//                       _performanceScore,
+//                       _getPerformanceColor(_performanceScore),
+//                     ),
+//                     Container(width: 1, height: 60, color: Colors.grey[300]),
+//                     _metricCard(
+//                       "Attendance",
+//                       _attendancePercentage,
+//                       _getAttendanceColor(_attendancePercentage),
+//                     ),
+//                   ],
+//                 ),
+//               ),
+//             ),
+//             const SizedBox(height: 20),
+
+           
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _statItem(String title, String value, Color color) {
+//     return Expanded(
+//       child: Container(
+//         padding: const EdgeInsets.all(12),
+//         decoration: BoxDecoration(
+//           color: color.withOpacity(0.1),
+//           borderRadius: BorderRadius.circular(8),
+//         ),
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             Text(
+//               title,
+//               style: TextStyle(
+//                 fontSize: 12,
+//                 color: color,
+//                 fontWeight: FontWeight.w600,
+//               ),
+//             ),
+//             const SizedBox(height: 4),
+//             Text(
+//               value,
+//               style: TextStyle(
+//                 fontSize: 18,
+//                 fontWeight: FontWeight.bold,
+//                 color: color,
+//               ),
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _metricCard(String title, double value, Color color) {
+//     return Expanded(
+//       child: Column(
+//         children: [
+//           Text(
+//             title,
+//             style: TextStyle(
+//               fontSize: 14,
+//               fontWeight: FontWeight.w600,
+//               color: Colors.grey[700],
+//             ),
+//           ),
+//           const SizedBox(height: 8),
+//           Text(
+//             "${value.toStringAsFixed(1)}%",
+//             style: TextStyle(
+//               fontSize: 28,
+//               fontWeight: FontWeight.bold,
+//               color: color,
+//             ),
+//           ),
+//           const SizedBox(height: 4),
+//           Container(
+//             width: 60,
+//             height: 6,
+//             decoration: BoxDecoration(
+//               color: Colors.grey[200],
+//               borderRadius: BorderRadius.circular(3),
+//             ),
+//             child: FractionallySizedBox(
+//               alignment: Alignment.centerLeft,
+//               widthFactor: value / 100,
+//               child: Container(
+//                 decoration: BoxDecoration(
+//                   color: color,
+//                   borderRadius: BorderRadius.circular(3),
+//                 ),
+//               ),
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+
+//   Color _getPerformanceColor(double score) {
+//     if (score >= 85) return Colors.green;
+//     if (score >= 70) return Colors.orange;
+//     if (score >= 50) return Colors.blue;
+//     return Colors.red;
+//   }
+
+//   Color _getAttendanceColor(double percentage) {
+//     if (percentage >= 95) return Colors.green;
+//     if (percentage >= 80) return Colors.blue;
+//     if (percentage >= 60) return Colors.orange;
+//     return Colors.red;
+//   }
+
+
+//   Widget _buildAdditionalInfo(Map<String, dynamic> employee) {
+//     return Card(
+//       elevation: 4,
+//       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+//       child: Padding(
+//         padding: const EdgeInsets.all(20),
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             // Action Buttons
+//             Row(
+//               children: [
+//                 Expanded(
+//                   child: OutlinedButton.icon(
+//                     onPressed: () {
+//                       // Change password
+//                     },
+//                     icon: const Icon(Icons.lock, size: 16),
+//                     label: const Text('Change Password'),
+//                     style: OutlinedButton.styleFrom(
+//                       padding: const EdgeInsets.symmetric(vertical: 12),
+//                       side: BorderSide(color: Colors.grey.shade300),
+//                     ),
+//                   ),
+//                 ),
+//                 const SizedBox(width: 12),
+//                 Expanded(
+//                   child: OutlinedButton.icon(
+//                     onPressed: () async {
+//                       setState(() {
+//                         isLoading = true;
+//                       });
+//                       await _calculatePerformanceMetrics();
+//                       setState(() {
+//                         isLoading = false;
+//                       });
+//                       ScaffoldMessenger.of(context).showSnackBar(
+//                         const SnackBar(
+//                           content: Text('Metrics recalculated!'),
+//                           backgroundColor: Colors.green,
+//                         ),
+//                       );
+//                     },
+//                     icon: const Icon(Icons.calculate, size: 16),
+//                     label: const Text('Recalculate Metrics'),
+//                     style: OutlinedButton.styleFrom(
+//                       padding: const EdgeInsets.symmetric(vertical: 12),
+//                       side: BorderSide(color: Colors.grey.shade300),
+//                     ),
+//                   ),
+//                 ),
+//               ],
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+// }
 
 
 

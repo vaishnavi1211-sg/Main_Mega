@@ -47,6 +47,7 @@ class _ProductionDashboardState extends State<ProductionDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    // ignore: deprecated_member_use
     return WillPopScope(
       onWillPop: () async {
         if (_navigatorKey.currentState?.canPop() ?? false) {
@@ -611,6 +612,7 @@ class _ProductionDashboardState extends State<ProductionDashboard> {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
+                    // ignore: deprecated_member_use
                     color: Colors.blue.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
@@ -694,7 +696,8 @@ class _ProductionDashboardState extends State<ProductionDashboard> {
   }
 }
 
-// Enhanced Dashboard Content with Profit Calculation
+// Enhanced Dashboard Content with Real-time Profit Calculation
+// Enhanced Dashboard Content with Real-time Profit Calculation
 class DashboardContent extends StatefulWidget {
   final GlobalKey<ScaffoldState> scaffoldKey;
   final Map<String, dynamic> userData;
@@ -718,10 +721,6 @@ class _DashboardContentState extends State<DashboardContent> {
   Timer? _refreshTimer;
   
   // Real-time metrics
-  double _todayProduction = 0.0;
-  double _productionTarget = 120.0;
-  int _activeMachines = 0;
-  int _totalMachines = 15;
   double _qualityRate = 0.0;
   DateTime? _lastUpdated;
   
@@ -737,6 +736,11 @@ class _DashboardContentState extends State<DashboardContent> {
   // Total Bags from Inventory
   double _totalInventoryBags = 0.0;
   
+  // Realtime subscriptions
+  StreamSubscription? _ordersSubscription;
+  StreamSubscription? _materialUsageSubscription;
+  StreamSubscription? _inventorySubscription;
+  
   final NumberFormat _currencyFormat = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
 
   @override
@@ -747,6 +751,7 @@ class _DashboardContentState extends State<DashboardContent> {
       _fetchAllData();
     });
     _startRealtimeUpdates();
+    _setupRealtimeSubscriptions();
   }
 
   void _startRealtimeUpdates() {
@@ -755,6 +760,94 @@ class _DashboardContentState extends State<DashboardContent> {
         _fetchAllData();
       }
     });
+  }
+
+  void _setupRealtimeSubscriptions() {
+    print('🔔 Setting up real-time financial data subscriptions...');
+    
+    try {
+      // Subscribe to order changes (affects revenue)
+      _ordersSubscription = _supabase
+          .from('emp_mar_orders')
+          .stream(primaryKey: ['id'])
+          .listen((List<Map<String, dynamic>> updates) {
+            print('🔄 Orders changed (${updates.length} updates), updating profit metrics...');
+            _handleRealtimeUpdate('orders');
+          }, onError: (error) {
+            print('❌ Orders subscription error: $error');
+          });
+
+      // Subscribe to raw material usage changes (affects costs)
+      _materialUsageSubscription = _supabase
+          .from('pro_raw_material_usage')
+          .stream(primaryKey: ['id'])
+          .listen((List<Map<String, dynamic>> updates) {
+            print('🔄 Material usage changed (${updates.length} updates), updating profit metrics...');
+            _handleRealtimeUpdate('material_usage');
+          }, onError: (error) {
+            print('❌ Material usage subscription error: $error');
+          });
+
+      // Subscribe to inventory changes (affects available stock)
+      _inventorySubscription = _supabase
+          .from('production_products')
+          .stream(primaryKey: ['id'])
+          .listen((List<Map<String, dynamic>> updates) {
+            print('🔄 Inventory changed (${updates.length} updates), updating...');
+            _handleRealtimeUpdate('inventory');
+          }, onError: (error) {
+            print('❌ Inventory subscription error: $error');
+          });
+
+      print('✅ All real-time subscriptions established');
+    } catch (e) {
+      print('❌ Failed to setup real-time subscriptions: $e');
+    }
+  }
+
+  Future<void> _handleRealtimeUpdate(String updateType) async {
+    if (!mounted) return;
+    
+    print('🔄 Handling realtime update for: $updateType');
+    
+    try {
+      switch (updateType) {
+        case 'orders':
+          // Only refresh revenue-related data
+          await Future.wait([
+            _calculateProfitMetrics(),
+            _fetchRecentOrders(),
+          ]);
+          break;
+          
+        case 'material_usage':
+          // Only refresh cost-related data
+          await _calculateProfitMetrics();
+          break;
+          
+        case 'inventory':
+          // Only refresh inventory-related data
+          await Future.wait([
+            _fetchTotalInventoryBags(),
+            _fetchInventoryData(),
+            _fetchProducts(),
+          ]);
+          break;
+          
+        default:
+          await _fetchAllData();
+      }
+      
+      if (mounted) {
+        setState(() {
+          _lastUpdated = DateTime.now();
+        });
+      }
+      
+      debugPrint('✅ Realtime update processed for: $updateType at ${_lastUpdated}');
+    } catch (e) {
+      debugPrint('❌ Error handling realtime update: $e');
+    }
   }
 
   Future<void> _fetchAllData() async {
@@ -881,13 +974,11 @@ class _DashboardContentState extends State<DashboardContent> {
       double totalRawMaterialCost = 0.0;
       Map<String, double> rawMaterialCosts = {};
 
-      // Format dates for Supabase query
       final monthStartStr = "${monthStart.year}-${monthStart.month.toString().padLeft(2, '0')}-01";
       final todayStr = "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
 
       debugPrint('📊 Calculating profit metrics for period: $monthStartStr to $todayStr');
 
-      // Get revenue from completed orders this month
       final revenueResponse = await _supabase
           .from('emp_mar_orders')
           .select('total_price')
@@ -956,26 +1047,11 @@ class _DashboardContentState extends State<DashboardContent> {
 
   Future<void> _fetchProductionMetrics() async {
     try {
-      final today = DateTime.now().toIso8601String().split('T')[0];
       
-      final productionResponse = await _supabase
-          .from('pro_production_logs')
-          .select('SUM(quantity_produced) as total_quantity')
-          .eq('production_date', today)
-          .single()
-          .catchError((_) => {'total_quantity': 0});
       
-      final targetResponse = await _supabase
-          .from('pro_production_targets')
-          .select('target_quantity')
-          .eq('start_date', today)
-          .single()
-          .catchError((_) => {'target_quantity': 120});
       
       if (mounted) {
         setState(() {
-          _todayProduction = (productionResponse['total_quantity'] ?? 0).toDouble();
-          _productionTarget = (targetResponse['target_quantity'] ?? 120).toDouble();
         });
       }
     } catch (e) {
@@ -985,15 +1061,9 @@ class _DashboardContentState extends State<DashboardContent> {
 
   Future<void> _fetchMachineStatus() async {
     try {
-      final response = await _supabase
-          .from('pro_machines')
-          .select('status')
-          .eq('is_active', true);
       
       if (mounted) {
         setState(() {
-          _activeMachines = response.where((m) => m['status'] == 'running').length;
-          _totalMachines = response.length;
           _qualityRate = 95.0 + (DateTime.now().millisecond % 100) * 0.05;
           _qualityRate = double.parse(_qualityRate.toStringAsFixed(1));
         });
@@ -1040,6 +1110,9 @@ class _DashboardContentState extends State<DashboardContent> {
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _ordersSubscription?.cancel();
+    _materialUsageSubscription?.cancel();
+    _inventorySubscription?.cancel();
     super.dispose();
   }
 
@@ -1063,7 +1136,7 @@ class _DashboardContentState extends State<DashboardContent> {
             const SizedBox(height: 2),
             if (_lastUpdated != null)
               Text(
-                "Updated: ${_lastUpdated!.hour.toString().padLeft(2, '0')}:${_lastUpdated!.minute.toString().padLeft(2, '0')}",
+                "Updated: ${_lastUpdated!.hour.toString().padLeft(2, '0')}:${_lastUpdated!.minute.toString().padLeft(2, '0')}:${_lastUpdated!.second.toString().padLeft(2, '0')}",
                 style: GoogleFonts.poppins(
                   fontSize: 11,
                   color: Colors.white.withOpacity(0.8),
@@ -1077,15 +1150,7 @@ class _DashboardContentState extends State<DashboardContent> {
           icon: const Icon(Icons.menu),
           onPressed: () => widget.scaffoldKey.currentState?.openDrawer(),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.analytics),
-            onPressed: () async {
-              _showRefreshSnackBar(context);
-              await _calculateProfitMetrics();
-            },
-            tooltip: 'View Monthly Stats',
-          ),
+        actions: [          
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
@@ -1107,27 +1172,27 @@ class _DashboardContentState extends State<DashboardContent> {
                 await _fetchAllData();
                 _showRefreshSnackBar(context);
               },
-              child: _DashboardBody(
-                inventoryData: _inventoryData,
-                products: _products,
-                recentOrders: _recentOrders,
-                isLoading: _isLoading,
-                todayProduction: _todayProduction,
-                productionTarget: _productionTarget,
-                activeMachines: _activeMachines,
-                totalMachines: _totalMachines,
-                qualityRate: _qualityRate,
-                totalRevenue: _totalRevenue,
-                totalRawMaterialCost: _totalRawMaterialCost,
-                totalProfit: _totalProfit,
-                profitMargin: _profitMargin,
-                rawMaterialUsage: _rawMaterialUsage,
-                totalInventoryBags: _totalInventoryBags,
-                currencyFormat: _currencyFormat,
-                onRefresh: () {
-                  _fetchAllData();
-                  _showRefreshSnackBar(context);
-                },
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildInventorySummary(),
+                      const SizedBox(height: 20),
+                      
+                      _buildProfitMetrics(),
+                      const SizedBox(height: 20),
+                      
+                      _buildRawMaterialCosts(),
+                      const SizedBox(height: 20),
+                      
+                      _buildInventoryStatus(),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
               ),
             ),
       floatingActionButton: FloatingActionButton(
@@ -1137,7 +1202,10 @@ class _DashboardContentState extends State<DashboardContent> {
             MaterialPageRoute(
               builder: (context) => const ProRawMaterialEntryPage(),
             ),
-          );
+          ).then((_) {
+            // Refresh data when returning from raw material entry
+            _fetchAllData();
+          });
         },
         backgroundColor: GlobalColors.primaryBlue,
         child: const Icon(Icons.add, color: Colors.white),
@@ -1145,48 +1213,8 @@ class _DashboardContentState extends State<DashboardContent> {
       ),
     );
   }
-}
 
-// Enhanced Dashboard Body Widget with Profit Calculation
-class _DashboardBody extends StatelessWidget {
-  final List<Map<String, dynamic>> inventoryData;
-  final List<Map<String, dynamic>> products;
-  final List<Map<String, dynamic>> recentOrders;
-  final bool isLoading;
-  final double todayProduction;
-  final double productionTarget;
-  final int activeMachines;
-  final int totalMachines;
-  final double qualityRate;
-  final double totalRevenue;
-  final double totalRawMaterialCost;
-  final double totalProfit;
-  final double profitMargin;
-  final Map<String, double> rawMaterialUsage;
-  final double totalInventoryBags;
-  final NumberFormat currencyFormat;
-  final VoidCallback onRefresh;
-
-  const _DashboardBody({
-    required this.inventoryData,
-    required this.products,
-    required this.recentOrders,
-    required this.isLoading,
-    required this.todayProduction,
-    required this.productionTarget,
-    required this.activeMachines,
-    required this.totalMachines,
-    required this.qualityRate,
-    required this.totalRevenue,
-    required this.totalRawMaterialCost,
-    required this.totalProfit,
-    required this.profitMargin,
-    required this.rawMaterialUsage,
-    required this.totalInventoryBags,
-    required this.currencyFormat,
-    required this.onRefresh,
-  });
-
+  // Moved all the _build methods here so they can access the state variables directly
   Widget _buildInventorySummary() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1214,35 +1242,7 @@ class _DashboardBody extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                   color: Colors.grey[800],
                 ),
-              ),
-              GestureDetector(
-                onTap: () {},
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: GlobalColors.primaryBlue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        "View All",
-                        style: GoogleFonts.poppins(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: GlobalColors.primaryBlue,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(
-                        Icons.arrow_forward_ios,
-                        size: 10,
-                        color: GlobalColors.primaryBlue,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              ),             
             ],
           ),
           const SizedBox(height: 16),
@@ -1268,7 +1268,7 @@ class _DashboardBody extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      totalInventoryBags.toStringAsFixed(0),
+                      _totalInventoryBags.toStringAsFixed(0),
                       style: GoogleFonts.poppins(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
@@ -1319,7 +1319,7 @@ class _DashboardBody extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    "Based on ${products.length} products in inventory",
+                    "Based on ${_products.length} products in inventory",
                     style: GoogleFonts.poppins(
                       fontSize: 12,
                       color: Colors.green,
@@ -1384,7 +1384,7 @@ class _DashboardBody extends StatelessWidget {
           // Revenue
           _profitRow(
             "Total Revenue",
-            currencyFormat.format(totalRevenue),
+            _currencyFormat.format(_totalRevenue),
             Icons.trending_up,
             Colors.green,
           ),
@@ -1393,7 +1393,7 @@ class _DashboardBody extends StatelessWidget {
           // Raw Material Cost
           _profitRow(
             "Raw Material Cost",
-            currencyFormat.format(totalRawMaterialCost),
+            _currencyFormat.format(_totalRawMaterialCost),
             Icons.inventory,
             Colors.orange,
           ),
@@ -1402,9 +1402,9 @@ class _DashboardBody extends StatelessWidget {
           // Profit
           _profitRow(
             "Net Profit",
-            currencyFormat.format(totalProfit),
+            _currencyFormat.format(_totalProfit),
             Icons.account_balance_wallet,
-            totalProfit >= 0 ? Colors.green : Colors.red,
+            _totalProfit >= 0 ? Colors.green : Colors.red,
           ),
           const SizedBox(height: 12),
           
@@ -1412,16 +1412,16 @@ class _DashboardBody extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: profitMargin >= 20 
+              color: _profitMargin >= 20 
                   ? Colors.green.withOpacity(0.1)
-                  : profitMargin >= 10
+                  : _profitMargin >= 10
                       ? Colors.amber.withOpacity(0.1)
                       : Colors.red.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: profitMargin >= 20 
+                color: _profitMargin >= 20 
                     ? Colors.green.withOpacity(0.3)
-                    : profitMargin >= 10
+                    : _profitMargin >= 10
                         ? Colors.amber.withOpacity(0.3)
                         : Colors.red.withOpacity(0.3),
               ),
@@ -1432,15 +1432,15 @@ class _DashboardBody extends StatelessWidget {
                 Row(
                   children: [
                     Icon(
-                      profitMargin >= 20 
+                      _profitMargin >= 20 
                           ? Icons.trending_up
-                          : profitMargin >= 10
+                          : _profitMargin >= 10
                               ? Icons.trending_flat
                               : Icons.trending_down,
                       size: 18,
-                      color: profitMargin >= 20 
+                      color: _profitMargin >= 20 
                           ? Colors.green
-                          : profitMargin >= 10
+                          : _profitMargin >= 10
                               ? Colors.amber
                               : Colors.red,
                     ),
@@ -1455,13 +1455,13 @@ class _DashboardBody extends StatelessWidget {
                   ],
                 ),
                 Text(
-                  "${profitMargin.toStringAsFixed(1)}%",
+                  "${_profitMargin.toStringAsFixed(1)}%",
                   style: GoogleFonts.poppins(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: profitMargin >= 20 
+                    color: _profitMargin >= 20 
                         ? Colors.green
-                        : profitMargin >= 10
+                        : _profitMargin >= 10
                             ? Colors.amber
                             : Colors.red,
                   ),
@@ -1512,7 +1512,7 @@ class _DashboardBody extends StatelessWidget {
   }
 
   Widget _buildRawMaterialCosts() {
-    if (rawMaterialUsage.isEmpty) {
+    if (_rawMaterialUsage.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -1542,7 +1542,14 @@ class _DashboardBody extends StatelessWidget {
                 ),
                 GestureDetector(
                   onTap: () {
-                    // Navigate to raw material entry page
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ProRawMaterialEntryPage(),
+                      ),
+                    ).then((_) {
+                      _fetchAllData();
+                    });
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1607,7 +1614,7 @@ class _DashboardBody extends StatelessWidget {
       );
     }
 
-    final sortedMaterials = rawMaterialUsage.entries.toList()
+    final sortedMaterials = _rawMaterialUsage.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
     return Container(
@@ -1669,7 +1676,7 @@ class _DashboardBody extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    currencyFormat.format(entry.value),
+                    _currencyFormat.format(entry.value),
                     style: GoogleFonts.poppins(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -1713,39 +1720,12 @@ class _DashboardBody extends StatelessWidget {
                   color: Colors.grey[800],
                 ),
               ),
-              GestureDetector(
-                onTap: () {},
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: GlobalColors.primaryBlue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        "View All",
-                        style: GoogleFonts.poppins(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: GlobalColors.primaryBlue,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(
-                        Icons.arrow_forward_ios,
-                        size: 10,
-                        color: GlobalColors.primaryBlue,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              
             ],
           ),
           const SizedBox(height: 12),
 
-          if (inventoryData.isEmpty)
+          if (_inventoryData.isEmpty)
             Container(
               height: 200,
               alignment: Alignment.center,
@@ -1770,7 +1750,7 @@ class _DashboardBody extends StatelessWidget {
             )
           else
             Column(
-              children: inventoryData.take(4).map((item) {
+              children: _inventoryData.take(4).map((item) {
                 final stock = (item['bags'] ?? 0).toDouble();
                 final reorder = (item['min_bags_stock'] ?? 10).toDouble();
                 final isLow = stock < reorder;
@@ -1876,34 +1856,6 @@ class _DashboardBody extends StatelessWidget {
       ),
     );
   }
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildInventorySummary(),
-              const SizedBox(height: 20),
-              
-              _buildProfitMetrics(),
-              const SizedBox(height: 20),
-              
-              _buildRawMaterialCosts(),
-              const SizedBox(height: 20),
-              
-              _buildInventoryStatus(),
-              const SizedBox(height: 20),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 
@@ -1926,22 +1878,7 @@ class _DashboardBody extends StatelessWidget {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//liitle error in refesh profit calculation in dashboard, need to check and fix
+//refresh issue
 
 
 // import 'dart:async';
@@ -1980,16 +1917,27 @@ class _DashboardBody extends StatelessWidget {
 //     '/profile',
 //   ];
 
+//   void _navigateToPage(int index) {
+//     if (_currentIndex != index) {
+//       setState(() {
+//         _currentIndex = index;
+//       });
+//       _navigatorKey.currentState?.pushReplacementNamed(_routeNames[index]);
+//     }
+//     // Close drawer if open
+//     _scaffoldKey.currentState?.closeDrawer();
+//   }
+
 //   @override
 //   Widget build(BuildContext context) {
+//     // ignore: deprecated_member_use
 //     return WillPopScope(
 //       onWillPop: () async {
 //         if (_navigatorKey.currentState?.canPop() ?? false) {
 //           _navigatorKey.currentState?.pop();
 //           return false;
 //         } else if (_currentIndex != 0) {
-//           setState(() => _currentIndex = 0);
-//           _navigatorKey.currentState?.pushReplacementNamed('/dashboard');
+//           _navigateToPage(0);
 //           return false;
 //         } else {
 //           _showExitDialog(context);
@@ -1999,6 +1947,7 @@ class _DashboardBody extends StatelessWidget {
 //       child: Scaffold(
 //         key: _scaffoldKey,
 //         backgroundColor: GlobalColors.white,
+//         drawer: _buildDrawer(),
 //         body: Navigator(
 //           key: _navigatorKey,
 //           initialRoute: '/dashboard',
@@ -2012,6 +1961,392 @@ class _DashboardBody extends StatelessWidget {
 //           },
 //         ),
 //         bottomNavigationBar: _buildBottomNavigationBar(),
+//       ),
+//     );
+//   }
+
+//   Widget _buildDrawer() {
+//     final userData = widget.userData;
+//     final userName = userData['name'] ?? userData['employee_name'] ?? 'Production User';
+//     final userRole = userData['role'] ?? userData['designation'] ?? 'Production Manager';
+//     final userEmail = userData['email'] ?? 'production@mega-pro.com';
+    
+//     return Drawer(
+//       backgroundColor: Colors.white,
+//       width: MediaQuery.of(context).size.width * 0.75,
+//       shape: const RoundedRectangleBorder(
+//         borderRadius: BorderRadius.only(
+//           topRight: Radius.circular(20),
+//           bottomRight: Radius.circular(20),
+//         ),
+//       ),
+//       child: Column(
+//         children: [
+//           // Header with user info
+//           Container(
+//             padding: const EdgeInsets.fromLTRB(20, 40, 20, 24),
+//             decoration: BoxDecoration(
+//               color: GlobalColors.primaryBlue,
+//               borderRadius: const BorderRadius.only(
+//                 bottomLeft: Radius.circular(20),
+//                 bottomRight: Radius.circular(20),
+//               ),
+//               boxShadow: [
+//                 BoxShadow(
+//                   color: GlobalColors.primaryBlue.withOpacity(0.3),
+//                   blurRadius: 10,
+//                   offset: const Offset(0, 4),
+//                 ),
+//               ],
+//             ),
+//             child: Column(
+//               crossAxisAlignment: CrossAxisAlignment.start,
+//               children: [
+//                 Row(
+//                   children: [
+//                     Container(
+//                       width: 60,
+//                       height: 60,
+//                       decoration: BoxDecoration(
+//                         color: Colors.white,
+//                         shape: BoxShape.circle,
+//                         border: Border.all(color: Colors.white, width: 2),
+//                       ),
+//                       child: Center(
+//                         child: Text(
+//                           userName.isNotEmpty ? userName[0].toUpperCase() : 'P',
+//                           style: GoogleFonts.poppins(
+//                             fontSize: 24,
+//                             fontWeight: FontWeight.bold,
+//                             color: GlobalColors.primaryBlue,
+//                           ),
+//                         ),
+//                       ),
+//                     ),
+//                     const SizedBox(width: 16),
+//                     Expanded(
+//                       child: Column(
+//                         crossAxisAlignment: CrossAxisAlignment.start,
+//                         children: [
+//                           Text(
+//                             userName,
+//                             style: GoogleFonts.poppins(
+//                               fontSize: 18,
+//                               fontWeight: FontWeight.w600,
+//                               color: Colors.white,
+//                             ),
+//                             maxLines: 1,
+//                             overflow: TextOverflow.ellipsis,
+//                           ),
+//                           const SizedBox(height: 4),
+//                           Container(
+//                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+//                             decoration: BoxDecoration(
+//                               color: Colors.white.withOpacity(0.2),
+//                               borderRadius: BorderRadius.circular(4),
+//                             ),
+//                             child: Text(
+//                               userRole,
+//                               style: GoogleFonts.poppins(
+//                                 fontSize: 12,
+//                                 color: Colors.white,
+//                               ),
+//                             ),
+//                           ),
+//                         ],
+//                       ),
+//                     ),
+//                   ],
+//                 ),
+//                 const SizedBox(height: 16),
+//                 Container(
+//                   padding: const EdgeInsets.all(12),
+//                   decoration: BoxDecoration(
+//                     color: Colors.white.withOpacity(0.1),
+//                     borderRadius: BorderRadius.circular(12),
+//                   ),
+//                   child: Row(
+//                     children: [
+//                       Icon(Icons.email_outlined, size: 16, color: Colors.white.withOpacity(0.8)),
+//                       const SizedBox(width: 8),
+//                       Expanded(
+//                         child: Text(
+//                           userEmail,
+//                           style: GoogleFonts.poppins(
+//                             fontSize: 12,
+//                             color: Colors.white.withOpacity(0.9),
+//                           ),
+//                           maxLines: 1,
+//                           overflow: TextOverflow.ellipsis,
+//                         ),
+//                       ),
+//                     ],
+//                   ),
+//                 ),
+//               ],
+//             ),
+//           ),
+          
+//           // Navigation Menu Items
+//           Expanded(
+//             child: ListView(
+//               padding: const EdgeInsets.symmetric(vertical: 16),
+//               children: [
+//                 _buildDrawerItem(
+//                   index: 0,
+//                   icon: Icons.dashboard_outlined,
+//                   label: 'Dashboard',
+//                   selectedIcon: Icons.dashboard,
+//                 ),
+//                 _buildDrawerItem(
+//                   index: 1,
+//                   icon: Icons.inventory_2_outlined,
+//                   label: 'Inventory',
+//                   selectedIcon: Icons.inventory_2,
+//                 ),
+//                 _buildDrawerItem(
+//                   index: 2,
+//                   icon: Icons.assignment_outlined,
+//                   label: 'Orders',
+//                   selectedIcon: Icons.assignment,
+//                 ),
+//                 _buildDrawerItem(
+//                   index: 3,
+//                   icon: Icons.person_outline,
+//                   label: 'Profile',
+//                   selectedIcon: Icons.person,
+//                 ),
+                
+//                 const Divider(height: 32, thickness: 1),
+                
+//                 // Additional Items
+//                 _buildDrawerItem(
+//                   index: -1,
+//                   icon: Icons.inventory,
+//                   label: 'Raw Material Entry',
+//                   selectedIcon: Icons.inventory,
+//                   onTap: () {
+//                     Navigator.pop(context);
+//                     Navigator.push(
+//                       context,
+//                       MaterialPageRoute(
+//                         builder: (context) => const ProRawMaterialEntryPage(),
+//                       ),
+//                     );
+//                   },
+//                 ),
+                
+//                 _buildDrawerItem(
+//                   index: -2,
+//                   icon: Icons.analytics_outlined,
+//                   label: 'Analytics',
+//                   selectedIcon: Icons.analytics,
+//                   onTap: () {
+//                     Navigator.pop(context);
+//                     _showAnalyticsDialog();
+//                   },
+//                 ),
+                
+//                 const SizedBox(height: 20),
+                
+//                 // Settings and Support Section
+//                 Padding(
+//                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+//                   child: Text(
+//                     'SUPPORT',
+//                     style: GoogleFonts.poppins(
+//                       fontSize: 12,
+//                       fontWeight: FontWeight.w600,
+//                       color: Colors.grey[500],
+//                     ),
+//                   ),
+//                 ),
+                
+//                 _buildDrawerItem(
+//                   index: -3,
+//                   icon: Icons.help_outline,
+//                   label: 'Help & Support',
+//                   selectedIcon: Icons.help,
+//                   onTap: () {
+//                     Navigator.pop(context);
+//                     _showHelpDialog();
+//                   },
+//                 ),
+                
+//                 _buildDrawerItem(
+//                   index: -4,
+//                   icon: Icons.settings_outlined,
+//                   label: 'Settings',
+//                   selectedIcon: Icons.settings,
+//                   onTap: () {
+//                     Navigator.pop(context);
+//                     ScaffoldMessenger.of(context).showSnackBar(
+//                       const SnackBar(content: Text('Settings coming soon...')),
+//                     );
+//                   },
+//                 ),
+                
+//                 const Divider(height: 32, thickness: 1),
+                
+//                 // Logout Button
+//                 _buildDrawerItem(
+//                   index: -5,
+//                   icon: Icons.logout,
+//                   label: 'Logout',
+//                   selectedIcon: Icons.logout,
+//                   color: Colors.red,
+//                   onTap: () {
+//                     Navigator.pop(context);
+//                     _showLogoutDialog();
+//                   },
+//                 ),
+                
+//                 const SizedBox(height: 20),
+                
+//                 // Version Info
+//                 Center(
+//                   child: Text(
+//                     'Version 1.0.0',
+//                     style: GoogleFonts.poppins(
+//                       fontSize: 11,
+//                       color: Colors.grey[400],
+//                     ),
+//                   ),
+//                 ),
+//               ],
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   Widget _buildDrawerItem({
+//     required int index,
+//     required IconData icon,
+//     required String label,
+//     required IconData selectedIcon,
+//     VoidCallback? onTap,
+//     Color? color,
+//   }) {
+//     final isSelected = index >= 0 && _currentIndex == index;
+//     final itemColor = color ?? (isSelected ? GlobalColors.primaryBlue : Colors.grey[700]);
+    
+//     return ListTile(
+//       leading: Container(
+//         padding: const EdgeInsets.all(8),
+//         decoration: BoxDecoration(
+//           color: isSelected ? GlobalColors.primaryBlue.withOpacity(0.1) : Colors.transparent,
+//           borderRadius: BorderRadius.circular(10),
+//         ),
+//         child: Icon(
+//           isSelected ? selectedIcon : icon,
+//           color: itemColor,
+//           size: 22,
+//         ),
+//       ),
+//       title: Text(
+//         label,
+//         style: GoogleFonts.poppins(
+//           fontSize: 14,
+//           fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+//           color: itemColor,
+//         ),
+//       ),
+//       selected: isSelected,
+//       selectedTileColor: GlobalColors.primaryBlue.withOpacity(0.05),
+//       shape: RoundedRectangleBorder(
+//         borderRadius: BorderRadius.circular(10),
+//       ),
+//       onTap: onTap ?? () => _navigateToPage(index),
+//     );
+//   }
+
+//   void _showAnalyticsDialog() {
+//     showDialog(
+//       context: context,
+//       builder: (context) => AlertDialog(
+//         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+//         title: Text('Analytics', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+//         content: Text(
+//           'Detailed analytics will be available soon.\n\nTrack production metrics, efficiency, and performance in real-time.',
+//           style: GoogleFonts.poppins(fontSize: 14),
+//         ),
+//         actions: [
+//           TextButton(
+//             onPressed: () => Navigator.pop(context),
+//             child: Text('OK', style: GoogleFonts.poppins()),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   void _showHelpDialog() {
+//     showDialog(
+//       context: context,
+//       builder: (context) => AlertDialog(
+//         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+//         title: Text('Help & Support', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+//         content: Column(
+//           mainAxisSize: MainAxisSize.min,
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             _buildContactItem(Icons.email, 'support@mega-pro.in'),
+//             const SizedBox(height: 12),
+//             _buildContactItem(Icons.phone, '+91 1234567890'),
+//             const SizedBox(height: 12),
+//             _buildContactItem(Icons.access_time, '24/7 Support Available'),
+//           ],
+//         ),
+//         actions: [
+//           TextButton(
+//             onPressed: () => Navigator.pop(context),
+//             child: Text('Close', style: GoogleFonts.poppins()),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   Widget _buildContactItem(IconData icon, String text) {
+//     return Row(
+//       children: [
+//         Icon(icon, size: 18, color: GlobalColors.primaryBlue),
+//         const SizedBox(width: 12),
+//         Text(text, style: GoogleFonts.poppins(fontSize: 13)),
+//       ],
+//     );
+//   }
+
+//   void _showLogoutDialog() {
+//     showDialog(
+//       context: context,
+//       builder: (context) => AlertDialog(
+//         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+//         title: Text('Logout', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+//         content: Text(
+//           'Are you sure you want to logout?',
+//           style: GoogleFonts.poppins(fontSize: 14),
+//         ),
+//         actions: [
+//           TextButton(
+//             onPressed: () => Navigator.pop(context),
+//             child: Text('Cancel', style: GoogleFonts.poppins()),
+//           ),
+//           ElevatedButton(
+//             onPressed: () {
+//               Navigator.pop(context);
+//               _logoutAndGoToMainPage(context);
+//             },
+//             style: ElevatedButton.styleFrom(
+//               backgroundColor: Colors.red,
+//               foregroundColor: Colors.white,
+//               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+//             ),
+//             child: Text('Logout', style: GoogleFonts.poppins()),
+//           ),
+//         ],
 //       ),
 //     );
 //   }
@@ -2084,10 +2419,10 @@ class _DashboardBody extends StatelessWidget {
 //           child: Row(
 //             mainAxisAlignment: MainAxisAlignment.spaceBetween,
 //             children: [
-//               _buildNavItem(0, Icons.dashboard, "Dashboard"),
-//               _buildNavItem(1, Icons.inventory_2, "Inventory"),
-//               _buildNavItem(2, Icons.assignment, "Orders"),
-//               _buildNavItem(3, Icons.person, "Profile"),
+//               _buildNavItem(0, Icons.dashboard_outlined, Icons.dashboard, "Dashboard"),
+//               _buildNavItem(1, Icons.inventory_2_outlined, Icons.inventory_2, "Inventory"),
+//               _buildNavItem(2, Icons.assignment_outlined, Icons.assignment, "Orders"),
+//               _buildNavItem(3, Icons.person_outline, Icons.person, "Profile"),
 //             ],
 //           ),
 //         ),
@@ -2095,16 +2430,9 @@ class _DashboardBody extends StatelessWidget {
 //     );
 //   }
 
-//   Widget _buildNavItem(int index, IconData icon, String label) {
+//   Widget _buildNavItem(int index, IconData icon, IconData selectedIcon, String label) {
 //     return GestureDetector(
-//       onTap: () {
-//         if (_currentIndex != index) {
-//           setState(() {
-//             _currentIndex = index;
-//           });
-//           _navigatorKey.currentState?.pushReplacementNamed(_routeNames[index]);
-//         }
-//       },
+//       onTap: () => _navigateToPage(index),
 //       child: Container(
 //         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
 //         decoration: BoxDecoration(
@@ -2117,7 +2445,7 @@ class _DashboardBody extends StatelessWidget {
 //           mainAxisSize: MainAxisSize.min,
 //           children: [
 //             Icon(
-//               icon,
+//               _currentIndex == index ? selectedIcon : icon,
 //               color: _currentIndex == index
 //                   ? GlobalColors.primaryBlue
 //                   : Colors.grey[600],
@@ -2142,6 +2470,11 @@ class _DashboardBody extends StatelessWidget {
 //     );
 //   }
 
+//   void _logoutAndGoToMainPage(BuildContext context) {
+//     Navigator.of(context).popUntil((route) => route.isFirst);
+//     Navigator.pushReplacementNamed(context, '/');
+//   }
+
 //   void _showExitDialog(BuildContext context) {
 //     showDialog(
 //       context: context,
@@ -2162,6 +2495,7 @@ class _DashboardBody extends StatelessWidget {
 //                   width: 48,
 //                   height: 48,
 //                   decoration: BoxDecoration(
+//                     // ignore: deprecated_member_use
 //                     color: Colors.blue.withOpacity(0.1),
 //                     shape: BoxShape.circle,
 //                   ),
@@ -2243,14 +2577,9 @@ class _DashboardBody extends StatelessWidget {
 //       },
 //     );
 //   }
-
-//   void _logoutAndGoToMainPage(BuildContext context) {
-//     Navigator.of(context).popUntil((route) => route.isFirst);
-//     Navigator.pushReplacementNamed(context, '/');
-//   }
 // }
 
-// // Enhanced Dashboard Content with Profit Calculation
+// // Enhanced Dashboard Content with Real-time Profit Calculation
 // class DashboardContent extends StatefulWidget {
 //   final GlobalKey<ScaffoldState> scaffoldKey;
 //   final Map<String, dynamic> userData;
@@ -2293,6 +2622,11 @@ class _DashboardBody extends StatelessWidget {
 //   // Total Bags from Inventory
 //   double _totalInventoryBags = 0.0;
   
+//   // Realtime subscriptions
+//   StreamSubscription? _ordersSubscription;
+//   StreamSubscription? _materialUsageSubscription;
+//   StreamSubscription? _inventorySubscription;
+  
 //   final NumberFormat _currencyFormat = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
 
 //   @override
@@ -2303,6 +2637,7 @@ class _DashboardBody extends StatelessWidget {
 //       _fetchAllData();
 //     });
 //     _startRealtimeUpdates();
+//     _setupRealtimeSubscriptions();
 //   }
 
 //   void _startRealtimeUpdates() {
@@ -2313,36 +2648,127 @@ class _DashboardBody extends StatelessWidget {
 //     });
 //   }
 
+//   void _setupRealtimeSubscriptions() {
+//     print('🔔 Setting up real-time financial data subscriptions...');
+    
+//     try {
+//       // Subscribe to order changes (affects revenue)
+//       _ordersSubscription = _supabase
+//           .from('emp_mar_orders')
+//           .stream(primaryKey: ['id'])
+//           .listen((List<Map<String, dynamic>> updates) {
+//             print('🔄 Orders changed (${updates.length} updates), updating profit metrics...');
+//             _handleRealtimeUpdate('orders');
+//           }, onError: (error) {
+//             print('❌ Orders subscription error: $error');
+//           });
+
+//       // Subscribe to raw material usage changes (affects costs)
+//       _materialUsageSubscription = _supabase
+//           .from('pro_raw_material_usage')
+//           .stream(primaryKey: ['id'])
+//           .listen((List<Map<String, dynamic>> updates) {
+//             print('🔄 Material usage changed (${updates.length} updates), updating profit metrics...');
+//             _handleRealtimeUpdate('material_usage');
+//           }, onError: (error) {
+//             print('❌ Material usage subscription error: $error');
+//           });
+
+//       // Subscribe to inventory changes (affects available stock)
+//       _inventorySubscription = _supabase
+//           .from('production_products')
+//           .stream(primaryKey: ['id'])
+//           .listen((List<Map<String, dynamic>> updates) {
+//             print('🔄 Inventory changed (${updates.length} updates), updating...');
+//             _handleRealtimeUpdate('inventory');
+//           }, onError: (error) {
+//             print('❌ Inventory subscription error: $error');
+//           });
+
+//       print('✅ All real-time subscriptions established');
+//     } catch (e) {
+//       print('❌ Failed to setup real-time subscriptions: $e');
+//     }
+//   }
+
+//   Future<void> _handleRealtimeUpdate(String updateType) async {
+//     if (!mounted) return;
+    
+//     print('🔄 Handling realtime update for: $updateType');
+    
+//     try {
+//       switch (updateType) {
+//         case 'orders':
+//           // Only refresh revenue-related data
+//           await Future.wait([
+//             _calculateProfitMetrics(),
+//             _fetchRecentOrders(),
+//           ]);
+//           break;
+          
+//         case 'material_usage':
+//           // Only refresh cost-related data
+//           await _calculateProfitMetrics();
+//           break;
+          
+//         case 'inventory':
+//           // Only refresh inventory-related data
+//           await Future.wait([
+//             _fetchTotalInventoryBags(),
+//             _fetchInventoryData(),
+//             _fetchProducts(),
+//           ]);
+//           break;
+          
+//         default:
+//           await _fetchAllData();
+//       }
+      
+//       if (mounted) {
+//         setState(() {
+//           _lastUpdated = DateTime.now();
+//         });
+//       }
+      
+//       debugPrint('✅ Realtime update processed for: $updateType at ${_lastUpdated}');
+//     } catch (e) {
+//       debugPrint('❌ Error handling realtime update: $e');
+//     }
+//   }
+
 //   Future<void> _fetchAllData() async {
 //     if (!mounted) return;
     
 //     try {
-//       // Set loading state
 //       if (mounted) {
 //         setState(() {
 //           _isLoading = true;
 //         });
 //       }
 
-//       // Fetch all data in sequence to avoid conflicts
-//       await _fetchInventoryData();
-//       await _fetchProducts();
-//       await _fetchProductionMetrics();
-//       await _fetchMachineStatus();
-//       await _fetchRecentOrders();
-//       await _calculateProfitMetrics();
-//       await _fetchTotalInventoryBags();
+//       // Run all fetches in parallel for better performance
+//       await Future.wait([
+//         _fetchInventoryData(),
+//         _fetchProducts(),
+//         _fetchProductionMetrics(),
+//         _fetchMachineStatus(),
+//         _fetchRecentOrders(),
+//         _fetchTotalInventoryBags(),
+//         _calculateProfitMetrics(),
+//       ]);
       
 //       if (mounted) {
 //         setState(() {
 //           _lastUpdated = DateTime.now();
 //           _isLoading = false;
 //         });
+        
+//         debugPrint('✅ All data fetched successfully at ${_lastUpdated}');
+//         debugPrint('📦 Total bags: $_totalInventoryBags');
+//         debugPrint('💰 Revenue: $_totalRevenue');
+//         debugPrint('💸 Material Cost: $_totalRawMaterialCost');
+//         debugPrint('📈 Profit: $_totalProfit');
 //       }
-      
-//       debugPrint('✅ All data fetched successfully');
-//       debugPrint('📦 Total bags: $_totalInventoryBags');
-//       debugPrint('💰 Revenue: $_totalRevenue');
 //     } catch (e) {
 //       debugPrint('❌ Error fetching data: $e');
 //       if (mounted) {
@@ -2407,10 +2833,10 @@ class _DashboardBody extends StatelessWidget {
 //   Future<void> _fetchProducts() async {
 //     try {
 //       final response = await _supabase
-//           .from('production_products') // Use same table as inventory
+//           .from('production_products')
 //           .select('*')
 //           .eq('is_active', true)
-//           .order('name', ascending:true);
+//           .order('name', ascending: true);
 
 //       if (mounted) {
 //         setState(() {
@@ -2431,15 +2857,17 @@ class _DashboardBody extends StatelessWidget {
 //       final monthStart = DateTime(today.year, today.month, 1);
       
 //       double totalRevenue = 0.0;
+//       double totalRawMaterialCost = 0.0;
 //       Map<String, double> rawMaterialCosts = {};
 
-//       // Get revenue from completed orders this month
 //       final monthStartStr = "${monthStart.year}-${monthStart.month.toString().padLeft(2, '0')}-01";
 //       final todayStr = "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
 
+//       debugPrint('📊 Calculating profit metrics for period: $monthStartStr to $todayStr');
+
 //       final revenueResponse = await _supabase
 //           .from('emp_mar_orders')
-//           .select('total_price, created_at')
+//           .select('total_price')
 //           .eq('status', 'completed')
 //           .gte('created_at', monthStartStr)
 //           .lte('created_at', todayStr);
@@ -2448,7 +2876,7 @@ class _DashboardBody extends StatelessWidget {
 //         totalRevenue += (order['total_price'] ?? 0).toDouble();
 //       }
       
-//       debugPrint('💰 Total revenue from Supabase: ₹$totalRevenue');
+//       debugPrint('💰 Revenue fetched: ₹$totalRevenue');
 
 //       // Get raw material usage cost for this month
 //       final materialResponse = await _supabase
@@ -2456,8 +2884,6 @@ class _DashboardBody extends StatelessWidget {
 //           .select('total_cost, raw_material_id, pro_inventory!inner(name)')
 //           .gte('usage_date', monthStartStr)
 //           .lte('usage_date', todayStr);
-
-//       double totalRawMaterialCost = 0.0;
 
 //       for (var usage in materialResponse) {
 //         final cost = (usage['total_cost'] ?? 0).toDouble();
@@ -2469,7 +2895,7 @@ class _DashboardBody extends StatelessWidget {
 //         rawMaterialCosts[materialName] = (rawMaterialCosts[materialName] ?? 0) + cost;
 //       }
 
-//       debugPrint('📊 Total raw material cost: ₹$totalRawMaterialCost');
+//       debugPrint('💰 Material cost fetched: ₹$totalRawMaterialCost');
 
 //       // Calculate profit
 //       double totalProfit = totalRevenue - totalRawMaterialCost;
@@ -2492,6 +2918,16 @@ class _DashboardBody extends StatelessWidget {
 //       }
 //     } catch (e) {
 //       debugPrint('❌ Profit calculation error: $e');
+//       if (mounted) {
+//         // Set default values on error
+//         setState(() {
+//           _totalRevenue = 0.0;
+//           _totalRawMaterialCost = 0.0;
+//           _totalProfit = 0.0;
+//           _profitMargin = 0.0;
+//           _rawMaterialUsage = {};
+//         });
+//       }
 //     }
 //   }
 
@@ -2581,6 +3017,9 @@ class _DashboardBody extends StatelessWidget {
 //   @override
 //   void dispose() {
 //     _refreshTimer?.cancel();
+//     _ordersSubscription?.cancel();
+//     _materialUsageSubscription?.cancel();
+//     _inventorySubscription?.cancel();
 //     super.dispose();
 //   }
 
@@ -2604,7 +3043,7 @@ class _DashboardBody extends StatelessWidget {
 //             const SizedBox(height: 2),
 //             if (_lastUpdated != null)
 //               Text(
-//                 "Updated: ${_lastUpdated!.hour.toString().padLeft(2, '0')}:${_lastUpdated!.minute.toString().padLeft(2, '0')}",
+//                 "Updated: ${_lastUpdated!.hour.toString().padLeft(2, '0')}:${_lastUpdated!.minute.toString().padLeft(2, '0')}:${_lastUpdated!.second.toString().padLeft(2, '0')}",
 //                 style: GoogleFonts.poppins(
 //                   fontSize: 11,
 //                   color: Colors.white.withOpacity(0.8),
@@ -2618,15 +3057,7 @@ class _DashboardBody extends StatelessWidget {
 //           icon: const Icon(Icons.menu),
 //           onPressed: () => widget.scaffoldKey.currentState?.openDrawer(),
 //         ),
-//         actions: [
-//           IconButton(
-//             icon: const Icon(Icons.analytics),
-//             onPressed: () async {
-//               _showRefreshSnackBar(context);
-//               await _calculateProfitMetrics();
-//             },
-//             tooltip: 'View Monthly Stats',
-//           ),
+//         actions: [          
 //           IconButton(
 //             icon: const Icon(Icons.refresh),
 //             onPressed: () {
@@ -2728,7 +3159,6 @@ class _DashboardBody extends StatelessWidget {
 //     required this.onRefresh,
 //   });
 
-
 //   Widget _buildInventorySummary() {
 //     return Container(
 //       padding: const EdgeInsets.all(16),
@@ -2756,35 +3186,7 @@ class _DashboardBody extends StatelessWidget {
 //                   fontWeight: FontWeight.w600,
 //                   color: Colors.grey[800],
 //                 ),
-//               ),
-//               GestureDetector(
-//                 onTap: () {},
-//                 child: Container(
-//                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-//                   decoration: BoxDecoration(
-//                     color: GlobalColors.primaryBlue.withOpacity(0.1),
-//                     borderRadius: BorderRadius.circular(6),
-//                   ),
-//                   child: Row(
-//                     children: [
-//                       Text(
-//                         "View All",
-//                         style: GoogleFonts.poppins(
-//                           fontSize: 11,
-//                           fontWeight: FontWeight.w600,
-//                           color: GlobalColors.primaryBlue,
-//                         ),
-//                       ),
-//                       const SizedBox(width: 4),
-//                       Icon(
-//                         Icons.arrow_forward_ios,
-//                         size: 10,
-//                         color: GlobalColors.primaryBlue,
-//                       ),
-//                     ],
-//                   ),
-//                 ),
-//               ),
+//               ),             
 //             ],
 //           ),
 //           const SizedBox(height: 16),
@@ -3084,7 +3486,7 @@ class _DashboardBody extends StatelessWidget {
 //                 ),
 //                 GestureDetector(
 //                   onTap: () {
-//                     // This would navigate to raw material entry page
+//                     // Navigate to raw material entry page
 //                   },
 //                   child: Container(
 //                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -3255,34 +3657,7 @@ class _DashboardBody extends StatelessWidget {
 //                   color: Colors.grey[800],
 //                 ),
 //               ),
-//               GestureDetector(
-//                 onTap: () {},
-//                 child: Container(
-//                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-//                   decoration: BoxDecoration(
-//                     color: GlobalColors.primaryBlue.withOpacity(0.1),
-//                     borderRadius: BorderRadius.circular(6),
-//                   ),
-//                   child: Row(
-//                     children: [
-//                       Text(
-//                         "View All",
-//                         style: GoogleFonts.poppins(
-//                           fontSize: 11,
-//                           fontWeight: FontWeight.w600,
-//                           color: GlobalColors.primaryBlue,
-//                         ),
-//                       ),
-//                       const SizedBox(width: 4),
-//                       Icon(
-//                         Icons.arrow_forward_ios,
-//                         size: 10,
-//                         color: GlobalColors.primaryBlue,
-//                       ),
-//                     ],
-//                   ),
-//                 ),
-//               ),
+              
 //             ],
 //           ),
 //           const SizedBox(height: 12),
@@ -3290,32 +3665,31 @@ class _DashboardBody extends StatelessWidget {
 //           if (inventoryData.isEmpty)
 //             Container(
 //               height: 200,
-//               child: Center(
-//                 child: Column(
-//                   mainAxisAlignment: MainAxisAlignment.center,
-//                   children: [
-//                     Icon(
-//                       Icons.inventory_2_outlined,
-//                       size: 48,
-//                       color: Colors.grey[400],
+//               alignment: Alignment.center,
+//               child: Column(
+//                 mainAxisAlignment: MainAxisAlignment.center,
+//                 children: [
+//                   Icon(
+//                     Icons.inventory_2_outlined,
+//                     size: 48,
+//                     color: Colors.grey[400],
+//                   ),
+//                   const SizedBox(height: 12),
+//                   Text(
+//                     "No inventory data",
+//                     style: GoogleFonts.poppins(
+//                       fontSize: 14,
+//                       color: Colors.grey[600],
 //                     ),
-//                     const SizedBox(height: 12),
-//                     Text(
-//                       "No inventory data",
-//                       style: GoogleFonts.poppins(
-//                         fontSize: 14,
-//                         color: Colors.grey[600],
-//                       ),
-//                     ),
-//                   ],
-//                 ),
+//                   ),
+//                 ],
 //               ),
 //             )
 //           else
 //             Column(
 //               children: inventoryData.take(4).map((item) {
-//                 final stock = (item['bags'] ?? 0).toDouble(); // Use bags instead of stock
-//                 final reorder = (item['min_bags_stock'] ?? 10).toDouble(); // Use min_bags_stock
+//                 final stock = (item['bags'] ?? 0).toDouble();
+//                 final reorder = (item['min_bags_stock'] ?? 10).toDouble();
 //                 final isLow = stock < reorder;
 //                 final percentage = reorder > 0 ? (stock / reorder) : 0;
 
@@ -3420,8 +3794,6 @@ class _DashboardBody extends StatelessWidget {
 //     );
 //   }
 
-
-
 //   @override
 //   Widget build(BuildContext context) {
 //     return SafeArea(
@@ -3432,9 +3804,6 @@ class _DashboardBody extends StatelessWidget {
 //           child: Column(
 //             crossAxisAlignment: CrossAxisAlignment.start,
 //             children: [
-//               // _buildProductionMetrics(),
-//               // const SizedBox(height: 20),
-              
 //               _buildInventorySummary(),
 //               const SizedBox(height: 20),
               
@@ -3446,8 +3815,6 @@ class _DashboardBody extends StatelessWidget {
               
 //               _buildInventoryStatus(),
 //               const SizedBox(height: 20),
-              
-              
 //             ],
 //           ),
 //         ),
@@ -3455,6 +3822,9 @@ class _DashboardBody extends StatelessWidget {
 //     );
 //   }
 // }
+
+
+
 
 
 

@@ -86,7 +86,6 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                   ],
                 ),
                 actions: [
-                  
                   Consumer<DashboardProvider>(
                     builder: (context, provider, _) {
                       if (provider.isRefreshing) {
@@ -111,6 +110,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                   ),
                 ],
               ),
+              drawer: _buildDrawer(context, provider),
               body: Consumer<DashboardProvider>(
                 builder: (context, provider, _) {
                   return _buildBody(context, provider);
@@ -131,6 +131,449 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
             );
           },
         ),
+      ),
+    );
+  }
+
+  Widget _buildDrawer(BuildContext context, DashboardProvider provider) {
+    return Drawer(
+      child: Container(
+        color: Colors.white,
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            // Drawer Header with User Info
+            Container(
+              height: 180,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    GlobalColors.primaryBlue,
+                    GlobalColors.primaryBlue.withOpacity(0.8),
+                  ],
+                ),
+              ),
+              child: DrawerHeader(
+                margin: EdgeInsets.zero,
+                padding: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(
+                  color: Colors.transparent,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    // User Avatar
+                    Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white,
+                          width: 2,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.person,
+                        size: 35,
+                        color: GlobalColors.primaryBlue,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // User Name
+                    Text(
+                      widget.userData['name'] ?? 'Owner',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    // User Email
+                    
+                  ],
+                  
+                ),
+                
+              ),
+            ),
+            
+            const SizedBox(height: 8),
+            
+            // Dashboard Menu Item
+            _buildDrawerItem(
+              icon: Icons.dashboard,
+              title: 'Dashboard',
+              onTap: () {
+                Navigator.pop(context);
+              },
+              isSelected: true,
+            ),
+            
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Divider(),
+            ),
+            
+            // Business Sections
+            _buildDrawerSection('BUSINESS'),
+            
+            _buildDrawerItem(
+              icon: Icons.shopping_cart,
+              title: 'Total Orders',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => OrderDetailsPage(dashboardData: provider.dashboardData),
+                  ),
+                );
+              },
+            ),
+            
+            _buildDrawerItem(
+              icon: Icons.pending_actions,
+              title: 'Pending Orders',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PendingOrdersDetailsPage(dashboardData: provider.dashboardData),
+                  ),
+                );
+              },
+              badge: provider.dashboardData.pendingOrders > 0 
+                  ? provider.dashboardData.pendingOrders.toString() 
+                  : null,
+            ),
+            
+            _buildDrawerItem(
+              icon: Icons.currency_rupee,
+              title: 'Total Revenue',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => DistrictWiseRevenuePage(dashboardData: provider.dashboardData),
+                  ),
+                );
+              },
+            ),
+            
+            _buildDrawerItem(
+              icon: Icons.people,
+              title: 'Employees',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EmployeeDetailsPage(dashboardData: provider.dashboardData),
+                  ),
+                );
+              },
+            ),
+            
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Divider(),
+            ),
+            
+            // Management Sections
+            _buildDrawerSection('MANAGEMENT'),
+            
+            _buildDrawerItem(
+              icon: Icons.add_task,
+              title: 'Assign Target',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AssignTargetPage(),
+                  ),
+                );
+              },
+            ),
+            
+            _buildDrawerItem(
+              icon: Icons.inventory,
+              title: 'Products',
+              onTap: () {
+                Navigator.pop(context);
+                // Navigate to products page
+                _showComingSoon(context);
+              },
+            ),
+            
+            _buildDrawerItem(
+              icon: Icons.category,
+              title: 'Categories',
+              onTap: () {
+                Navigator.pop(context);
+                // Navigate to categories page
+                _showComingSoon(context);
+              },
+            ),
+            
+            _buildDrawerItem(
+              icon: Icons.local_shipping,
+              title: 'Suppliers',
+              onTap: () {
+                Navigator.pop(context);
+                // Navigate to suppliers page
+                _showComingSoon(context);
+              },
+            ),
+            
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Divider(),
+            ),
+            
+            // Reports Sections
+            _buildDrawerSection('REPORTS'),
+            
+            _buildDrawerItem(
+              icon: Icons.bar_chart,
+              title: 'Sales Report',
+              onTap: () {
+                Navigator.pop(context);
+                // Navigate to sales report
+                _showComingSoon(context);
+              },
+            ),
+            
+            _buildDrawerItem(
+              icon: Icons.show_chart,
+              title: 'Profit Analysis',
+              onTap: () {
+                Navigator.pop(context);
+                // Navigate to profit analysis
+                _showComingSoon(context);
+              },
+            ),
+            
+            _buildDrawerItem(
+              icon: Icons.inventory_2,
+              title: 'Stock Report',
+              onTap: () {
+                Navigator.pop(context);
+                // Navigate to stock report
+                _showComingSoon(context);
+              },
+            ),
+            
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Divider(),
+            ),
+            
+            // Settings Section
+            _buildDrawerSection('SETTINGS'),
+            
+            _buildDrawerItem(
+              icon: Icons.settings,
+              title: 'Settings',
+              onTap: () {
+                Navigator.pop(context);
+                // Navigate to settings
+                _showComingSoon(context);
+              },
+            ),
+            
+            _buildDrawerItem(
+              icon: Icons.notifications,
+              title: 'Notifications',
+              onTap: () {
+                Navigator.pop(context);
+                // Navigate to notifications
+                _showComingSoon(context);
+              },
+              badge: '3', // Example badge
+            ),
+            
+            _buildDrawerItem(
+              icon: Icons.help,
+              title: 'Help & Support',
+              onTap: () {
+                Navigator.pop(context);
+                // Navigate to help
+                _showComingSoon(context);
+              },
+            ),
+            
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Divider(),
+            ),
+            
+            // Logout
+            _buildDrawerItem(
+              icon: Icons.logout,
+              title: 'Logout',
+              iconColor: Colors.red,
+              textColor: Colors.red,
+              onTap: () {
+                Navigator.pop(context);
+                _showLogoutConfirmation(context);
+              },
+            ),
+            
+            const SizedBox(height: 20),
+            
+            // App Version
+            Center(
+              child: Text(
+                'Version 1.0.0',
+                style: TextStyle(
+                  color: Colors.grey.shade400,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerSection(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: Colors.grey.shade600,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    bool isSelected = false,
+    String? badge,
+    Color? iconColor,
+    Color? textColor,
+  }) {
+    return ListTile(
+      leading: Icon(
+        icon,
+        color: iconColor ?? (isSelected ? GlobalColors.primaryBlue : Colors.grey.shade700),
+        size: 22,
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: textColor ?? (isSelected ? GlobalColors.primaryBlue : Colors.black87),
+          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          fontSize: 14,
+        ),
+      ),
+      trailing: badge != null
+          ? Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                badge,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            )
+          : null,
+      selected: isSelected,
+      selectedTileColor: GlobalColors.primaryBlue.withOpacity(0.1),
+      onTap: onTap,
+    );
+  }
+
+  void _showComingSoon(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('This feature is coming soon!'),
+        backgroundColor: GlobalColors.primaryBlue,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  void _showLogoutConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Text(
+          'Logout',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: const Text(
+          'Are you sure you want to logout?',
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Perform logout
+              Navigator.pushReplacementNamed(context, '/login');
+            },
+            style: TextButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text(
+              'Logout',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1568,6 +2011,1601 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
     );
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// import 'package:flutter/material.dart';
+// import 'package:mega_pro/models/own_dashboard_model.dart';
+// import 'package:mega_pro/owner/own_emp_details_page.dart';
+// import 'package:mega_pro/owner/own_pending_orders_page.dart';
+// import 'package:mega_pro/owner/own_mar_assigning_target.dart';
+// import 'package:mega_pro/owner/own_total_orders.dart';
+// import 'package:mega_pro/owner/own_total_revenue.dart';
+// import 'package:mega_pro/providers/own_dashboard_provider.dart';
+// import 'package:provider/provider.dart';
+// import 'package:mega_pro/global/global_variables.dart';
+// import 'package:intl/intl.dart';
+// import 'package:google_fonts/google_fonts.dart';
+
+// class OwnerDashboard extends StatefulWidget {
+//   final Map<String, dynamic> userData;
+  
+//   const OwnerDashboard({super.key, required this.userData});
+
+//   @override
+//   State<OwnerDashboard> createState() => _OwnerDashboardState();
+// }
+
+// class _OwnerDashboardState extends State<OwnerDashboard> {
+//   final DateTime _selectedDate = DateTime.now();
+//   final ScrollController _scrollController = ScrollController();
+//   bool _showRefreshIndicator = false;
+
+//   @override
+//   void initState() {
+//     super.initState();
+//     _scrollController.addListener(_onScroll);
+//   }
+
+//   void _onScroll() {
+//     if (_scrollController.offset <= -100 && !_showRefreshIndicator) {
+//       setState(() {
+//         _showRefreshIndicator = true;
+//       });
+//       Future.delayed(const Duration(seconds: 1), () {
+//         if (mounted) {
+//           setState(() {
+//             _showRefreshIndicator = false;
+//           });
+//         }
+//       });
+//     }
+//   }
+
+//   @override
+//   void dispose() {
+//     _scrollController.dispose();
+//     super.dispose();
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return WillPopScope(
+//       onWillPop: () async {
+//         return await _showExitConfirmation(context);
+//       },
+//       child: ChangeNotifierProvider(
+//         create: (_) => DashboardProvider(),
+//         child: Consumer<DashboardProvider>(
+//           builder: (context, provider, child) {
+//             return Scaffold(
+//               backgroundColor: GlobalColors.background,
+//               appBar: AppBar(
+//                 backgroundColor: GlobalColors.primaryBlue,
+//                 elevation: 0,
+//                 iconTheme: const IconThemeData(color: Colors.white),
+//                 title: Column(
+//                   crossAxisAlignment: CrossAxisAlignment.start,
+//                   children: [
+//                     const Text(
+//                       'Owner Dashboard',
+//                       style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+//                     ),
+//                     if (provider.lastUpdate != null)
+//                       Text(
+//                         'Updated: ${DateFormat('HH:mm').format(provider.lastUpdate!)}',
+//                         style: const TextStyle(
+//                           color: Colors.white70,
+//                           fontSize: 12,
+//                         ),
+//                       ),
+//                   ],
+//                 ),
+//                 actions: [
+                  
+//                   Consumer<DashboardProvider>(
+//                     builder: (context, provider, _) {
+//                       if (provider.isRefreshing) {
+//                         return Padding(
+//                           padding: const EdgeInsets.all(8.0),
+//                           child: SizedBox(
+//                             width: 20,
+//                             height: 20,
+//                             child: CircularProgressIndicator(
+//                               strokeWidth: 2,
+//                               valueColor: AlwaysStoppedAnimation<Color>(Colors.white.withOpacity(0.8)),
+//                             ),
+//                           ),
+//                         );
+//                       }
+//                       return const SizedBox.shrink();
+//                     },
+//                   ),
+//                   IconButton(
+//                     icon: const Icon(Icons.refresh, color: Colors.white),
+//                     onPressed: () => provider.refresh(),
+//                   ),
+//                 ],
+//               ),
+//               body: Consumer<DashboardProvider>(
+//                 builder: (context, provider, _) {
+//                   return _buildBody(context, provider);
+//                 },
+//               ),
+//               floatingActionButton: FloatingActionButton(
+//                 onPressed: () {
+//                   Navigator.push(
+//                     context,
+//                     MaterialPageRoute(
+//                       builder: (context) => const AssignTargetPage(),
+//                     ),
+//                   );
+//                 },
+//                 backgroundColor: GlobalColors.primaryBlue,
+//                 child: const Icon(Icons.add, color: Colors.white),
+//               ),
+//             );
+//           },
+//         ),
+//       ),
+//     );
+//   }
+
+//   Future<bool> _showExitConfirmation(BuildContext context) async {
+//     return await showDialog<bool>(
+//           context: context,
+//           barrierDismissible: false,
+//           builder: (context) => _buildExitDialog(),
+//         ) ??
+//         false;
+//   }
+
+//   Widget _buildExitDialog() {
+//     return AlertDialog(
+//       shape: RoundedRectangleBorder(
+//         borderRadius: BorderRadius.circular(16),
+//       ),
+//       title: const Text(
+//         "Exit App?",
+//         style: TextStyle(
+//           fontSize: 18,
+//           fontWeight: FontWeight.w600,
+//         ),
+//       ),
+//       content: const Text(
+//         "Are you sure you want to exit?",
+//         style: TextStyle(
+//           fontSize: 14,
+//           color: Colors.grey,
+//         ),
+//       ),
+//       actions: [
+//         TextButton(
+//           onPressed: () => Navigator.of(context).pop(false),
+//           child: const Text(
+//             "Cancel",
+//             style: TextStyle(
+//               fontSize: 14,
+//               color: Colors.grey,
+//             ),
+//           ),
+//         ),
+//         TextButton(
+//           onPressed: () => Navigator.of(context).pop(true),
+//           style: TextButton.styleFrom(
+//             backgroundColor: GlobalColors.primaryBlue,
+//           ),
+//           child: const Text(
+//             "Exit",
+//             style: TextStyle(
+//               fontSize: 14,
+//               color: Colors.white,
+//               fontWeight: FontWeight.w500,
+//             ),
+//           ),
+//         ),
+//       ],
+//     );
+//   }
+
+//   Widget _buildBody(BuildContext context, DashboardProvider provider) {
+//     if (provider.isLoading && provider.dashboardData.totalRevenue == 0) {
+//       return const Center(
+//         child: Column(
+//           mainAxisAlignment: MainAxisAlignment.center,
+//           children: [
+//             CircularProgressIndicator(),
+//             SizedBox(height: 16),
+//             Text(
+//               'Loading Dashboard...',
+//               style: TextStyle(color: Colors.grey),
+//             ),
+//           ],
+//         ),
+//       );
+//     }
+
+//     if (provider.error != null) {
+//       return Center(
+//         child: Column(
+//           mainAxisAlignment: MainAxisAlignment.center,
+//           children: [
+//             const Icon(Icons.error_outline, color: Colors.red, size: 48),
+//             const SizedBox(height: 16),
+//             Padding(
+//               padding: const EdgeInsets.symmetric(horizontal: 32),
+//               child: Text(
+//                 'Error: ${provider.error}',
+//                 textAlign: TextAlign.center,
+//                 style: const TextStyle(color: Colors.red),
+//               ),
+//             ),
+//             const SizedBox(height: 20),
+//             ElevatedButton(
+//               onPressed: () => provider.refresh(),
+//               style: ElevatedButton.styleFrom(
+//                 backgroundColor: GlobalColors.primaryBlue,
+//                 shape: RoundedRectangleBorder(
+//                   borderRadius: BorderRadius.circular(12),
+//                 ),
+//                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+//               ),
+//               child: const Text('Retry', style: TextStyle(color: Colors.white)),
+//             ),
+//           ],
+//         ),
+//       );
+//     }
+
+//     return RefreshIndicator(
+//       onRefresh: () async {
+//         await provider.refresh();
+//       },
+//       child: SingleChildScrollView(
+//         physics: const BouncingScrollPhysics(),
+//         controller: _scrollController,
+//         child: SafeArea(
+//           child: Column(
+//             children: [
+//               // Date and Filter Row
+//               _buildDateFilterRow(),
+//               const SizedBox(height: 16),
+
+//               // Profit Metrics Card
+//               _buildProfitCard(provider.dashboardData),
+//               const SizedBox(height: 16),
+
+//               // Key Metrics Grid
+//               Padding(
+//                 padding: const EdgeInsets.symmetric(horizontal: 16),
+//                 child: _buildMetricsGrid(provider.dashboardData),
+//               ),
+//               const SizedBox(height: 20),
+
+//               // Revenue Chart Section
+//               _buildRevenueChart(provider.dashboardData, provider.revenueChartData),
+//               const SizedBox(height: 20),
+
+//               // Production Status
+//               _buildProductionCard(provider.dashboardData),
+//               const SizedBox(height: 20),
+
+//               // Material Cost Breakdown
+//               if (provider.dashboardData.materialCostBreakdown.isNotEmpty)
+//                 _buildMaterialCostCard(provider.dashboardData),
+//               if (provider.dashboardData.materialCostBreakdown.isNotEmpty)
+//                 const SizedBox(height: 20),
+
+//               // Top Products Section
+//               _buildTopProducts(provider.dashboardData),
+//               const SizedBox(height: 20),
+
+//               // Recent Activities
+//               _buildRecentActivities(provider.dashboardData),
+//               const SizedBox(height: 24),
+//             ],
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildDateFilterRow() {
+//     return Container(
+//       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+//       color: Colors.white,
+//       child: Row(
+//         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//         children: [
+//           Column(
+//             crossAxisAlignment: CrossAxisAlignment.start,
+//             children: [
+//               Text(
+//                 DateFormat('EEEE, MMMM d').format(_selectedDate),
+//                 style: const TextStyle(
+//                   fontSize: 16,
+//                   fontWeight: FontWeight.w600,
+//                   color: Colors.black87,
+//                 ),
+//               ),
+//               const SizedBox(height: 2),
+//               Text(
+//                 'Business Overview',
+//                 style: TextStyle(
+//                   fontSize: 14,
+//                   color: Colors.grey.shade600,
+//                 ),
+//               ),
+//             ],
+//           ),
+//           // Filter dropdown has been removed as requested
+//           const SizedBox(width: 8), // Added for spacing balance
+//         ],
+//       ),
+//     );
+//   }
+
+//   Widget _buildProfitCard(DashboardData dashboardData) {
+//     return Container(
+//       margin: const EdgeInsets.symmetric(horizontal: 16),
+//       padding: const EdgeInsets.all(20),
+//       decoration: BoxDecoration(
+//         gradient: LinearGradient(
+//           begin: Alignment.topLeft,
+//           end: Alignment.bottomRight,
+//           colors: [
+//             dashboardData.totalProfit >= 0 ? Colors.green : Colors.red,
+//             dashboardData.totalProfit >= 0 ? Colors.green.shade700 : Colors.red.shade700,
+//           ],
+//         ),
+//         borderRadius: BorderRadius.circular(16),
+//         boxShadow: [
+//           BoxShadow(
+//             color: (dashboardData.totalProfit >= 0 ? Colors.green : Colors.red).withOpacity(0.3),
+//             blurRadius: 15,
+//             offset: const Offset(0, 5),
+//           ),
+//         ],
+//       ),
+//       child: Column(
+//         children: [
+//           Row(
+//             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//             children: [
+//               Expanded(
+//                 child: Column(
+//                   crossAxisAlignment: CrossAxisAlignment.start,
+//                   children: [
+//                     Text(
+//                       "Monthly Net Profit",
+//                       style: GoogleFonts.poppins(
+//                         color: Colors.white.withOpacity(0.9),
+//                         fontSize: 14,
+//                       ),
+//                     ),
+//                     const SizedBox(height: 8),
+//                     Text(
+//                       "₹${NumberFormat('#,##,###').format(dashboardData.totalProfit)}",
+//                       style: GoogleFonts.poppins(
+//                         color: Colors.white,
+//                         fontSize: 28,
+//                         fontWeight: FontWeight.bold,
+//                       ),
+//                     ),
+//                     const SizedBox(height: 4),
+//                     Text(
+//                       "${dashboardData.profitMargin.toStringAsFixed(1)}% Margin",
+//                       style: GoogleFonts.poppins(
+//                         color: Colors.white.withOpacity(0.8),
+//                         fontSize: 14,
+//                       ),
+//                     ),
+//                   ],
+//                 ),
+//               ),
+//               Container(
+//                 width: 80,
+//                 height: 80,
+//                 decoration: BoxDecoration(
+//                   color: Colors.white.withOpacity(0.2),
+//                   borderRadius: BorderRadius.circular(12),
+//                 ),
+//                 child: Stack(
+//                   alignment: Alignment.center,
+//                   children: [
+//                     CircularProgressIndicator(
+//                       value: dashboardData.profitMargin.clamp(0, 100) / 100,
+//                       strokeWidth: 6,
+//                       backgroundColor: Colors.white.withOpacity(0.3),
+//                       valueColor: AlwaysStoppedAnimation<Color>(
+//                         dashboardData.profitMargin >= 20 
+//                           ? Colors.green.shade100
+//                           : dashboardData.profitMargin >= 10
+//                             ? Colors.amber.shade100
+//                             : Colors.red.shade100,
+//                       ),
+//                     ),
+//                     Text(
+//                       "${dashboardData.profitMargin.toStringAsFixed(0)}%",
+//                       style: GoogleFonts.poppins(
+//                         color: Colors.white,
+//                         fontSize: 14,
+//                         fontWeight: FontWeight.bold,
+//                       ),
+//                     ),
+//                   ],
+//                 ),
+//               ),
+//             ],
+//           ),
+//           const SizedBox(height: 16),
+//           Row(
+//             children: [
+//               Expanded(
+//                 child: Container(
+//                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+//                   decoration: BoxDecoration(
+//                     color: Colors.white.withOpacity(0.2),
+//                     borderRadius: BorderRadius.circular(8),
+//                   ),
+//                   child: Row(
+//                     children: [
+//                       const Icon(Icons.currency_rupee, size: 16, color: Colors.white),
+//                       const SizedBox(width: 6),
+//                       Expanded(
+//                         child: Text(
+//                           "Revenue: ₹${NumberFormat('#,##,###').format(dashboardData.totalRevenue)}",
+//                           style: GoogleFonts.poppins(
+//                             color: Colors.white,
+//                             fontSize: 12,
+//                           ),
+//                           overflow: TextOverflow.ellipsis,
+//                         ),
+//                       ),
+//                     ],
+//                   ),
+//                 ),
+//               ),
+//               const SizedBox(width: 8),
+//               Container(
+//                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+//                 decoration: BoxDecoration(
+//                   color: Colors.white.withOpacity(0.2),
+//                   borderRadius: BorderRadius.circular(8),
+//                 ),
+//                 child: Row(
+//                   children: [
+//                     const Icon(Icons.inventory, size: 16, color: Colors.white),
+//                     const SizedBox(width: 6),
+//                     Text(
+//                       "Cost: ₹${NumberFormat('#,##,###').format(dashboardData.totalRawMaterialCost)}",
+//                       style: GoogleFonts.poppins(
+//                         color: Colors.white,
+//                         fontSize: 12,
+//                       ),
+//                     ),
+//                   ],
+//                 ),
+//               ),
+//             ],
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   Widget _buildMetricsGrid(DashboardData dashboardData) {
+//     return GridView.count(
+//       shrinkWrap: true,
+//       physics: const NeverScrollableScrollPhysics(),
+//       crossAxisCount: 2,
+//       childAspectRatio: 0.9,
+//       crossAxisSpacing: 12,
+//       mainAxisSpacing: 12,
+//       padding: const EdgeInsets.all(0),
+//       children: [
+//         // Total Revenue Card
+//         InkWell(
+//           onTap: () {
+//             Navigator.push(
+//               context,
+//               MaterialPageRoute(
+//                 builder: (context) => DistrictWiseRevenuePage(dashboardData: dashboardData),
+//               ),
+//             );
+//           },
+//           borderRadius: BorderRadius.circular(16),
+//           child: _buildMetricCard(
+//             title: 'Total Revenue',
+//             value: '₹${NumberFormat('#,##,###').format(dashboardData.totalRevenue)}',
+//             icon: Icons.currency_rupee,
+//             color: Colors.green,
+//             growth: dashboardData.revenueGrowth,
+//             subtitle: 'This Month',
+//           ),
+//         ),
+        
+//         // Total Orders Card
+//         InkWell(
+//           onTap: () {
+//             Navigator.push(
+//               context,
+//               MaterialPageRoute(
+//                 builder: (context) => OrderDetailsPage(dashboardData: dashboardData),
+//               ),
+//             );
+//           },
+//           borderRadius: BorderRadius.circular(16),
+//           child: _buildMetricCard(
+//             title: 'Total Orders',
+//             value: dashboardData.totalOrders.toString(),
+//             icon: Icons.shopping_cart,
+//             color: Colors.blue,
+//             growth: dashboardData.orderGrowth,
+//             subtitle: 'All orders',
+//           ),
+//         ),
+        
+//         // Active Employees Card
+//         InkWell(
+//           onTap: () {
+//             Navigator.push(
+//               context,
+//               MaterialPageRoute(
+//                 builder: (context) => EmployeeDetailsPage(dashboardData: dashboardData),
+//               ),
+//             );
+//           },
+//           borderRadius: BorderRadius.circular(16),
+//           child: _buildMetricCard(
+//             title: 'Active Employees',
+//             value: dashboardData.activeEmployees.toString(),
+//             icon: Icons.people,
+//             color: Colors.purple,
+//             growth: dashboardData.employeeGrowth,
+//             subtitle: 'Current staff',
+//           ),
+//         ),
+        
+//         // Pending Orders Card
+//         InkWell(
+//           onTap: () {
+//             Navigator.push(
+//               context,
+//               MaterialPageRoute(
+//                 builder: (context) => PendingOrdersDetailsPage(dashboardData: dashboardData),
+//               ),
+//             );
+//           },
+//           borderRadius: BorderRadius.circular(16),
+//           child: _buildMetricCard(
+//             title: 'Pending Orders',
+//             value: dashboardData.pendingOrders.toString(),
+//             icon: Icons.pending_actions,
+//             color: Colors.orange,
+//             isWarning: true,
+//             subtitle: 'Needs attention',
+//           ),
+//         ),
+//       ],
+//     );
+//   }
+
+//   Widget _buildMetricCard({
+//     required String title,
+//     required String value,
+//     required IconData icon,
+//     required Color color,
+//     double growth = 0,
+//     bool isWarning = false,
+//     String subtitle = '',
+//   }) {
+//     return Card(
+//       elevation: 3,
+//       shape: RoundedRectangleBorder(
+//         borderRadius: BorderRadius.circular(16),
+//       ),
+//       color: Colors.white,
+//       child: Padding(
+//         padding: const EdgeInsets.all(14),
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//           children: [
+//             Row(
+//               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//               children: [
+//                 Container(
+//                   padding: const EdgeInsets.all(8),
+//                   decoration: BoxDecoration(
+//                     color: color.withOpacity(0.1),
+//                     borderRadius: BorderRadius.circular(10),
+//                   ),
+//                   child: Icon(icon, size: 22, color: color),
+//                 ),
+//                 if (growth != 0 || isWarning)
+//                   Container(
+//                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+//                     decoration: BoxDecoration(
+//                       color: isWarning 
+//                         ? Colors.orange.withOpacity(0.1)
+//                         : growth >= 0 
+//                           ? Colors.green.withOpacity(0.1) 
+//                           : Colors.red.withOpacity(0.1),
+//                       borderRadius: BorderRadius.circular(10),
+//                     ),
+//                     child: Row(
+//                       children: [
+//                         Icon(
+//                           isWarning ? Icons.warning : 
+//                           (growth >= 0 ? Icons.arrow_upward : Icons.arrow_downward),
+//                           size: 12,
+//                           color: isWarning ? Colors.orange :
+//                           (growth >= 0 ? Colors.green : Colors.red),
+//                         ),
+//                         const SizedBox(width: 4),
+//                         Text(
+//                           isWarning ? '!' : '${growth.abs().toStringAsFixed(1)}%',
+//                           style: TextStyle(
+//                             fontSize: 11,
+//                             fontWeight: FontWeight.w600,
+//                             color: isWarning ? Colors.orange :
+//                             (growth >= 0 ? Colors.green : Colors.red),
+//                           ),
+//                         ),
+//                       ],
+//                     ),
+//                   ),
+//               ],
+//             ),
+//             const SizedBox(height: 12),
+//             Text(
+//               value,
+//               style: const TextStyle(
+//                 fontSize: 20,
+//                 fontWeight: FontWeight.w700,
+//                 color: Colors.black87,
+//               ),
+//             ),
+//             const SizedBox(height: 2),
+//             Text(
+//               title,
+//               style: const TextStyle(
+//                 fontSize: 13,
+//                 fontWeight: FontWeight.w500,
+//                 color: Colors.black87,
+//               ),
+//             ),
+//             if (subtitle.isNotEmpty) ...[
+//               const SizedBox(height: 2),
+//               Text(
+//                 subtitle,
+//                 style: TextStyle(
+//                   fontSize: 11,
+//                   color: Colors.grey.shade600,
+//                 ),
+//               ),
+//             ],
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildRevenueChart(DashboardData dashboardData, List<Map<String, dynamic>> chartData) {
+//     // Calculate max revenue for scaling
+//     double maxRevenue = 0;
+//     bool hasData = false;
+    
+//     for (var data in chartData) {
+//       final revenue = (data['revenue'] as num?)?.toDouble() ?? 0;
+//       if (revenue > 0) hasData = true;
+//       if (revenue > maxRevenue) {
+//         maxRevenue = revenue;
+//       }
+//     }
+
+//     // If all revenues are 0, use a small default max
+//     if (maxRevenue == 0) {
+//       maxRevenue = 100000;
+//     }
+
+//     return Card(
+//       margin: const EdgeInsets.symmetric(horizontal: 16),
+//       elevation: 2,
+//       shape: RoundedRectangleBorder(
+//         borderRadius: BorderRadius.circular(16),
+//       ),
+//       color: Colors.white,
+//       child: Padding(
+//         padding: const EdgeInsets.all(18),
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             const Row(
+//               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//               children: [
+//                 Text(
+//                   'Revenue Overview',
+//                   style: TextStyle(
+//                     fontSize: 18,
+//                     fontWeight: FontWeight.w600,
+//                     color: Colors.black87,
+//                   ),
+//                 ),
+//               ],
+//             ),
+//             const SizedBox(height: 4),
+//             Text(
+//               'Last 7 days',
+//               style: TextStyle(
+//                 fontSize: 13,
+//                 color: Colors.grey.shade600,
+//               ),
+//             ),
+//             const SizedBox(height: 16),
+            
+//             // Chart Container
+//             SizedBox(
+//               height: 200,
+//               child: !hasData
+//                   ? Center(
+//                       child: Column(
+//                         mainAxisAlignment: MainAxisAlignment.center,
+//                         children: [
+//                           Icon(
+//                             Icons.bar_chart,
+//                             color: Colors.grey.shade400,
+//                             size: 40,
+//                           ),
+//                           const SizedBox(height: 8),
+//                           Text(
+//                             'No revenue data',
+//                             style: TextStyle(
+//                               color: Colors.grey.shade500,
+//                               fontSize: 14,
+//                             ),
+//                           ),
+//                         ],
+//                       ),
+//                     )
+//                   : Column(
+//                       children: [
+//                         // Chart Bars with Y-axis
+//                         Expanded(
+//                           child: Row(
+//                             crossAxisAlignment: CrossAxisAlignment.end,
+//                             children: [
+//                               // Y-axis labels
+//                               SizedBox(
+//                                 width: 40,
+//                                 child: Column(
+//                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                                   crossAxisAlignment: CrossAxisAlignment.end,
+//                                   children: [
+//                                     Text(
+//                                       '₹${NumberFormat.compact().format(maxRevenue)}',
+//                                       style: TextStyle(
+//                                         fontSize: 10,
+//                                         color: Colors.grey.shade600,
+//                                       ),
+//                                     ),
+//                                     Text(
+//                                       '₹${NumberFormat.compact().format(maxRevenue * 0.75)}',
+//                                       style: TextStyle(
+//                                         fontSize: 10,
+//                                         color: Colors.grey.shade600,
+//                                       ),
+//                                     ),
+//                                     Text(
+//                                       '₹${NumberFormat.compact().format(maxRevenue * 0.5)}',
+//                                       style: TextStyle(
+//                                         fontSize: 10,
+//                                         color: Colors.grey.shade600,
+//                                       ),
+//                                     ),
+//                                     Text(
+//                                       '₹${NumberFormat.compact().format(maxRevenue * 0.25)}',
+//                                       style: TextStyle(
+//                                         fontSize: 10,
+//                                         color: Colors.grey.shade600,
+//                                       ),
+//                                     ),
+//                                     const SizedBox(height: 20),
+//                                   ],
+//                                 ),
+//                               ),
+//                               const SizedBox(width: 8),
+//                               // Bars
+//                               Expanded(
+//                                 child: Row(
+//                                   crossAxisAlignment: CrossAxisAlignment.end,
+//                                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+//                                   children: chartData.map((data) {
+//                                     final day = data['day'] as String;
+//                                     final revenue = (data['revenue'] as num?)?.toDouble() ?? 0;
+//                                     // Scale height (max bar height = 100)
+//                                     final height = maxRevenue > 0 ? (revenue / maxRevenue) * 100 : 0;
+                                    
+//                                     return _buildBar(
+//                                       height.toDouble(),
+//                                       day,
+//                                       revenue > 0 
+//                                         ? GlobalColors.primaryBlue
+//                                         : Colors.grey.withOpacity(0.2),
+//                                       revenue > 0 ? revenue : null,
+//                                     );
+//                                   }).toList(),
+//                                 ),
+//                               ),
+//                             ],
+//                           ),
+//                         ),
+//                         const SizedBox(height: 20),
+//                       ],
+//                     ),
+//             ),
+            
+//             const SizedBox(height: 16),
+//             const Divider(height: 1),
+//             const SizedBox(height: 12),
+//             Row(
+//               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//               children: [
+//                 Column(
+//                   crossAxisAlignment: CrossAxisAlignment.start,
+//                   children: [
+//                     Text(
+//                       'Monthly Revenue',
+//                       style: TextStyle(
+//                         fontSize: 12,
+//                         color: Colors.grey.shade600,
+//                       ),
+//                     ),
+//                     const SizedBox(height: 2),
+//                     Text(
+//                       '₹${NumberFormat('#,##,###').format(dashboardData.totalRevenue)}',
+//                       style: const TextStyle(
+//                         fontSize: 16,
+//                         fontWeight: FontWeight.w600,
+//                         color: Colors.black87,
+//                       ),
+//                     ),
+//                   ],
+//                 ),
+//                 Container(
+//                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+//                   decoration: BoxDecoration(
+//                     color: dashboardData.revenueGrowth >= 0 
+//                       ? Colors.green.withOpacity(0.1)
+//                       : Colors.red.withOpacity(0.1),
+//                     borderRadius: BorderRadius.circular(16),
+//                   ),
+//                   child: Row(
+//                     children: [
+//                       Icon(
+//                         dashboardData.revenueGrowth >= 0 
+//                           ? Icons.arrow_upward 
+//                           : Icons.arrow_downward,
+//                         size: 14,
+//                         color: dashboardData.revenueGrowth >= 0 ? Colors.green : Colors.red,
+//                       ),
+//                       const SizedBox(width: 4),
+//                       Text(
+//                         '${dashboardData.revenueGrowth >= 0 ? '+' : ''}${dashboardData.revenueGrowth.toStringAsFixed(1)}%',
+//                         style: TextStyle(
+//                           fontSize: 12,
+//                           color: dashboardData.revenueGrowth >= 0 ? Colors.green : Colors.red,
+//                           fontWeight: FontWeight.w600,
+//                         ),
+//                       ),
+//                     ],
+//                   ),
+//                 ),
+//               ],
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildBar(double height, String label, Color color, [double? revenue]) {
+//     return Column(
+//       mainAxisAlignment: MainAxisAlignment.end,
+//       children: [
+//         Container(
+//           width: 28,
+//           height: height,
+//           margin: const EdgeInsets.symmetric(horizontal: 2),
+//           decoration: BoxDecoration(
+//             color: color,
+//             borderRadius: const BorderRadius.only(
+//               topLeft: Radius.circular(6),
+//               topRight: Radius.circular(6),
+//             ),
+//             boxShadow: [
+//               BoxShadow(
+//                 color: color.withOpacity(0.3),
+//                 blurRadius: 2,
+//                 offset: const Offset(0, 1),
+//               ),
+//             ],
+//           ),
+//           child: revenue != null && revenue > 0
+//               ? Tooltip(
+//                   message: '₹${NumberFormat('#,##,###').format(revenue)}',
+//                   child: Container(),
+//                 )
+//               : null,
+//         ),
+//         const SizedBox(height: 8),
+//         Text(
+//           label,
+//           style: TextStyle(
+//             fontSize: 12,
+//             color: Colors.grey.shade600,
+//             fontWeight: FontWeight.w500,
+//           ),
+//         ),
+//         if (revenue != null && revenue > 0)
+//           Padding(
+//             padding: const EdgeInsets.only(top: 4),
+//             child: Text(
+//               '₹${NumberFormat.compact().format(revenue)}',
+//               style: TextStyle(
+//                 fontSize: 10,
+//                 color: Colors.grey.shade700,
+//                 fontWeight: FontWeight.w600,
+//               ),
+//             ),
+//           ),
+//       ],
+//     );
+//   }
+
+//   Widget _buildProductionCard(DashboardData dashboardData) {
+//     final progress = dashboardData.productionTarget > 0 
+//         ? dashboardData.productionToday / dashboardData.productionTarget 
+//         : 0;
+//     final isTargetAchieved = dashboardData.productionToday >= dashboardData.productionTarget;
+    
+//     return Card(
+//       margin: const EdgeInsets.symmetric(horizontal: 16),
+//       elevation: 2,
+//       shape: RoundedRectangleBorder(
+//         borderRadius: BorderRadius.circular(16),
+//       ),
+//       color: Colors.white,
+//       child: Padding(
+//         padding: const EdgeInsets.all(18),
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             Row(
+//               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//               children: [
+//                 const Text(
+//                   'Today\'s Production',
+//                   style: TextStyle(
+//                     fontSize: 18,
+//                     fontWeight: FontWeight.w600,
+//                     color: Colors.black87,
+//                   ),
+//                 ),
+//                 Container(
+//                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+//                   decoration: BoxDecoration(
+//                     color: isTargetAchieved 
+//                       ? Colors.green.withOpacity(0.1)
+//                       : Colors.orange.withOpacity(0.1),
+//                     borderRadius: BorderRadius.circular(6),
+//                   ),
+//                   child: Text(
+//                     isTargetAchieved ? 'Target Achieved' : 'In Progress',
+//                     style: TextStyle(
+//                       fontSize: 11,
+//                       fontWeight: FontWeight.w600,
+//                       color: isTargetAchieved ? Colors.green : Colors.orange,
+//                     ),
+//                   ),
+//                 ),
+//               ],
+//             ),
+//             const SizedBox(height: 16),
+            
+//             Row(
+//               children: [
+//                 Expanded(
+//                   child: Column(
+//                     crossAxisAlignment: CrossAxisAlignment.start,
+//                     children: [
+//                       Text(
+//                         'Progress',
+//                         style: TextStyle(
+//                           fontSize: 13,
+//                           color: Colors.grey.shade600,
+//                         ),
+//                       ),
+//                       const SizedBox(height: 8),
+//                       Text(
+//                         '${dashboardData.productionToday.toInt()} / ${dashboardData.productionTarget.toInt()}',
+//                         style: const TextStyle(
+//                           fontSize: 24,
+//                           fontWeight: FontWeight.w700,
+//                           color: Colors.black87,
+//                         ),
+//                       ),
+//                       Text(
+//                         'Bags Produced',
+//                         style: TextStyle(
+//                           fontSize: 14,
+//                           color: Colors.grey.shade600,
+//                         ),
+//                       ),
+//                     ],
+//                   ),
+//                 ),
+//                 SizedBox(
+//                   width: 100,
+//                   height: 100,
+//                   child: Stack(
+//                     alignment: Alignment.center,
+//                     children: [
+//                       CircularProgressIndicator(
+//                         value: progress > 1 ? 1.0 : progress.toDouble(),
+//                         strokeWidth: 10,
+//                         backgroundColor: Colors.grey.shade200,
+//                         valueColor: AlwaysStoppedAnimation<Color>(
+//                           isTargetAchieved ? Colors.green : GlobalColors.primaryBlue,
+//                         ),
+//                       ),
+//                       Column(
+//                         mainAxisAlignment: MainAxisAlignment.center,
+//                         children: [
+//                           Text(
+//                             '${(progress * 100).toStringAsFixed(0)}%',
+//                             style: const TextStyle(
+//                               fontSize: 20,
+//                               fontWeight: FontWeight.w700,
+//                               color: Colors.black87,
+//                             ),
+//                           ),
+//                           Text(
+//                             'Complete',
+//                             style: TextStyle(
+//                               fontSize: 11,
+//                               color: Colors.grey.shade600,
+//                             ),
+//                           ),
+//                         ],
+//                       ),
+//                     ],
+//                   ),
+//                 ),
+//               ],
+//             ),
+            
+//             const SizedBox(height: 16),
+//             LinearProgressIndicator(
+//               value: progress > 1 ? 1.0 : progress.toDouble(),
+//               backgroundColor: Colors.grey.shade200,
+//               valueColor: AlwaysStoppedAnimation<Color>(
+//                 isTargetAchieved ? Colors.green : GlobalColors.primaryBlue,
+//               ),
+//               minHeight: 8,
+//               borderRadius: BorderRadius.circular(4),
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildMaterialCostCard(DashboardData dashboardData) {
+//     final sortedMaterials = dashboardData.materialCostBreakdown.entries.toList()
+//       ..sort((a, b) => b.value.compareTo(a.value));
+    
+//     final totalCost = dashboardData.totalRawMaterialCost;
+    
+//     return Card(
+//       margin: const EdgeInsets.symmetric(horizontal: 16),
+//       elevation: 2,
+//       shape: RoundedRectangleBorder(
+//         borderRadius: BorderRadius.circular(16),
+//       ),
+//       color: Colors.white,
+//       child: Padding(
+//         padding: const EdgeInsets.all(18),
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             const Text(
+//               'Material Cost Breakdown',
+//               style: TextStyle(
+//                 fontSize: 18,
+//                 fontWeight: FontWeight.w600,
+//                 color: Colors.black87,
+//               ),
+//             ),
+//             const SizedBox(height: 4),
+//             Text(
+//               'This month',
+//               style: TextStyle(
+//                 fontSize: 13,
+//                 color: Colors.grey.shade600,
+//               ),
+//             ),
+//             const SizedBox(height: 16),
+            
+//             // Total Cost
+//             Container(
+//               padding: const EdgeInsets.all(12),
+//               decoration: BoxDecoration(
+//                 color: Colors.orange.withOpacity(0.1),
+//                 borderRadius: BorderRadius.circular(12),
+//                 border: Border.all(
+//                   color: Colors.orange.withOpacity(0.3),
+//                 ),
+//               ),
+//               child: Row(
+//                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                 children: [
+//                   Row(
+//                     children: [
+//                       Container(
+//                         padding: const EdgeInsets.all(6),
+//                         decoration: BoxDecoration(
+//                           color: Colors.orange.withOpacity(0.2),
+//                           borderRadius: BorderRadius.circular(8),
+//                         ),
+//                         child: const Icon(
+//                           Icons.inventory,
+//                           size: 20,
+//                           color: Colors.orange,
+//                         ),
+//                       ),
+//                       const SizedBox(width: 12),
+//                       const Text(
+//                         'Total Material Cost',
+//                         style: TextStyle(
+//                           fontSize: 14,
+//                           fontWeight: FontWeight.w600,
+//                           color: Colors.black87,
+//                         ),
+//                       ),
+//                     ],
+//                   ),
+//                   Text(
+//                     '₹${NumberFormat('#,##,###').format(totalCost)}',
+//                     style: const TextStyle(
+//                       fontSize: 16,
+//                       fontWeight: FontWeight.w700,
+//                       color: Colors.orange,
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//             ),
+            
+//             const SizedBox(height: 16),
+            
+//             // Material List
+//             ...sortedMaterials.take(5).map((entry) {
+//               final percentage = totalCost > 0 ? (entry.value / totalCost) * 100 : 0;
+              
+//               return Container(
+//                 margin: const EdgeInsets.only(bottom: 12),
+//                 child: Column(
+//                   children: [
+//                     Row(
+//                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                       children: [
+//                         Expanded(
+//                           child: Text(
+//                             entry.key,
+//                             style: const TextStyle(
+//                               fontSize: 14,
+//                               color: Colors.black87,
+//                             ),
+//                           ),
+//                         ),
+//                         Text(
+//                           '₹${NumberFormat('#,##,###').format(entry.value)}',
+//                           style: const TextStyle(
+//                             fontSize: 14,
+//                             fontWeight: FontWeight.w600,
+//                             color: Colors.orange,
+//                           ),
+//                         ),
+//                       ],
+//                     ),
+//                     const SizedBox(height: 6),
+//                     Row(
+//                       children: [
+//                         Expanded(
+//                           child: ClipRRect(
+//                             borderRadius: BorderRadius.circular(4),
+//                             child: LinearProgressIndicator(
+//                               value: percentage / 100,
+//                               backgroundColor: Colors.grey.shade200,
+//                               valueColor: AlwaysStoppedAnimation<Color>(
+//                                 Colors.orange,
+//                               ),
+//                               minHeight: 6,
+//                             ),
+//                           ),
+//                         ),
+//                         const SizedBox(width: 12),
+//                         Text(
+//                           '${percentage.toStringAsFixed(1)}%',
+//                           style: TextStyle(
+//                             fontSize: 12,
+//                             color: Colors.grey.shade700,
+//                             fontWeight: FontWeight.w600,
+//                           ),
+//                         ),
+//                       ],
+//                     ),
+//                   ],
+//                 ),
+//               );
+//             }).toList(),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildTopProducts(DashboardData dashboardData) {
+//     final topProducts = dashboardData.topProducts;
+
+//     return Card(
+//       margin: const EdgeInsets.symmetric(horizontal: 16),
+//       elevation: 2,
+//       shape: RoundedRectangleBorder(
+//         borderRadius: BorderRadius.circular(16),
+//       ),
+//       color: Colors.white,
+//       child: Padding(
+//         padding: const EdgeInsets.all(18),
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             const Text(
+//               'Top Selling Products',
+//               style: TextStyle(
+//                 fontSize: 18,
+//                 fontWeight: FontWeight.w600,
+//                 color: Colors.black87,
+//               ),
+//             ),
+//             const SizedBox(height: 4),
+//             Text(
+//               'By revenue',
+//               style: TextStyle(
+//                 fontSize: 13,
+//                 color: Colors.grey.shade600,
+//               ),
+//             ),
+//             const SizedBox(height: 16),
+            
+//             if (topProducts.isEmpty)
+//               Padding(
+//                 padding: const EdgeInsets.symmetric(vertical: 20),
+//                 child: Center(
+//                   child: Column(
+//                     children: [
+//                       Icon(
+//                         Icons.inventory,
+//                         color: Colors.grey.shade400,
+//                         size: 40,
+//                       ),
+//                       const SizedBox(height: 8),
+//                       Text(
+//                         'No product data',
+//                         style: TextStyle(
+//                           color: Colors.grey.shade500,
+//                           fontSize: 14,
+//                         ),
+//                       ),
+//                     ],
+//                   ),
+//                 ),
+//               )
+//             else
+//               Column(
+//                 children: topProducts.asMap().entries.map((entry) {
+//                   final index = entry.key;
+//                   final product = entry.value;
+//                   final rankColors = [
+//                     Colors.amber.shade700,
+//                     Colors.grey.shade600,
+//                     Colors.orange.shade700,
+//                   ];
+
+//                   return Container(
+//                     margin: EdgeInsets.only(bottom: index == topProducts.length - 1 ? 0 : 12),
+//                     padding: const EdgeInsets.all(12),
+//                     decoration: BoxDecoration(
+//                       color: Colors.grey.shade50,
+//                       borderRadius: BorderRadius.circular(12),
+//                       border: Border.all(
+//                         color: Colors.grey.shade200,
+//                         width: 1,
+//                       ),
+//                     ),
+//                     child: Row(
+//                       children: [
+//                         // Rank Badge
+//                         Container(
+//                           width: 40,
+//                           height: 40,
+//                           decoration: BoxDecoration(
+//                             color: rankColors[index].withOpacity(0.15),
+//                             borderRadius: BorderRadius.circular(10),
+//                             border: Border.all(
+//                               color: rankColors[index].withOpacity(0.3),
+//                               width: 1.5,
+//                             ),
+//                           ),
+//                           child: Center(
+//                             child: Text(
+//                               '${index + 1}',
+//                               style: TextStyle(
+//                                 fontSize: 16,
+//                                 fontWeight: FontWeight.w700,
+//                                 color: rankColors[index],
+//                               ),
+//                             ),
+//                           ),
+//                         ),
+//                         const SizedBox(width: 16),
+                        
+//                         // Product Info
+//                         Expanded(
+//                           child: Column(
+//                             crossAxisAlignment: CrossAxisAlignment.start,
+//                             children: [
+//                               Text(
+//                                 product['name'] as String,
+//                                 style: const TextStyle(
+//                                   fontSize: 15,
+//                                   fontWeight: FontWeight.w600,
+//                                   color: Colors.black87,
+//                                 ),
+//                                 maxLines: 1,
+//                                 overflow: TextOverflow.ellipsis,
+//                               ),
+//                               const SizedBox(height: 6),
+//                               Row(
+//                                 children: [
+//                                   Container(
+//                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+//                                     decoration: BoxDecoration(
+//                                       color: Colors.blue.withOpacity(0.1),
+//                                       borderRadius: BorderRadius.circular(6),
+//                                     ),
+//                                     child: Text(
+//                                       '${product['sales']} sales',
+//                                       style: TextStyle(
+//                                         fontSize: 12,
+//                                         color: Colors.blue.shade700,
+//                                         fontWeight: FontWeight.w500,
+//                                       ),
+//                                     ),
+//                                   ),
+//                                   const SizedBox(width: 12),
+//                                   Text(
+//                                     '₹${NumberFormat('#,##,###').format(product['revenue'])}',
+//                                     style: TextStyle(
+//                                       fontSize: 14,
+//                                       color: Colors.green.shade700,
+//                                       fontWeight: FontWeight.w600,
+//                                     ),
+//                                   ),
+//                                 ],
+//                               ),
+//                             ],
+//                           ),
+//                         ),
+                        
+//                         // Revenue Indicator
+//                         Container(
+//                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+//                           decoration: BoxDecoration(
+//                             color: Colors.green.withOpacity(0.1),
+//                             borderRadius: BorderRadius.circular(20),
+//                             border: Border.all(
+//                               color: Colors.green.withOpacity(0.3),
+//                               width: 1,
+//                             ),
+//                           ),
+//                           child: Text(
+//                             '₹${NumberFormat.compact().format(product['revenue'])}',
+//                             style: const TextStyle(
+//                               fontSize: 12,
+//                               color: Colors.green,
+//                               fontWeight: FontWeight.w600,
+//                             ),
+//                           ),
+//                         ),
+//                       ],
+//                     ),
+//                   );
+//                 }).toList(),
+//               ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildRecentActivities(DashboardData dashboardData) {
+//     final recentActivities = dashboardData.recentActivities;
+
+//     return Card(
+//       margin: const EdgeInsets.symmetric(horizontal: 16),
+//       elevation: 2,
+//       shape: RoundedRectangleBorder(
+//         borderRadius: BorderRadius.circular(16),
+//       ),
+//       color: Colors.white,
+//       child: Padding(
+//         padding: const EdgeInsets.all(18),
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             const Text(
+//               'Recent Activities',
+//               style: TextStyle(
+//                 fontSize: 18,
+//                 fontWeight: FontWeight.w600,
+//                 color: Colors.black87,
+//               ),
+//             ),
+//             const SizedBox(height: 4),
+//             Text(
+//               'Latest updates',
+//               style: TextStyle(
+//                 fontSize: 13,
+//                 color: Colors.grey.shade600,
+//               ),
+//             ),
+//             const SizedBox(height: 16),
+            
+//             if (recentActivities.isEmpty)
+//               Padding(
+//                 padding: const EdgeInsets.symmetric(vertical: 20),
+//                 child: Center(
+//                   child: Column(
+//                     children: [
+//                       Icon(
+//                         Icons.notifications_none,
+//                         color: Colors.grey.shade400,
+//                         size: 40,
+//                       ),
+//                       const SizedBox(height: 8),
+//                       Text(
+//                         'No recent activities',
+//                         style: TextStyle(
+//                           color: Colors.grey.shade500,
+//                           fontSize: 14,
+//                         ),
+//                       ),
+//                     ],
+//                   ),
+//                 ),
+//               )
+//             else
+//               Column(
+//                 children: recentActivities.map((activity) {
+//                   final icon = activity['icon'] as IconData;
+//                   final color = activity['color'] as Color;
+                  
+//                   return Container(
+//                     margin: const EdgeInsets.only(bottom: 12),
+//                     child: Row(
+//                       crossAxisAlignment: CrossAxisAlignment.start,
+//                       children: [
+//                         // Activity Icon
+//                         Container(
+//                           width: 40,
+//                           height: 40,
+//                           decoration: BoxDecoration(
+//                             color: color.withOpacity(0.1),
+//                             borderRadius: BorderRadius.circular(12),
+//                             border: Border.all(
+//                               color: color.withOpacity(0.2),
+//                               width: 1,
+//                             ),
+//                           ),
+//                           child: Icon(
+//                             icon,
+//                             color: color,
+//                             size: 20,
+//                           ),
+//                         ),
+//                         const SizedBox(width: 12),
+                        
+//                         // Activity Details
+//                         Expanded(
+//                           child: Column(
+//                             crossAxisAlignment: CrossAxisAlignment.start,
+//                             children: [
+//                               Row(
+//                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                                 crossAxisAlignment: CrossAxisAlignment.start,
+//                                 children: [
+//                                   Expanded(
+//                                     child: Text(
+//                                       activity['title'] as String,
+//                                       style: const TextStyle(
+//                                         fontSize: 14,
+//                                         fontWeight: FontWeight.w600,
+//                                         color: Colors.black87,
+//                                       ),
+//                                       maxLines: 1,
+//                                       overflow: TextOverflow.ellipsis,
+//                                     ),
+//                                   ),
+//                                   Text(
+//                                     activity['time'] as String,
+//                                     style: TextStyle(
+//                                       fontSize: 11,
+//                                       color: Colors.grey.shade500,
+//                                       fontWeight: FontWeight.w500,
+//                                     ),
+//                                   ),
+//                                 ],
+//                               ),
+//                               const SizedBox(height: 4),
+//                               if (activity['description'] != null)
+//                                 Text(
+//                                   activity['description'] as String,
+//                                   style: TextStyle(
+//                                     fontSize: 12,
+//                                     color: Colors.grey.shade600,
+//                                   ),
+//                                   maxLines: 2,
+//                                   overflow: TextOverflow.ellipsis,
+//                                 ),
+//                             ],
+//                           ),
+//                         ),
+//                       ],
+//                     ),
+//                   );
+//                 }).toList(),
+//               ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+// }
 
 
 

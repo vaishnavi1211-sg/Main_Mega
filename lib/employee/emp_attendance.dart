@@ -223,13 +223,13 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
       try {
         position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.best,
-          timeLimit: Duration(seconds: 15),
+          timeLimit: const Duration(seconds: 15),
         );
       } on TimeoutException catch (e) {
         debugPrint('Location timeout: $e');
         position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.medium,
-          timeLimit: Duration(seconds: 10),
+          timeLimit: const Duration(seconds: 10),
         );
       }
 
@@ -402,20 +402,24 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
       }
     } catch (e) {
       debugPrint('Camera error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to take photo: $e'),
-          backgroundColor: GlobalColors.danger,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to take photo: $e'),
+            backgroundColor: GlobalColors.danger,
+          ),
+        );
+      }
     } finally {
-      setState(() {
-        if (isSelfie) {
-          _isCapturingSelfie = false;
-        } else {
-          _isCapturingMeter = false;
-        }
-      });
+      if (mounted) {
+        setState(() {
+          if (isSelfie) {
+            _isCapturingSelfie = false;
+          } else {
+            _isCapturingMeter = false;
+          }
+        });
+      }
     }
   }
 
@@ -437,12 +441,14 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
       }
     } catch (e) {
       debugPrint('Gallery error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to pick image: $e'),
-          backgroundColor: GlobalColors.danger,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick image: $e'),
+            backgroundColor: GlobalColors.danger,
+          ),
+        );
+      }
     }
   }
 
@@ -450,24 +456,20 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
     try {
       debugPrint('Starting image upload to folder: $folderName');
       
-      // Check if user is authenticated
       final user = supabase.auth.currentUser;
       if (user == null) {
         debugPrint('No authenticated user found');
         return null;
       }
 
-      // Create unique filename
       final String fileName = '${DateTime.now().millisecondsSinceEpoch}_${user.id.substring(0, 8)}.jpg';
       final String path = '$folderName/$fileName';
       
       debugPrint('Uploading to path: $path');
       
-      // Read image bytes
       final bytes = await xFile.readAsBytes();
       debugPrint('Image size: ${bytes.length} bytes');
       
-      // Try to upload
       try {
         await supabase.storage.from('employee_uploads').uploadBinary(
           path, 
@@ -481,7 +483,6 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
       } catch (uploadError) {
         debugPrint('Upload failed: $uploadError');
         
-        // Try alternative method if first fails
         try {
           final file = File(xFile.path);
           await supabase.storage.from('employee_uploads').upload(
@@ -499,33 +500,12 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
         }
       }
 
-      // Get public URL
       final url = supabase.storage.from('employee_uploads').getPublicUrl(path);
       debugPrint('Generated URL: $url');
       
       return url;
     } catch (e) {
       debugPrint("Upload Error: $e");
-      debugPrint("Error type: ${e.runtimeType}");
-      debugPrint("Stack trace: ${e.toString()}");
-      return null;
-    }
-  }
-
-  // ALTERNATIVE: Simple upload method without storage (save URLs in database)
-  Future<Map<String, String>?> _uploadImagesAlternative() async {
-    try {
-      // For testing, you can use placeholder URLs
-      // In production, you'd upload to storage
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final userId = supabase.auth.currentUser?.id ?? 'unknown';
-      
-      return {
-        'selfie_url': 'selfie_${userId}_$timestamp.jpg',
-        'meter_photo_url': 'meter_${userId}_$timestamp.jpg',
-      };
-    } catch (e) {
-      debugPrint('Alternative upload failed: $e');
       return null;
     }
   }
@@ -547,85 +527,145 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
       final attendanceProvider = context.read<AttendanceProvider>();
       final employeeProvider = context.read<EmployeeProvider>();
       final empName = employeeProvider.profile?['full_name'] ?? 'Employee';
-
-      debugPrint('Starting attendance submission...');
       
-      // Try to upload images
-      String? selfieUrl;
-      String? meterUrl;
-      
-      try {
-        selfieUrl = await _uploadImage(_selfieImage!, 'selfies');
-        meterUrl = await _uploadImage(_meterImage!, 'meters');
-        
-        if (selfieUrl == null || meterUrl == null) {
-          debugPrint('Image upload failed, trying alternative method...');
-          final urls = await _uploadImagesAlternative();
-          if (urls != null) {
-            selfieUrl = urls['selfie_url'];
-            meterUrl = urls['meter_photo_url'];
-          }
-        }
-      } catch (uploadError) {
-        debugPrint('Upload error caught: $uploadError');
-        // Use placeholder URLs if upload fails
-        final timestamp = DateTime.now().millisecondsSinceEpoch;
-        selfieUrl = 'selfie_placeholder_$timestamp.jpg';
-        meterUrl = 'meter_placeholder_$timestamp.jpg';
-      }
-
-      if (selfieUrl == null || meterUrl == null) {
-        throw "Could not generate image URLs.";
-      }
-
-      debugPrint('Selfie URL: $selfieUrl');
-      debugPrint('Meter URL: $meterUrl');
-      
-      // Prepare data for insertion
       final now = DateTime.now();
       final date = now.toIso8601String().split('T')[0];
       final time = now.toIso8601String().split('T')[1].split('.')[0];
       final location = _address.replaceFirst('🏠 ', '');
-      
-      final attendanceData = {
-        'employee_id': supabase.auth.currentUser?.id,
-        'employee_name': empName,
-        'date': date,
-        'marked_time': time,
-        'location': location,
-        'selfie_url': selfieUrl,
-        'meter_photo_url': meterUrl,
-        'created_at': now.toIso8601String(),
-      };
 
-      debugPrint('Inserting attendance data: $attendanceData');
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) {
+        throw Exception('No user logged in');
+      }
+
+      // Check if already marked
+      final existingRecord = await supabase
+          .from('emp_attendance')
+          .select('id')
+          .eq('employee_id', userId)
+          .eq('date', date)
+          .maybeSingle();
+
+      if (existingRecord != null) {
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Attendance already marked for today!"),
+            backgroundColor: GlobalColors.warning,
+          ),
+        );
+        return;
+      }
+
+      // Insert attendance record with placeholder URLs
+      final timestamp = now.millisecondsSinceEpoch;
+      final placeholderSelfieUrl = 'pending_selfie_${userId}_$timestamp.jpg';
+      final placeholderMeterUrl = 'pending_meter_${userId}_$timestamp.jpg';
       
-      // Insert into emp_attendance table
       final response = await supabase
           .from('emp_attendance')
-          .insert(attendanceData)
-          .select();
-      
-      debugPrint('Insert response: $response');
+          .insert({
+            'employee_id': userId,
+            'employee_name': empName,
+            'date': date,
+            'marked_time': time,
+            'location': location,
+            'selfie_url': placeholderSelfieUrl,
+            'meter_photo_url': placeholderMeterUrl,
+            'created_at': now.toIso8601String(),
+          })
+          .select()
+          .single();
 
-      // Update provider state
-      await attendanceProvider.checkTodayAttendance();
-      
+      // Show success UI immediately
       if (mounted) {
-        setState(() => _submissionSuccessful = true);
+        setState(() {
+          _submissionSuccessful = true;
+          _showConfirmation = true;
+          _isSubmitting = false;
+        });
+        
         _showSuccess();
       }
+
+      // Update provider
+      await attendanceProvider.checkTodayAttendance();
+      
+      // Upload images in background
+      _uploadImagesInBackground(
+        selfieImage: _selfieImage!,
+        meterImage: _meterImage!,
+        attendanceId: response['id'],
+        userId: userId,
+        timestamp: timestamp,
+      );
       
     } catch (e) {
       debugPrint('Submission error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Error submitting attendance: ${e.toString()}"), 
-          backgroundColor: GlobalColors.danger
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error submitting attendance: ${e.toString()}"), 
+            backgroundColor: GlobalColors.danger
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _uploadImagesInBackground({
+    required XFile selfieImage,
+    required XFile meterImage,
+    required dynamic attendanceId,
+    required String userId,
+    required int timestamp,
+  }) async {
+    try {
+      debugPrint('Starting background image upload for attendance ID: $attendanceId');
+      
+      String? selfieUrl;
+      String? meterUrl;
+      
+      // Upload selfie
+      try {
+        selfieUrl = await _uploadImage(selfieImage, 'selfies');
+        debugPrint('Selfie uploaded: $selfieUrl');
+      } catch (e) {
+        debugPrint('Selfie upload failed: $e');
+      }
+      
+      // Upload meter photo
+      try {
+        meterUrl = await _uploadImage(meterImage, 'meters');
+        debugPrint('Meter photo uploaded: $meterUrl');
+      } catch (e) {
+        debugPrint('Meter photo upload failed: $e');
+      }
+      
+      // Update the record with actual URLs
+      final updateData = <String, dynamic>{};
+      
+      if (selfieUrl != null) {
+        updateData['selfie_url'] = selfieUrl;
+      }
+      
+      if (meterUrl != null) {
+        updateData['meter_photo_url'] = meterUrl;
+      }
+      
+      if (updateData.isNotEmpty) {
+        await supabase
+            .from('emp_attendance')
+            .update(updateData)
+            .eq('id', attendanceId);
+            
+        debugPrint('Attendance record #$attendanceId updated with image URLs');
+      }
+      
+    } catch (e) {
+      debugPrint('Background upload error: $e');
     }
   }
 
@@ -633,28 +673,117 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        title: Icon(
-          Icons.check_circle, 
-          color: AppColors.success, 
-          size: 50
-        ),
-        content: const Text(
-          "Attendance submitted successfully!", 
-          textAlign: TextAlign.center
-        ),
-        actions: [
-          Center(
-            child: TextButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                setState(() => _showConfirmation = true);
-              },
-              child: const Text("OK"),
+      builder: (ctx) => WillPopScope(
+        onWillPop: () async => false,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.check_circle, 
+                  color: AppColors.success, 
+                  size: 50
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                "Attendance Marked!",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Your attendance has been recorded successfully.",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.softGreyBg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Uploading photos...",
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primaryText,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            "This will continue in background",
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.secondaryText,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryBlue,
+                    foregroundColor: GlobalColors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text(
+                    "OK",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
             ),
-          )
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -698,6 +827,34 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
               ),
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Photos uploading in background',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.warning,
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 24),
             
             Row(
@@ -736,40 +893,18 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
                   style: TextStyle(color: AppColors.secondaryText)
                 ),
                 const SizedBox(height: 4),
-                if (_location.contains('\n'))
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: _location.split('\n').map((line) {
-                      final isFirstLine = line.contains('📍');
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Text(
-                          line.replaceFirst('📍 ', '').replaceFirst('🏠 ', ''),
-                          style: TextStyle(
-                            fontSize: isFirstLine ? 12 : 14,
-                            fontWeight: FontWeight.w500,
-                            color: _permissionDenied || _serviceDisabled 
-                                ? GlobalColors.danger 
-                                : _isLocationAccurate() 
-                                  ? AppColors.success 
-                                  : GlobalColors.warning,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  )
-                else
-                  Text(
-                    _location,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      color: _permissionDenied || _serviceDisabled 
-                          ? GlobalColors.danger 
-                          : _isLocationAccurate() 
-                            ? AppColors.success 
-                            : GlobalColors.warning,
-                    ),
+                Text(
+                  _location.replaceAll('📍 ', '').replaceAll('🏠 ', ''),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: _permissionDenied || _serviceDisabled 
+                        ? GlobalColors.danger 
+                        : _isLocationAccurate() 
+                          ? AppColors.success 
+                          : GlobalColors.warning,
                   ),
+                ),
               ],
             ),
             
@@ -874,12 +1009,11 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
                         ),
                         if (_isGettingLocation) ...[
                           const SizedBox(width: 8),
-                          SizedBox(
+                          const SizedBox(
                             width: 12,
                             height: 12,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: AppColors.primaryBlue,
                             ),
                           ),
                         ]
@@ -1127,7 +1261,6 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Employee Info Card
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -1174,7 +1307,6 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
         
         const SizedBox(height: 20),
         
-        // Date & Time Cards
         Row(
           children: [
             Expanded(
@@ -1263,7 +1395,6 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
         
         const SizedBox(height: 20),
         
-        // Selfie Photo Section
         Text(
           'Selfie Photo',
           style: TextStyle(
@@ -1277,7 +1408,6 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
         
         const SizedBox(height: 20),
         
-        // Meter Photo Section
         Text(
           'Meter Photo',
           style: TextStyle(
@@ -1291,10 +1421,8 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
         
         const SizedBox(height: 20),
         
-        // Location Widget
         _buildLocationWidget(),
         
-        // Location status warning
         if ((_permissionDenied || _serviceDisabled) && !_isGettingLocation)
           Container(
             margin: const EdgeInsets.only(top: 8),
@@ -1329,7 +1457,6 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
             ),
           ),
         
-        // Low accuracy warning
         if (_currentPosition != null && 
             _currentPosition!.accuracy > 50 && 
             !_permissionDenied && 
@@ -1368,7 +1495,6 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
         
         const SizedBox(height: 30),
         
-        // Submit Button
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
@@ -1430,7 +1556,6 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
         
         const SizedBox(height: 12),
         
-        // Image Preview
         if (isCapturing)
           Container(
             height: 200,
@@ -1466,6 +1591,8 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
                   child: Image.file(
                     File(currentImage.path),
                     fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: 200,
                   ),
                 ),
                 Positioned(
@@ -1531,7 +1658,6 @@ class _EmployeeAttendancePageState extends State<EmployeeAttendancePage> {
     );
   }
 }
-
 
 
 

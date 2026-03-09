@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -11,6 +13,7 @@ class OrderProvider with ChangeNotifier {
   bool loading = false;
   String? error;
 
+  // Order counts - these will be accurate and employee-specific
   int totalOrders = 0;
   int pendingOrders = 0;
   int completedOrders = 0;
@@ -25,19 +28,417 @@ class OrderProvider with ChangeNotifier {
   // Pagination variables
   bool _hasMoreData = true;
   int _page = 0;
-  int _limit = 20;
+  int _limit = 200;
   bool _initialLoadComplete = false;
+
+  // Current employee ID
+  String? _currentEmployeeId;
 
   // Notification state
   bool _sendingNotification = false;
   String? _notificationError;
 
-  // Tracking base URL
-// Change this line in your OrderProvider:
-final String _trackingBaseUrl =
-  'https://phkkiyxfcepqauxncqpm.supabase.co/functions/v1/tracking';
-      OrderProvider() {
+  // Auth state listener
+  StreamSubscription<AuthState>? _authSubscription;
+
+  // Tracking base URL  
+  OrderProvider() {
     _orderService = OrderService(supabase);
+    _initAuthListener();
+    _getCurrentEmployeeId();
+  }
+
+  // ========================
+  // INIT AUTH LISTENER
+  // ========================
+  void _initAuthListener() {
+    _authSubscription = supabase.auth.onAuthStateChange.listen((data) {
+      final session = data.session;
+      if (session != null) {
+        // User logged in
+        _currentEmployeeId = session.user.id;
+        print('👤 Auth: User logged in - ID: $_currentEmployeeId');
+        // Clear old data and reload for new user
+        _clearData();
+        quickLoad();
+      } else {
+        // User logged out
+        print('👤 Auth: User logged out');
+        _currentEmployeeId = null;
+        _clearData();
+      }
+      notifyListeners();
+    });
+  }
+
+  // ========================
+  // CLEAR DATA ON LOGOUT
+  // ========================
+  void _clearData() {
+    totalOrders = 0;
+    pendingOrders = 0;
+    completedOrders = 0;
+    packingOrders = 0;
+    readyForDispatchOrders = 0;
+    dispatchedOrders = 0;
+    deliveredOrders = 0;
+    cancelledOrders = 0;
+    orders = [];
+    _page = 0;
+    _hasMoreData = true;
+    _initialLoadComplete = false;
+    error = null;
+  }
+
+  // ========================
+  // DISPOSE
+  // ========================
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
+
+  // ========================
+  // GET CURRENT EMPLOYEE ID
+  // ========================
+  Future<void> _getCurrentEmployeeId() async {
+    final user = supabase.auth.currentUser;
+    if (user != null) {
+      _currentEmployeeId = user.id;
+      print('👤 Current employee ID: $_currentEmployeeId');
+      // Load data for this user
+      await quickLoad();
+    } else {
+      _clearData();
+    }
+  }
+
+  // Helper method to ensure employee ID is available
+  String? _ensureEmployeeId() {
+    // Always get fresh user from auth
+    final user = supabase.auth.currentUser;
+    if (user != null) {
+      // Update if changed
+      if (_currentEmployeeId != user.id) {
+        _currentEmployeeId = user.id;
+        print('👤 Employee ID updated to: $_currentEmployeeId');
+        // Clear old data when user changes
+        _clearData();
+      }
+      return _currentEmployeeId;
+    }
+    
+    // No user logged in
+    if (_currentEmployeeId != null) {
+      _currentEmployeeId = null;
+      _clearData();
+    }
+    return null;
+  }
+
+  // ========================
+  // FETCH ACCURATE ORDER COUNTS (Employee-specific)
+  // ========================
+  Future<void> fetchOrderCounts() async {
+    try {
+      final employeeId = _ensureEmployeeId();
+      if (employeeId == null) {
+        print('⚠️ No employee logged in');
+        return;
+      }
+
+      print('📊 Fetching accurate order counts for employee: $employeeId');
+
+      // Get total orders count - filtered by employee_id
+      final totalCount = await supabase
+          .from('emp_mar_orders')
+          .count(CountOption.exact)
+          .eq('employee_id', employeeId);
+
+      // Get counts by status - all filtered by employee_id
+      final pendingCount = await supabase
+          .from('emp_mar_orders')
+          .count(CountOption.exact)
+          .eq('employee_id', employeeId)
+          .eq('status', 'pending');
+
+      final completedCount = await supabase
+          .from('emp_mar_orders')
+          .count(CountOption.exact)
+          .eq('employee_id', employeeId)
+          .eq('status', 'completed');
+
+      final packingCount = await supabase
+          .from('emp_mar_orders')
+          .count(CountOption.exact)
+          .eq('employee_id', employeeId)
+          .eq('status', 'packing');
+
+      final readyForDispatchCount = await supabase
+          .from('emp_mar_orders')
+          .count(CountOption.exact)
+          .eq('employee_id', employeeId)
+          .eq('status', 'ready_for_dispatch');
+
+      final dispatchedCount = await supabase
+          .from('emp_mar_orders')
+          .count(CountOption.exact)
+          .eq('employee_id', employeeId)
+          .eq('status', 'dispatched');
+
+      final deliveredCount = await supabase
+          .from('emp_mar_orders')
+          .count(CountOption.exact)
+          .eq('employee_id', employeeId)
+          .eq('status', 'delivered');
+
+      final cancelledCount = await supabase
+          .from('emp_mar_orders')
+          .count(CountOption.exact)
+          .eq('employee_id', employeeId)
+          .eq('status', 'cancelled');
+
+      // Update the counts
+      totalOrders = totalCount;
+      pendingOrders = pendingCount;
+      completedOrders = completedCount;
+      packingOrders = packingCount;
+      readyForDispatchOrders = readyForDispatchCount;
+      dispatchedOrders = dispatchedCount;
+      deliveredOrders = deliveredCount;
+      cancelledOrders = cancelledCount;
+
+      print('✅ Accurate order counts fetched for employee $employeeId:');
+      print('   Total: $totalOrders');
+      print('   Pending: $pendingOrders');
+      print('   Completed: $completedOrders');
+      print('   Packing: $packingOrders');
+      print('   Ready for Dispatch: $readyForDispatchOrders');
+      print('   Dispatched: $dispatchedOrders');
+      print('   Delivered: $deliveredOrders');
+      print('   Cancelled: $cancelledOrders');
+
+      notifyListeners();
+
+    } catch (e) {
+      print('❌ Error fetching order counts: $e');
+    }
+  }
+
+  // ========================
+  // FETCH ORDERS WITH COUNTS (Employee-specific)
+  // ========================
+  Future<void> fetchOrdersWithCounts({bool loadMore = false, String? status}) async {
+    try {
+      final employeeId = _ensureEmployeeId();
+      if (employeeId == null) {
+        orders = [];
+        notifyListeners();
+        return;
+      }
+
+      if (!loadMore) {
+        _page = 0;
+        _hasMoreData = true;
+        orders.clear();
+      }
+
+      if (!_hasMoreData && loadMore) return;
+
+      loading = true;
+      notifyListeners();
+
+      // First fetch the counts (employee-specific)
+      await fetchOrderCounts();
+
+      // Then fetch the paginated orders (employee-specific)
+      final data = await _orderService.getOrders(
+        limit: _limit,
+        offset: _page * _limit,
+        status: status,
+        employeeId: employeeId, // This ensures only employee's orders
+      );
+
+      final newOrders = data.map((order) {
+        return {...order, 'display_id': _getDisplayOrderId(order)};
+      }).toList();
+
+      if (newOrders.length < _limit) {
+        _hasMoreData = false;
+      }
+
+      if (loadMore) {
+        orders.addAll(newOrders);
+      } else {
+        orders = newOrders;
+      }
+
+      _page++;
+      _initialLoadComplete = true;
+      error = null;
+      
+      print('📦 Fetched ${newOrders.length} orders for employee $employeeId (page $_page)');
+      
+    } catch (e) {
+      error = 'Failed to fetch orders: $e';
+      debugPrint("❌ Fetch orders failed: $e");
+    } finally {
+      loading = false;
+      notifyListeners();
+    }
+  }
+
+  // ========================
+  // GET ORDERS BY DISTRICT (Employee-specific)
+  // ========================
+  Future<Map<String, dynamic>> getOrdersByDistrict(String district) async {
+    try {
+      final employeeId = _ensureEmployeeId();
+      if (employeeId == null) return {};
+
+      // Get counts for specific district - filtered by employee_id
+      final totalInDistrict = await supabase
+          .from('emp_mar_orders')
+          .count(CountOption.exact)
+          .eq('employee_id', employeeId)
+          .eq('district', district);
+
+      final completedInDistrict = await supabase
+          .from('emp_mar_orders')
+          .count(CountOption.exact)
+          .eq('employee_id', employeeId)
+          .eq('district', district)
+          .eq('status', 'completed');
+
+      return {
+        'total': totalInDistrict,
+        'completed': completedInDistrict,
+      };
+
+    } catch (e) {
+      print('❌ Error getting orders by district: $e');
+      return {};
+    }
+  }
+
+  // ========================
+  // GET MONTHLY COMPLETED ORDERS (for dashboard charts)
+  // ========================
+  Future<List<double>> getMonthlyCompletedOrders(int year) async {
+    try {
+      final employeeId = _ensureEmployeeId();
+      if (employeeId == null) return List.filled(12, 0.0);
+
+      print('📊 Fetching monthly completed orders for employee $employeeId, year $year');
+
+      // Fetch all completed orders for this employee in the given year
+      final orders = await supabase
+          .from('emp_mar_orders')
+          .select('bags, created_at')
+          .eq('employee_id', employeeId)
+          .eq('status', 'completed')
+          .gte('created_at', '$year-01-01')
+          .lte('created_at', '$year-12-31');
+
+      // Initialize monthly totals
+      final monthlyTotals = List<double>.filled(12, 0.0);
+
+      // Sum bags by month
+      for (var order in orders) {
+        final createdAt = order['created_at'] as String?;
+        final bags = (order['bags'] as num?)?.toDouble() ?? 0.0;
+        
+        if (createdAt != null) {
+          try {
+            final date = DateTime.parse(createdAt);
+            final monthIndex = date.month - 1;
+            if (monthIndex >= 0 && monthIndex < 12) {
+              monthlyTotals[monthIndex] += bags;
+            }
+          } catch (e) {
+            print('⚠️ Error parsing date: $e');
+          }
+        }
+      }
+
+      print('✅ Monthly completed orders: $monthlyTotals');
+      return monthlyTotals;
+
+    } catch (e) {
+      print('❌ Error fetching monthly completed orders: $e');
+      return List.filled(12, 0.0);
+    }
+  }
+
+  // ========================
+  // GET ORDERS BY DATE RANGE   
+  // ========================
+  Future<List<Map<String, dynamic>>> getOrdersByDateRange(
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    try {
+      final employeeId = _ensureEmployeeId();
+      if (employeeId == null) return [];
+
+      final response = await supabase
+          .from('emp_mar_orders')
+          .select()
+          .eq('employee_id', employeeId)
+          .gte('created_at', startDate.toIso8601String())
+          .lte('created_at', endDate.toIso8601String())
+          .order('created_at', ascending: false);
+
+      return response.map((order) {
+        return {...order, 'display_id': _getDisplayOrderId(order)};
+      }).toList();
+
+    } catch (e) {
+      print('❌ Error fetching orders by date range: $e');
+      return [];
+    }
+  }
+
+  // ========================
+  // GET ORDER STATISTICS (Employee-specific)
+  // ========================
+  Future<Map<String, dynamic>> getEmployeeStatistics() async {
+    try {
+      final employeeId = _ensureEmployeeId();
+      if (employeeId == null) return {};
+
+      // Get total revenue
+      final revenueResponse = await supabase
+          .from('emp_mar_orders')
+          .select('total_price')
+          .eq('employee_id', employeeId);
+
+      double totalRevenue = 0;
+      for (var order in revenueResponse) {
+        totalRevenue += (order['total_price'] as num?)?.toDouble() ?? 0;
+      }
+
+      // Get average order value
+      final avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+      // Get completion rate
+      final completionRate = totalOrders > 0 
+          ? (completedOrders / totalOrders) * 100 
+          : 0;
+
+      return {
+        'total_orders': totalOrders,
+        'total_revenue': totalRevenue,
+        'average_order_value': avgOrderValue,
+        'completion_rate': completionRate,
+        'pending_orders': pendingOrders,
+        'completed_orders': completedOrders,
+      };
+
+    } catch (e) {
+      print('❌ Error getting employee statistics: $e');
+      return {};
+    }
   }
 
   // ========================
@@ -47,103 +448,95 @@ final String _trackingBaseUrl =
     final trackingId = order['tracking_id']?.toString() ?? '';
     final trackingToken = order['tracking_token']?.toString() ?? '';
     
-    if (trackingId.isEmpty) {
-      return '';
-    }
+    if (trackingId.isEmpty) return '';
     
-    if (trackingToken.isNotEmpty) {
-      return '$_trackingBaseUrl?id=$trackingId&token=$trackingToken';
-    } else {
-      return '$_trackingBaseUrl?id=$trackingId';
-    }
+    // Direct link to HTML file in storage
+    return 'https://phkkiyxfcepqauxncqpm.supabase.co/storage/v1/object/public/tracking/tracker.html?id=$trackingId&token=$trackingToken';
   }
-
 
   // ========================
   // CREATE ORDER WITH NOTIFICATIONS
   // ========================
- // ========================
-// CREATE ORDER WITH NOTIFICATIONS - UPDATED (no dialog)
-// ========================
-Future<Map<String, dynamic>> createOrder(Map<String, dynamic> data, BuildContext context) async {
-  try {
-    final user = supabase.auth.currentUser;
-    if (user == null) throw Exception("User not logged in");
+  Future<Map<String, dynamic>> createOrder(Map<String, dynamic> data, BuildContext context) async {
+    try {
+      final user = supabase.auth.currentUser;
+      if (user == null) throw Exception("User not logged in");
 
-    final int bags = data['bags'] as int;
-    final int weightPerBag = data['weight_per_bag'] as int;
-    final int pricePerBag = data['price_per_bag'] as int;
+      // Update current employee ID
+      _currentEmployeeId = user.id;
 
-    final int totalWeight = bags * weightPerBag;
-    final int totalPrice = bags * pricePerBag;
+      final int bags = data['bags'] as int;
+      final int weightPerBag = data['weight_per_bag'] as int;
+      final int pricePerBag = data['price_per_bag'] as int;
 
-    print('📝 Creating new order with data:');
-    print('   👤 Customer Name: ${data['customer_name']}');
-    print('   📱 Customer Mobile: ${data['customer_mobile']}');
-    print('   📧 Customer Email: ${data['customer_email'] ?? "Not provided"}');
-    print('   📍 District: ${data['district']}');
-    print('   📦 Bags: $bags');
-    print('   💰 Total Price: $totalPrice');
+      final int totalWeight = bags * weightPerBag;
+      final int totalPrice = bags * pricePerBag;
 
-    // Use OrderService to create order
-    final orderResponse = await _orderService.createOrder({
-      'employee_id': user.id,
-      'customer_name': data['customer_name'] as String,
-      'customer_mobile': data['customer_mobile'] as String,
-      'customer_address': data['customer_address'] as String,
-      'customer_email': data['customer_email'] as String?,
-      'district': data['district'] as String?,
-      'feed_category': data['feed_category'] as String,
-      'bags': bags,
-      'weight_per_bag': weightPerBag,
-      'weight_unit': data['weight_unit'] as String? ?? 'kg',
-      'total_weight': totalWeight,
-      'price_per_bag': pricePerBag,
-      'total_price': totalPrice,
-      'remarks': data['remarks'] as String?,
-      'status': 'pending',
-      'notification_sent': false,
-      'whatsapp_sent': false,
-      'email_sent': false,
-    });
+      print('📝 Creating new order for employee: ${user.id}');
+      print('   👤 Customer Name: ${data['customer_name']}');
+      print('   📱 Customer Mobile: ${data['customer_mobile']}');
+      print('   📧 Customer Email: ${data['customer_email'] ?? "Not provided"}');
+      print('   📍 District: ${data['district']}');
+      print('   📦 Bags: $bags');
+      print('   💰 Total Price: $totalPrice');
 
-    print('✅ Order saved successfully with ID: ${orderResponse['id']}');
-    print('📊 Order details: ${orderResponse['order_number']} - ${orderResponse['tracking_token']}');
-    print('🔗 Tracking ID: ${orderResponse['tracking_id']}');
-    print('🔗 Tracking Link: ${generateTrackingLink(orderResponse)}');
+      // Use OrderService to create order
+      final orderResponse = await _orderService.createOrder({
+        'employee_id': user.id,
+        'customer_name': data['customer_name'] as String,
+        'customer_mobile': data['customer_mobile'] as String,
+        'customer_address': data['customer_address'] as String,
+        'customer_email': data['customer_email'] as String?,
+        'district': data['district'] as String?,
+        'feed_category': data['feed_category'] as String,
+        'bags': bags,
+        'weight_per_bag': weightPerBag,
+        'weight_unit': data['weight_unit'] as String? ?? 'kg',
+        'total_weight': totalWeight,
+        'price_per_bag': pricePerBag,
+        'total_price': totalPrice,
+        'remarks': data['remarks'] as String?,
+        'status': 'pending',
+        'notification_sent': false,
+        'whatsapp_sent': false,
+        'email_sent': false,
+      });
 
-    // Show success message
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Order placed successfully! Order ID: ${orderResponse['order_number'] ?? 'N/A'}',
+      print('✅ Order saved successfully with ID: ${orderResponse['id']}');
+      
+      // Refresh counts after creating new order
+      await fetchOrderCounts();
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Order placed successfully! Order ID: ${orderResponse['order_number'] ?? 'N/A'}',
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 3),
           ),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    }
+        );
+      }
 
-    await quickLoad();
-    
-    return orderResponse;
+      await quickLoad();
+      
+      return orderResponse;
 
-  } catch (e) {
-    debugPrint("❌ Order insert failed: $e");
-    if (context.mounted) {
-      _showErrorSnackbar(context, "Failed to create order: ${e.toString()}");
+    } catch (e) {
+      debugPrint("❌ Order insert failed: $e");
+      if (context.mounted) {
+        _showErrorSnackbar(context, "Failed to create order: ${e.toString()}");
+      }
+      rethrow;
     }
-    rethrow;
   }
-}
 
   // ========================
   // WHATSAPP NOTIFICATION METHODS
   // ========================
-
   Future<void> sendOrderWhatsAppNotification({
     required BuildContext context,
     required String orderId,
@@ -167,9 +560,12 @@ Future<Map<String, dynamic>> createOrder(Map<String, dynamic> data, BuildContext
         throw Exception('Order not found');
       }
 
-      // DEBUG: Check what's in the order data
-      debugOrderData(orderData);
-      
+      // Verify this order belongs to the current employee
+      final employeeId = _ensureEmployeeId();
+      if (orderData['employee_id'] != employeeId) {
+        throw Exception('You do not have permission to access this order');
+      }
+
       final phoneNumber = orderData['customer_mobile']?.toString() ?? '';
       print('📱 Customer mobile: $phoneNumber');
       
@@ -179,10 +575,8 @@ Future<Map<String, dynamic>> createOrder(Map<String, dynamic> data, BuildContext
 
       // Generate message
       final message = _generateWhatsAppMessage(orderData, 'confirmation');
-      print('💬 Generated message length: ${message.length}');
-      print('📄 Generated message preview: ${message.substring(0, 100)}...');
 
-      // Send via WhatsApp with mobile-optimized method
+      // Send via WhatsApp
       print('📤 Launching WhatsApp...');
       final launched = await _launchWhatsAppMobile(phoneNumber, message);
       
@@ -200,7 +594,8 @@ Future<Map<String, dynamic>> createOrder(Map<String, dynamic> data, BuildContext
           'last_notification_sent_at': DateTime.now().toUtc().toIso8601String(),
           'updated_at': DateTime.now().toUtc().toIso8601String(),
         })
-        .eq('id', orderId);
+        .eq('id', orderId)
+        .eq('employee_id', employeeId as Object); // Extra safety: ensure employee owns this order
 
       if (showDialog && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -216,7 +611,6 @@ Future<Map<String, dynamic>> createOrder(Map<String, dynamic> data, BuildContext
 
     } catch (e) {
       print('❌ WhatsApp error: $e');
-      print('Stack trace: ${e.toString()}');
       
       if (showDialog && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -258,7 +652,7 @@ Future<Map<String, dynamic>> createOrder(Map<String, dynamic> data, BuildContext
     // First, try the intent method for Android
     final encodedMessage = Uri.encodeComponent(message.trim());
     
-    // Method 1: WhatsApp intent for Android (most reliable for pre-filled messages)
+    // Method 1: WhatsApp intent for Android
     final intentUri = 'intent://send?phone=$cleanPhone&text=$encodedMessage#Intent;package=com.whatsapp;scheme=whatsapp;end;';
     
     try {
@@ -272,7 +666,7 @@ Future<Map<String, dynamic>> createOrder(Map<String, dynamic> data, BuildContext
       print('❌ Intent method failed: $e');
     }
     
-    // Method 2: Traditional URL schemes (try multiple)
+    // Method 2: Traditional URL schemes
     List<String> whatsappUrls = [
       'https://wa.me/$cleanPhone?text=$encodedMessage',
       'whatsapp://send?phone=$cleanPhone&text=$encodedMessage',
@@ -353,6 +747,11 @@ Future<Map<String, dynamic>> createOrder(Map<String, dynamic> data, BuildContext
       final order = await fetchSingleOrder(orderId);
       if (order == null) throw Exception('Order not found');
 
+      final employeeId = _ensureEmployeeId();
+      if (order['employee_id'] != employeeId) {
+        throw Exception('You do not have permission to update this order');
+      }
+
       final phoneNumber = order['customer_mobile']?.toString() ?? '';
       if (phoneNumber.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -416,45 +815,25 @@ Future<Map<String, dynamic>> createOrder(Map<String, dynamic> data, BuildContext
     String? newStatus,
     String? notes,
   }) {
-    // DEBUG: Print what's in the order
-    print('🛠️ DEBUG: Generating WhatsApp message from order data');
-    print('Order keys: ${order.keys.toList()}');
-    print('order_number field: ${order['order_number']}');
-    print('order_number type: ${order['order_number']?.runtimeType}');
-    
-    // Get order number - handle database NULL value
+    // Get order number
     String orderNumber;
     final orderNumValue = order['order_number'];
     
     if (orderNumValue == null) {
-      print('⚠️ order_number is NULL in database');
-      
-      // Try to use id as fallback
       if (order['id'] != null) {
         final idStr = order['id'].toString();
-        if (idStr.length >= 8) {
-          orderNumber = 'ORD${idStr.substring(0, 8).toUpperCase()}';
-        } else {
-          orderNumber = 'ORD${idStr.toUpperCase()}';
-        }
-        print('🔄 Using ID as fallback: $orderNumber');
+        orderNumber = idStr.length >= 8 
+            ? 'ORD${idStr.substring(0, 8).toUpperCase()}'
+            : 'ORD${idStr.toUpperCase()}';
       } else {
         orderNumber = 'ORD${DateTime.now().millisecondsSinceEpoch.toString().substring(0, 8)}';
-        print('🔄 Using timestamp as fallback: $orderNumber');
       }
     } else {
-      // Convert to string and check if empty
       final orderNumStr = orderNumValue.toString();
-      if (orderNumStr.isEmpty) {
-        orderNumber = 'N/A';
-        print('⚠️ order_number is empty string');
-      } else {
-        orderNumber = orderNumStr;
-        print('✅ Using database order_number: $orderNumber');
-      }
+      orderNumber = orderNumStr.isEmpty ? 'N/A' : orderNumStr;
     }
     
-    // Get other fields with null safety
+    // Get other fields
     final customerName = order['customer_name']?.toString() ?? 'Customer';
     final product = order['feed_category']?.toString() ?? 'Cattle Feed';
     final bags = order['bags']?.toString() ?? '1';
@@ -464,7 +843,7 @@ Future<Map<String, dynamic>> createOrder(Map<String, dynamic> data, BuildContext
     final address = order['customer_address']?.toString() ?? '';
     final district = order['district']?.toString() ?? '';
     
-    // Generate tracking link using the new method
+    // Generate tracking link
     final trackingLink = generateTrackingLink(order);
 
     if (messageType == 'confirmation') {
@@ -529,58 +908,7 @@ _We appreciate your patience!_
   void debugOrderData(Map<String, dynamic> order) {
     print('🔍 DEBUG ORDER DATA:');
     print('Order keys: ${order.keys.toList()}');
-    
-    if (order.containsKey('order_number')) {
-      final value = order['order_number'];
-      print('order_number exists: true');
-      print('order_number value: $value');
-      print('order_number type: ${value.runtimeType}');
-      print('order_number is null: ${value == null}');
-      print('order_number toString: ${value.toString()}');
-      print('order_number isEmpty: ${value.toString().isEmpty}');
-    } else {
-      print('order_number exists: false');
-    }
-    
-    if (order.containsKey('id')) {
-      print('id: ${order['id']}');
-    }
-    
-    if (order.containsKey('tracking_id')) {
-      print('tracking_id: ${order['tracking_id']}');
-    }
-    
-    if (order.containsKey('tracking_token')) {
-      print('tracking_token: ${order['tracking_token']}');
-    }
-  }
-
-  Future<void> testDatabaseOrderNumber(String orderId) async {
-    try {
-      print('🔍 TEST: Checking database for order: $orderId');
-      
-      // Direct database query to see what's really there
-      final response = await supabase
-        .from('emp_mar_orders')
-        .select('id, order_number, tracking_id, tracking_token, customer_name, created_at')
-        .eq('id', orderId)
-        .single();
-      
-      print('📊 Database response:');
-      print('   ID: ${response['id']}');
-      print('   Order Number: ${response['order_number']}');
-      print('   Tracking ID: ${response['tracking_id']}');
-      print('   Tracking Token: ${response['tracking_token']}');
-      print('   Customer Name: ${response['customer_name']}');
-      print('   Created At: ${response['created_at']}');
-      
-      // Test tracking link generation
-      final link = generateTrackingLink(response);
-      print('🔗 Generated Tracking Link: $link');
-      
-    } catch (e) {
-      print('❌ Test failed: $e');
-    }
+    print('Employee ID: ${order['employee_id']}');
   }
 
   // ========================
@@ -600,6 +928,11 @@ _We appreciate your patience!_
       Map<String, dynamic> orderData = order ?? await fetchSingleOrder(orderId) ?? {};
       if (orderData.isEmpty) {
         throw Exception('Order not found');
+      }
+
+      final employeeId = _ensureEmployeeId();
+      if (orderData['employee_id'] != employeeId) {
+        throw Exception('You do not have permission to access this order');
       }
 
       final email = orderData['customer_email']?.toString() ?? '';
@@ -716,7 +1049,7 @@ Mega Pro Cattle Feed Team
             mode: LaunchMode.externalApplication,
           );
           
-          // Update database
+          // Update database with employee_id check
           await supabase
             .from('emp_mar_orders')
             .update({
@@ -725,7 +1058,8 @@ Mega Pro Cattle Feed Team
               'last_notification_sent_at': DateTime.now().toUtc().toIso8601String(),
               'updated_at': DateTime.now().toUtc().toIso8601String(),
             })
-            .eq('id', orderId);
+            .eq('id', orderId)
+            .eq('employee_id', employeeId as Object);
 
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -763,7 +1097,6 @@ Mega Pro Cattle Feed Team
   // ========================
   // RESEND NOTIFICATIONS
   // ========================
-
   Future<void> resendAllNotifications({
     required BuildContext context,
     required String orderId,
@@ -771,6 +1104,17 @@ Mega Pro Cattle Feed Team
     try {
       final order = await fetchSingleOrder(orderId);
       if (order == null) return;
+
+      final employeeId = _ensureEmployeeId();
+      if (order['employee_id'] != employeeId) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('You do not have permission to access this order'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
 
       final hasEmail = order['customer_email']?.toString().isNotEmpty ?? false;
       final hasWhatsApp = order['customer_mobile']?.toString().isNotEmpty ?? false;
@@ -873,36 +1217,37 @@ Mega Pro Cattle Feed Team
     );
   }
 
-
-
   // ========================
-  // EXISTING METHODS
+  // QUICK LOAD (for initial load) - Employee-specific
   // ========================
   Future<void> quickLoad() async {
+    // Don't use cached flag if no user
+    final employeeId = _ensureEmployeeId();
+    if (employeeId == null) {
+      orders = [];
+      notifyListeners();
+      return;
+    }
+
     if (_initialLoadComplete && orders.isNotEmpty) return;
 
     try {
       loading = true;
       notifyListeners();
 
-      final user = supabase.auth.currentUser;
-      if (user == null) {
-        orders = [];
-        notifyListeners();
-        return;
-      }
+      // First fetch accurate counts
+      await fetchOrderCounts();
 
-      // Use OrderService to fetch orders
+      // Then fetch first page of orders
       final data = await _orderService.getOrders(
         limit: 10,
-        employeeId: user.id,
+        employeeId: employeeId,
       );
 
       orders = data.map((order) {
         return {...order, 'display_id': _getDisplayOrderId(order)};
       }).toList();
 
-      _updateCountsFromOrders();
       _initialLoadComplete = true;
       error = null;
     } catch (e) {
@@ -914,8 +1259,18 @@ Mega Pro Cattle Feed Team
     }
   }
 
+  // ========================
+  // FETCH ORDERS (original method) - Employee-specific
+  // ========================
   Future<void> fetchOrders({bool loadMore = false, String? status}) async {
     try {
+      final employeeId = _ensureEmployeeId();
+      if (employeeId == null) {
+        orders = [];
+        notifyListeners();
+        return;
+      }
+
       if (!loadMore) {
         _page = 0;
         _hasMoreData = true;
@@ -927,19 +1282,12 @@ Mega Pro Cattle Feed Team
       loading = true;
       notifyListeners();
 
-      final user = supabase.auth.currentUser;
-      if (user == null) {
-        orders = [];
-        notifyListeners();
-        return;
-      }
-
       // Use OrderService to fetch orders
       final data = await _orderService.getOrders(
         limit: _limit,
         offset: _page * _limit,
         status: status,
-        employeeId: user.id,
+        employeeId: employeeId,
       );
 
       final newOrders = data.map((order) {
@@ -957,7 +1305,6 @@ Mega Pro Cattle Feed Team
       }
 
       _page++;
-      _updateCountsFromOrders();
       _initialLoadComplete = true;
       error = null;
     } catch (e) {
@@ -976,11 +1323,18 @@ Mega Pro Cattle Feed Team
 
   Future<Map<String, dynamic>?> fetchSingleOrder(String orderId) async {
     try {
-      // Use OrderService to fetch single order
+      final employeeId = _ensureEmployeeId();
+      if (employeeId == null) return null;
+
+      // Use OrderService to fetch single order with employee_id check
       final response = await _orderService.getOrder(orderId);
-      return response != null
-          ? {...response, 'display_id': _getDisplayOrderId(response)}
-          : null;
+      
+      // Verify this order belongs to the current employee
+      if (response != null && response['employee_id'] == employeeId) {
+        return {...response, 'display_id': _getDisplayOrderId(response)};
+      }
+      
+      return null;
     } catch (e) {
       debugPrint("❌ Fetch single order failed: $e");
       return null;
@@ -989,8 +1343,17 @@ Mega Pro Cattle Feed Team
 
   Future<void> updateOrderStatus(String orderId, String newStatus, {String? notes}) async {
     try {
+      final employeeId = _ensureEmployeeId();
+      if (employeeId == null) throw Exception('No employee logged in');
+
       loading = true;
       notifyListeners();
+
+      // First verify this order belongs to the employee
+      final order = await fetchSingleOrder(orderId);
+      if (order == null) {
+        throw Exception('Order not found or you do not have permission');
+      }
 
       // Use OrderService to update status
       await _orderService.updateOrderStatus(
@@ -1000,6 +1363,8 @@ Mega Pro Cattle Feed Team
         sendNotification: false,
       );
 
+      // Refresh counts after status update
+      await fetchOrderCounts();
       await quickLoad();
     } catch (e) {
       debugPrint("❌ Update order status failed: $e");
@@ -1012,13 +1377,24 @@ Mega Pro Cattle Feed Team
 
   Future<void> deleteOrder(String orderId) async {
     try {
+      final employeeId = _ensureEmployeeId();
+      if (employeeId == null) throw Exception('No employee logged in');
+
       loading = true;
       notifyListeners();
+
+      // First verify this order belongs to the employee
+      final order = await fetchSingleOrder(orderId);
+      if (order == null) {
+        throw Exception('Order not found or you do not have permission');
+      }
 
       await _orderService.deleteOrder(orderId);
 
       orders.removeWhere((order) => order['id'] == orderId);
-      _updateCountsFromOrders();
+      
+      // Refresh counts after deletion
+      await fetchOrderCounts();
 
       notifyListeners();
     } catch (e) {
@@ -1044,21 +1420,21 @@ Mega Pro Cattle Feed Team
     return '#N/A';
   }
 
-  void _updateCountsFromOrders() {
-    totalOrders = orders.length;
-    pendingOrders = orders.where((e) => e['status'] == 'pending').length;
-    packingOrders = orders.where((e) => e['status'] == 'packing').length;
-    readyForDispatchOrders = orders
-        .where((e) => e['status'] == 'ready_for_dispatch')
-        .length;
-    dispatchedOrders = orders.where((e) => e['status'] == 'dispatched').length;
-    deliveredOrders = orders.where((e) => e['status'] == 'delivered').length;
-    completedOrders = orders.where((e) => e['status'] == 'completed').length;
-    cancelledOrders = orders.where((e) => e['status'] == 'cancelled').length;
+  // ========================
+  // REFRESH METHOD
+  // ========================
+  Future<void> refresh() async {
+    _page = 0;
+    _hasMoreData = true;
+    _initialLoadComplete = false;
+    
+    // Fetch counts first
+    await fetchOrderCounts();
+    await quickLoad();
   }
 
   // ========================
-  // GETTERS
+  // GETTERS (all filtered to current employee)
   // ========================
   List<Map<String, dynamic>> get pending =>
       orders.where((e) => e['status'] == 'pending').toList();
@@ -1085,7 +1461,13 @@ Mega Pro Cattle Feed Team
 
   Map<String, dynamic>? getOrderById(String id) {
     try {
-      return orders.firstWhere((order) => order['id'] == id);
+      final order = orders.firstWhere((order) => order['id'] == id);
+      // Verify this order belongs to current employee
+      final employeeId = _ensureEmployeeId();
+      if (order['employee_id'] == employeeId) {
+        return order;
+      }
+      return null;
     } catch (e) {
       return null;
     }
@@ -1094,13 +1476,6 @@ Mega Pro Cattle Feed Team
   bool get hasMoreData => _hasMoreData;
   bool get sendingNotification => _sendingNotification;
   String? get notificationError => _notificationError;
-
-  Future<void> refresh() async {
-    _page = 0;
-    _hasMoreData = true;
-    _initialLoadComplete = false;
-    await quickLoad();
-  }
 
   Map<String, int> getStatistics() {
     return {
@@ -1134,20 +1509,10 @@ Mega Pro Cattle Feed Team
   }
 
   bool orderExists(String orderId) {
-    return orders.any((order) => order['id'] == orderId);
-  }
-
-  List<Map<String, dynamic>> getOrdersByDateRange(
-    DateTime startDate,
-    DateTime endDate,
-  ) {
-    return orders.where((order) {
-      if (order['created_at'] == null) return false;
-
-      final createdAt = DateTime.parse(order['created_at']);
-      return createdAt.isAfter(startDate.subtract(const Duration(days: 1))) &&
-          createdAt.isBefore(endDate.add(const Duration(days: 1)));
-    }).toList();
+    final employeeId = _ensureEmployeeId();
+    return orders.any((order) => 
+      order['id'] == orderId && order['employee_id'] == employeeId
+    );
   }
 }
 
@@ -1300,8 +1665,6 @@ class _WhatsAppPreviewDialog extends StatelessWidget {
     );
   }
 }
-
-
 
 
 

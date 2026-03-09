@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mega Pro Order Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #f5f7fa, #c3cfef);
+            min-height: 100vh;
+            font-family: Segoe UI;
+        }
+
+        .navbar {
+            background: #2196F3;
+            color: white;
+            padding: 15px;
+        }
+
+        .tracking-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+            margin-top: 30px;
+        }
+
+        .status-badge {
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-packing {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .status-ready_for_dispatch {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-dispatched {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .status-delivered {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-completed {
+            background: #28a745;
+            color: white;
+        }
+
+        .status-cancelled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .footer {
+            background: #212529;
+            color: white;
+            padding: 15px;
+            margin-top: 40px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="navbar"><strong>Mega Pro</strong> Order Tracker</div>
+
+    <div class="container my-5">
+        <div id="app" class="loading">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">Loading order details...</p>
+        </div>
+    </div>
+
+    <div class="footer text-center">© 2024 Mega Pro Cattle Feed</div>
+
+    <script>
+        (async function () {
+            const params = new URLSearchParams(window.location.search);
+            const id = params.get("id");
+            const token = params.get("token");
+
+            if (!id) {
+                document.getElementById("app").innerHTML = `
+                <div class="tracking-card">
+                    <div class="alert alert-danger">Tracking ID missing</div>
+                </div>
+            `;
+                return;
+            }
+
+            try {
+
+                const response = await fetch(
+                    `https://phkkiyxfcepqauxncqpm.functions.supabase.co/functions/v1/tracking-api?id=${id}&token=${token || ''}`
+                );
+
+                const order = await response.json();
+
+                if (order.error) {
+                    throw new Error(order.error);
+                }
+
+                const statusClass = `status-${order.status || 'pending'}`;
+                const statusDisplay = (order.status || 'pending').toUpperCase();
+                const createdDate = order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A';
+
+                document.getElementById("app").innerHTML = `
+                <div class="tracking-card">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <h4>Order ${order.order_number || ''}</h4>
+                            <p class="text-muted mb-1">Placed on: ${createdDate}</p>
+                            ${order.customer_email ? `<p class="text-muted mb-0">Email: ${order.customer_email}</p>` : ''}
+                        </div>
+                        <span class="status-badge ${statusClass}">${statusDisplay}</span>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5 class="mb-3">Customer Details</h5>
+                            <table class="table table-borderless">
+                                <tr><td width="40%"><strong>Name:</strong></td><td>${order.customer_name || 'N/A'}</td></tr>
+                                <tr><td><strong>Mobile:</strong></td><td>${order.customer_mobile || 'N/A'}</td></tr>
+                                <tr><td><strong>Address:</strong></td><td>${order.customer_address || 'N/A'}</td></tr>
+                                <tr><td><strong>District:</strong></td><td>${order.district || 'N/A'}</td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h5 class="mb-3">Order Details</h5>
+                            <table class="table table-borderless">
+                                <tr><td width="40%"><strong>Product:</strong></td><td>${order.feed_category || 'N/A'}</td></tr>
+                                <tr><td><strong>Quantity:</strong></td><td>${order.bags || 0} Bags</td></tr>
+                                <tr><td><strong>Weight:</strong></td><td>${order.total_weight || 0} ${order.weight_unit || 'kg'}</td></tr>
+                                <tr><td><strong>Price per Bag:</strong></td><td>₹${order.price_per_bag || 0}</td></tr>
+                                <tr><td><strong>Total Amount:</strong></td><td><strong class="text-primary">₹${order.total_price || 0}</strong></td></tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    ${order.remarks ? `
+                    <div class="mt-3 p-3 bg-light rounded">
+                        <h6>Remarks:</h6>
+                        <p class="mb-0">${order.remarks}</p>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="mt-3 p-3 bg-light rounded">
+                        <h6>Tracking Information</h6>
+                        <p class="text-muted mb-1"><small>Tracking ID: ${order.tracking_id || 'N/A'}</small></p>
+                        <p class="text-muted mb-0"><small>Last Updated: ${order.updated_at ? new Date(order.updated_at).toLocaleString() : 'N/A'}</small></p>
+                    </div>
+                </div>
+            `;
+            } catch (error) {
+                document.getElementById("app").innerHTML = `
+                <div class="tracking-card">
+                    <div class="alert alert-danger">Error: ${error.message}</div>
+                </div>
+            `;
+            }
+        })();
+    </script>
+</body>
+
+</html>
