@@ -3,7 +3,7 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:mega_pro/marketing/mar_emp_performnace.dart';
+import 'package:mega_pro/marketing/mar_emp_performnace.dart' hide EmployeeDetailPage;
 import 'package:mega_pro/marketing/mar_emp_target.dart';
 import 'package:mega_pro/marketing/mar_order.dart';
 import 'package:mega_pro/marketing/mar_profile.dart';

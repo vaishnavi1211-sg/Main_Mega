@@ -625,16 +625,7 @@ class _EmployeeDetailPageState extends State<EmployeeDetailPage> {
           // Header
           Container(
             padding: const EdgeInsets.fromLTRB(20, 48, 20, 20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
+            
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
