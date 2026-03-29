@@ -1353,7 +1353,7 @@ class __DashboardHomeState extends State<_DashboardHome> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                "Target: ${currentTarget.toStringAsFixed(1)} Kg",
+                                "Target: ${currentTarget.toStringAsFixed(1)} T",
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: currentTarget > 0 ? Colors.grey : Colors.orange,
@@ -1361,7 +1361,7 @@ class __DashboardHomeState extends State<_DashboardHome> {
                                 ),
                               ),
                               Text(
-                                "Completed: ${currentAchieved.toStringAsFixed(1)} Kg",
+                                "Completed: ${currentAchieved.toStringAsFixed(1)} T",
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: GlobalColors.primaryBlue,
@@ -1430,7 +1430,7 @@ class __DashboardHomeState extends State<_DashboardHome> {
                                 )
                               else if (currentTarget > 0 && currentAchieved > 0)
                                 Text(
-                                  "${(currentTarget - currentAchieved).toStringAsFixed(1)} Kg remaining",
+                                  "${(currentTarget - currentAchieved).toStringAsFixed(1)} T remaining",
                                   style: const TextStyle(
                                     fontSize: 11,
                                     color: Colors.orange,
@@ -1695,12 +1695,12 @@ class __DashboardHomeState extends State<_DashboardHome> {
                                 children: [
                                   _buildYearSummaryStat(
                                     "Total Target",
-                                    "${_targets.fold(0.0, (sum, element) => sum + element).toStringAsFixed(1)} Kg",
+                                    "${_targets.fold(0.0, (sum, element) => sum + element).toStringAsFixed(1)} T",
                                     Colors.grey.shade700,
                                   ),
                                   _buildYearSummaryStat(
                                     "Total Completed",
-                                    "${_achieved.fold(0.0, (sum, element) => sum + element).toStringAsFixed(1)} Kg",
+                                    "${_achieved.fold(0.0, (sum, element) => sum + element).toStringAsFixed(1)} T",
                                     GlobalColors.primaryBlue,
                                   ),
                                   _buildYearSummaryStat(

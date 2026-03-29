@@ -56,39 +56,42 @@ class _ProductionDashboardState extends State<ProductionDashboard> with WidgetsB
   // SETUP AUTO-NOTIFICATION CALLBACKS
   // ========================
   void _setupNotificationCallbacks(BuildContext context) {
-    // Wait for the next frame to ensure providers are available
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      try {
-        final ordersProvider = Provider.of<ProductionOrdersProvider>(context, listen: false);
-        final orderProvider = Provider.of<OrderProvider>(context, listen: false);
-        
-        ordersProvider.setNotificationCallbacks(
-          onWhatsApp: (orderData, newStatus, {notes}) async {
-            print('📱 Auto-sending WhatsApp for order ${orderData['order_number']}');
-            await orderProvider.sendOrderWhatsAppNotification(
-              context: context,
-              orderId: orderData['id'],
-              order: orderData,
-              showDialog: false, // Auto-send without dialog
-            );
-          },
-          onEmail: (orderData, newStatus, {notes}) async {
-            print('📧 Auto-sending Email for order ${orderData['order_number']}');
-            await orderProvider.sendOrderEmailNotification(
-              context: context,
-              orderId: orderData['id'],
-              order: orderData,
-            );
-          },
-        );
-        
-        print('✅ Notification callbacks registered successfully');
-      } catch (e) {
-        print('❌ Failed to register notification callbacks: $e');
-      }
-    });
-  }
-
+  // Wait for the next frame to ensure providers are available
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    try {
+      final ordersProvider = Provider.of<ProductionOrdersProvider>(context, listen: false);
+      final orderProvider = Provider.of<OrderProvider>(context, listen: false);
+      
+      print('🔔 Setting up notification callbacks...');
+      print('   OrdersProvider exists: ${ordersProvider != null}');
+      print('   OrderProvider exists: ${orderProvider != null}');
+      
+      ordersProvider.setNotificationCallbacks(
+        onWhatsApp: (orderData, newStatus, {notes}) async {
+          print('📱 WhatsApp callback triggered for order ${orderData['order_number']}');
+          await orderProvider.sendOrderWhatsAppNotification(
+            context: context,
+            orderId: orderData['id'],
+            order: orderData,
+            showDialog: false,
+          );
+        },
+        onEmail: (orderData, newStatus, {notes}) async {
+          print('📧 Email callback triggered for order ${orderData['order_number']}');
+          await orderProvider.sendOrderEmailNotification(
+            context: context,
+            orderId: orderData['id'],
+            order: orderData,
+          );
+        },
+      );
+      
+      print('✅ Notification callbacks registered successfully');
+    } catch (e) {
+      print('❌ Failed to register notification callbacks: $e');
+    }
+  });
+}
   // ========================
   // NOTIFICATION SETTINGS DIALOG
   // ========================
@@ -110,7 +113,7 @@ class _ProductionDashboardState extends State<ProductionDashboard> with WidgetsB
                 Text(
                   'Auto-Notification Settings',
                   style: GoogleFonts.poppins(
-                    fontSize: 18,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -121,7 +124,7 @@ class _ProductionDashboardState extends State<ProductionDashboard> with WidgetsB
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'When order status is updated, automatically send notifications to customers:',
+                  'When order status is updated, automatically notify to customers:',
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     color: Colors.grey[600],
@@ -142,22 +145,22 @@ class _ProductionDashboardState extends State<ProductionDashboard> with WidgetsB
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.message, color: Colors.green, size: 24),
+                          Icon(Icons.message, color: Colors.green, size: 20),
                           const SizedBox(width: 12),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'WhatsApp Notifications',
+                                'WhatsApp ',
                                 style: GoogleFonts.poppins(
-                                  fontSize: 14,
+                                  fontSize: 10,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
                               Text(
-                                'Send status updates via WhatsApp',
+                                'Send status updates ',
                                 style: GoogleFonts.poppins(
-                                  fontSize: 11,
+                                  fontSize: 9,
                                   color: Colors.grey[600],
                                 ),
                               ),
@@ -192,22 +195,22 @@ class _ProductionDashboardState extends State<ProductionDashboard> with WidgetsB
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.email, color: Colors.blue, size: 24),
+                          Icon(Icons.email, color: Colors.blue, size: 20),
                           const SizedBox(width: 12),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Email Notifications',
+                                'Email ',
                                 style: GoogleFonts.poppins(
-                                  fontSize: 14,
+                                  fontSize: 10,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
                               Text(
-                                'Send status updates via Email',
+                                'Send status updates ',
                                 style: GoogleFonts.poppins(
-                                  fontSize: 11,
+                                  fontSize: 9,
                                   color: Colors.grey[600],
                                 ),
                               ),

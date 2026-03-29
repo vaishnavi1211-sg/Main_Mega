@@ -385,7 +385,6 @@ class OrderProvider with ChangeNotifier {
   }
 
   String generateTrackingLink(Map<String, dynamic> order) {
-    // This method is kept for reference but NOT used in messages
     final trackingId = order['tracking_id']?.toString() ?? '';
     final trackingToken = order['tracking_token']?.toString() ?? '';
     
@@ -697,120 +696,105 @@ class OrderProvider with ChangeNotifier {
   }
 
   // ========================
-// GENERATE VISUAL TRACKING TIMELINE (OLD UI)
-// ========================
-String _generateVisualTimeline(String currentStatus) {
-  final steps = [
-    {'status': 'pending', 'label': 'Ordered', 'icon': '📋'},
-    {'status': 'packing', 'label': 'Packing', 'icon': '📦'},
-    {'status': 'ready_for_dispatch', 'label': 'Ready', 'icon': '✓'},
-    {'status': 'dispatched', 'label': 'Shipped', 'icon': '🚚'},
-    {'status': 'delivered', 'label': 'Delivered', 'icon': '✅'},
-  ];
-  
-  final statusOrder = ['pending', 'packing', 'ready_for_dispatch', 'dispatched', 'delivered', 'completed'];
-  
-  int currentIndex = statusOrder.indexOf(currentStatus);
-  if (currentIndex == -1) currentIndex = 0;
-  
-  if (currentStatus == 'completed') {
-    return '''
-✅ *COMPLETED* 🎉
-Your order has been successfully delivered!
-    ''';
-  }
-  
-  if (currentStatus == 'cancelled') {
-    return '''
-❌ *CANCELLED*
-This order has been cancelled. Contact support if needed.
-    ''';
-  }
-  
-  List<String> statusLines = [];
-  
-  for (int i = 0; i < steps.length; i++) {
-    final step = steps[i];
-    final stepStatusIndex = statusOrder.indexOf(step['status']!);
-    final isCompleted = currentIndex > stepStatusIndex;
-    final isCurrent = currentIndex == stepStatusIndex;
+  // GENERATE VISUAL TRACKING TIMELINE (EXACT MATCH TO IMAGE)
+  // ========================
+  String _generateVisualTimeline(String currentStatus) {
+    final steps = ['Ordered', 'Packing', 'Ready', 'Shipped', 'Delivered'];
+    final statusOrder = ['pending', 'packing', 'ready_for_dispatch', 'dispatched', 'delivered', 'completed'];
     
-    String line;
-    if (isCompleted) {
-      line = '✅ ${step['icon']} ${step['label']}';
-    } else if (isCurrent) {
-      line = '🔄 ${step['icon']} ${step['label']} (In Progress)';
-    } else {
-      line = '⏳ ${step['icon']} ${step['label']}';
+    int currentIndex = statusOrder.indexOf(currentStatus);
+    if (currentIndex == -1) currentIndex = 0;
+    
+    if (currentStatus == 'completed') {
+      return '✅ → ✅ → ✅ → ✅ → ✅\nOrdered → Packing → Ready → Shipped → Delivered\n\n✅ Order delivered successfully!';
     }
-    statusLines.add(line);
-  }
-  
-  final statusMessages = {
-    'pending': '✅ Your order has been confirmed and is being processed.',
-    'packing': '📦 Your order is being carefully packed.',
-    'ready_for_dispatch': '✓ Your order is packed and ready for dispatch.',
-    'dispatched': '🚚 Your order is on the way!',
-    'delivered': '✅ Your order has been delivered!',
-  };
-  
-  final statusMessage = statusMessages[currentStatus] ?? 'Your order is being processed.';
-  
-  return '''
-${statusLines.join('\n')}
+    
+    if (currentStatus == 'cancelled') {
+      return '❌ ORDER CANCELLED\nThis order has been cancelled. Contact support if needed.';
+    }
+    
+    // Build the timeline arrows format
+    List<String> statusIcons = [];
+    for (int i = 0; i < steps.length; i++) {
+      if (i < currentIndex) {
+        statusIcons.add('✅');
+      } else if (i == currentIndex) {
+        statusIcons.add('⬇️');
+      } else {
+        statusIcons.add('⬜');
+      }
+    }
+    
+    String iconsLine = statusIcons.join(' → ');
+    String labelsLine = steps.join(' → ');
+    
+    // Status message based on current status
+    final statusMessages = {
+      'pending': '✅ Your order has been confirmed and is being processed.',
+      'packing': '📦 Your order is being carefully packed.',
+      'ready_for_dispatch': '✓ Your order is packed and ready for dispatch.',
+      'dispatched': '🚚 Your order is on the way!',
+      'delivered': '✅ Your order has been delivered!',
+    };
+    
+    final statusMessage = statusMessages[currentStatus] ?? 'Your order is being processed.';
+    
+    return '''
+$iconsLine
+$labelsLine
 
 $statusMessage
 ''';
-}
-
-// ========================
-// GENERATE WHATSAPP MESSAGE (OLD UI)
-// ========================
-String _generateWhatsAppMessage(
-  Map<String, dynamic> order, 
-  String messageType, {
-  String? newStatus,
-  String? notes,
-}) {
-  // Get order number
-  String orderNumber;
-  final orderNumValue = order['order_number'];
-  
-  if (orderNumValue == null) {
-    if (order['id'] != null) {
-      final idStr = order['id'].toString();
-      orderNumber = idStr.length >= 8 
-          ? 'ORD${idStr.substring(0, 8).toUpperCase()}'
-          : 'ORD${idStr.toUpperCase()}';
-    } else {
-      orderNumber = 'ORD${DateTime.now().millisecondsSinceEpoch.toString().substring(0, 8)}';
-    }
-  } else {
-    final orderNumStr = orderNumValue.toString();
-    orderNumber = orderNumStr.isEmpty ? 'N/A' : orderNumStr;
   }
-  
-  // Get other fields
-  final customerName = order['customer_name']?.toString() ?? 'Customer';
-  final product = order['feed_category']?.toString() ?? 'Cattle Feed';
-  final bags = order['bags']?.toString() ?? '1';
-  final amount = order['total_price']?.toString() ?? '0';
-  final weight = order['total_weight']?.toString() ?? '0';
-  final unit = order['weight_unit']?.toString() ?? 'kg';
-  final address = order['customer_address']?.toString() ?? '';
-  final district = order['district']?.toString() ?? '';
-  
-  // Determine current status
-  final currentStatus = (newStatus ?? order['status']?.toString() ?? 'pending').toLowerCase();
-  
-  // Generate visual timeline
-  final timeline = _generateVisualTimeline(currentStatus);
-  
-  if (messageType == 'confirmation') {
-    return '''
-🛒 *MEGA PRO CATTLE FEED*
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-🎉 *ORDER CONFIRMED*
+
+  // ========================
+  // GENERATE WHATSAPP MESSAGE (EXACT MATCH TO IMAGE)
+  // ========================
+  String _generateWhatsAppMessage(
+    Map<String, dynamic> order, 
+    String messageType, {
+    String? newStatus,
+    String? notes,
+  }) {
+    // Get order number
+    String orderNumber;
+    final orderNumValue = order['order_number'];
+    
+    if (orderNumValue == null) {
+      if (order['id'] != null) {
+        final idStr = order['id'].toString();
+        orderNumber = idStr.length >= 8 
+            ? 'ORD${idStr.substring(0, 8).toUpperCase()}'
+            : 'ORD${idStr.toUpperCase()}';
+      } else {
+        orderNumber = 'ORD${DateTime.now().millisecondsSinceEpoch.toString().substring(0, 8)}';
+      }
+    } else {
+      final orderNumStr = orderNumValue.toString();
+      orderNumber = orderNumStr.isEmpty ? 'N/A' : orderNumStr;
+    }
+    
+    // Get other fields
+    final customerName = order['customer_name']?.toString() ?? 'Customer';
+    final product = order['feed_category']?.toString() ?? 'Cattle Feed';
+    final bags = order['bags']?.toString() ?? '1';
+    final amount = order['total_price']?.toString() ?? '0';
+    final weight = order['total_weight']?.toString() ?? '0';
+    final unit = order['weight_unit']?.toString() ?? 'kg';
+    final address = order['customer_address']?.toString() ?? '';
+    final district = order['district']?.toString() ?? '';
+    
+    // Determine current status
+    final currentStatus = (newStatus ?? order['status']?.toString() ?? 'pending').toLowerCase();
+    
+    // Generate visual timeline
+    final timeline = _generateVisualTimeline(currentStatus);
+    
+    if (messageType == 'confirmation') {
+      return '''
+*MEGA PRO CATTLE FEED*
+
+*ORDER CONFIRMED* 🎉
 
 *Order:* $orderNumber
 *Customer:* $customerName
@@ -818,33 +802,31 @@ String _generateWhatsAppMessage(
 *Qty:* $bags bags ($weight $unit)
 *Amount:* ₹$amount
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-📦 *ORDER STATUS*
+*TRACKING*
 $timeline
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-📍 *Delivery:* $address, $district
-📞 *Support:* +91 98765 43210
 
-*Thank you for choosing Mega Pro!* 🙏
-    ''';
-  } else if (messageType == 'status_update' && newStatus != null) {
-    return '''
-🔄 *ORDER STATUS UPDATE*
-━━━━━━━━━━━━━━━━━━━━━━━━━━
+*Delivery:* $address, $district
+*Support:* +91 98765 43210
+
+*Thank you!* 🙏
+''';
+    } else if (messageType == 'status_update' && newStatus != null) {
+      return '''
+*ORDER UPDATE* 🔄
+
 *Order:* $orderNumber
 *Customer:* $customerName
 
-📦 *STATUS*
+*TRACKING*
 $timeline
 
-${notes != null && notes.isNotEmpty ? '📝 *Note:* $notes\n' : ''}
-📞 *Support:* +91 98765 43210
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-    ''';
+${notes != null && notes.isNotEmpty ? '*Note:* $notes\n' : ''}
+*Support:* +91 98765 43210
+''';
+    }
+    
+    return 'Order update for $orderNumber';
   }
-  
-  return 'Order update for $orderNumber';
-}
 
   Future<void> sendOrderEmailNotification({
     required BuildContext context,
@@ -908,7 +890,7 @@ Quantity:      $bags bags ($weight $unit)
 Total Amount:  ₹$amount
 Delivery:      ${orderData['customer_address'] ?? ''}, ${orderData['district'] ?? 'N/A'}
 
-ORDER STATUS
+TRACKING STATUS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 $timeline
 

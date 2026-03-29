@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mega_pro/models/order_item_model.dart';
+import 'package:mega_pro/providers/emp_order_provider.dart';
 import 'package:mega_pro/providers/pro_orders_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -43,6 +44,11 @@ class _ProductionOrdersPageState extends State<ProductionOrdersPage> with Single
     );
     _setupLoadingTimeout();
     _loadInitialData();
+    
+    // Register callbacks after the first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _registerNotificationCallbacks();
+    });
   }
 
   void _setupLoadingTimeout() {
@@ -57,6 +63,39 @@ class _ProductionOrdersPageState extends State<ProductionOrdersPage> with Single
         }
       }
     });
+  }
+
+  void _registerNotificationCallbacks() {
+    try {
+      final ordersProvider = Provider.of<ProductionOrdersProvider>(context, listen: false);
+      final orderProvider = Provider.of<OrderProvider>(context, listen: false);
+      
+      print('🔔 [OrdersPage] Registering notification callbacks...');
+      
+      ordersProvider.setNotificationCallbacks(
+        onWhatsApp: (orderData, newStatus, {notes}) async {
+          print('📱 [OrdersPage] WhatsApp callback triggered for order ${orderData['order_number']}');
+          await orderProvider.sendOrderWhatsAppNotification(
+            context: context,
+            orderId: orderData['id'],
+            order: orderData,
+            showDialog: false,
+          );
+        },
+        onEmail: (orderData, newStatus, {notes}) async {
+          print('📧 [OrdersPage] Email callback triggered for order ${orderData['order_number']}');
+          await orderProvider.sendOrderEmailNotification(
+            context: context,
+            orderId: orderData['id'],
+            order: orderData,
+          );
+        },
+      );
+      
+      print('✅ [OrdersPage] Notification callbacks registered successfully');
+    } catch (e) {
+      print('❌ [OrdersPage] Failed to register callbacks: $e');
+    }
   }
 
   // FIXED: Load initial data with mounted check
@@ -110,6 +149,9 @@ class _ProductionOrdersPageState extends State<ProductionOrdersPage> with Single
   
   @override
   Widget build(BuildContext context) {
+    // Re-register callbacks on each build to ensure they're set
+    _registerNotificationCallbacks();
+    
     try {
       final ordersProvider = Provider.of<ProductionOrdersProvider>(context, listen: true);
       
@@ -1243,7 +1285,7 @@ class _ProductionOrdersPageState extends State<ProductionOrdersPage> with Single
     
     if (!_isMounted) return;
     
-    // Show a snackbar instead of loading dialog
+    // Show loading indicator
     final snackBar = SnackBar(
       content: Row(
         children: [
@@ -1260,7 +1302,7 @@ class _ProductionOrdersPageState extends State<ProductionOrdersPage> with Single
         ],
       ),
       backgroundColor: GlobalColors.primaryBlue,
-      duration: const Duration(seconds: 1),
+      duration: const Duration(seconds: 2),
     );
     
     ScaffoldMessenger.of(context).showSnackBar(snackBar);
@@ -1268,22 +1310,18 @@ class _ProductionOrdersPageState extends State<ProductionOrdersPage> with Single
     try {
       print('📝 Attempting to update order ${order.id} to status: $newStatus');
       
+      // THIS IS THE IMPORTANT LINE - Make sure this is calling the provider
       await ordersProvider.updateOrderStatus(order, newStatus);
       
       if (!_isMounted) return;
       
-      // Close the progress snackbar
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       
-      // Show success snackbar
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('✅ Order status updated to ${_getStatusDisplayName(newStatus)}'),
           backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -1293,7 +1331,6 @@ class _ProductionOrdersPageState extends State<ProductionOrdersPage> with Single
       
       if (!_isMounted) return;
       
-      // Close the progress snackbar
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1301,17 +1338,7 @@ class _ProductionOrdersPageState extends State<ProductionOrdersPage> with Single
           content: Text('❌ Error: ${e.toString()}'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
           duration: const Duration(seconds: 3),
-          action: SnackBarAction(
-            label: 'Retry',
-            textColor: Colors.white,
-            onPressed: () {
-              _updateOrderStatus(order, newStatus, context, ordersProvider);
-            },
-          ),
         ),
       );
     }
@@ -1508,7 +1535,7 @@ class _ProductionOrdersPageState extends State<ProductionOrdersPage> with Single
           .where((order) => orderIds.contains(order.id))
           .toList();
       
-      await ordersProvider.updateBulkOrderStatus(ordersToUpdate.cast<String>(), newStatus);
+      await ordersProvider.updateBulkOrderStatus(ordersToUpdate.map((o) => o.id).toList(), newStatus);
       
       if (!_isMounted) return;
       
@@ -1796,6 +1823,1820 @@ class _ProductionOrdersPageState extends State<ProductionOrdersPage> with Single
     }
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//does not trigger msgs
+
+// import 'package:flutter/material.dart';
+// import 'package:mega_pro/models/order_item_model.dart';
+// import 'package:mega_pro/providers/pro_orders_provider.dart';
+// import 'package:provider/provider.dart';
+// import 'package:intl/intl.dart';
+// import 'package:mega_pro/global/global_variables.dart';
+// import 'package:google_fonts/google_fonts.dart';
+
+// class ProductionOrdersPage extends StatefulWidget {
+//   final Map productionProfile;
+//   final VoidCallback onDataChanged;
+
+//   const ProductionOrdersPage({
+//     super.key, 
+//     required this.productionProfile,
+//     required this.onDataChanged,
+//   });
+
+//   @override
+//   State<ProductionOrdersPage> createState() => _ProductionOrdersPageState();
+// }
+
+// class _ProductionOrdersPageState extends State<ProductionOrdersPage> with SingleTickerProviderStateMixin {
+//   Map<String, bool> _selectedOrders = {};
+//   bool _isSelectionMode = false;
+//   bool _selectAll = false;
+//   bool _isLoadingTimeout = false;
+//   bool _isRefreshing = false;
+  
+//   // Track mounted state manually
+//   bool _isMounted = true;
+  
+//   // Animation controller for smooth transitions
+//   late AnimationController _animationController;
+
+//   @override
+//   void initState() {
+//     super.initState();
+//     _isMounted = true;
+//     _animationController = AnimationController(
+//       vsync: this,
+//       duration: const Duration(milliseconds: 300),
+//     );
+//     _setupLoadingTimeout();
+//     _loadInitialData();
+//   }
+
+//   void _setupLoadingTimeout() {
+//     // Set a timeout for loading
+//     Future.delayed(const Duration(seconds: 10), () {
+//       if (_isMounted) {
+//         final provider = Provider.of<ProductionOrdersProvider>(context, listen: false);
+//         if (provider.isLoading) {
+//           setState(() {
+//             _isLoadingTimeout = true;
+//           });
+//         }
+//       }
+//     });
+//   }
+
+//   // FIXED: Load initial data with mounted check
+//   Future<void> _loadInitialData() async {
+//     if (!_isMounted) return;
+    
+//     try {
+//       final provider = Provider.of<ProductionOrdersProvider>(context, listen: false);
+//       if (provider.orders.isEmpty && !provider.isLoading) {
+//         await provider.refresh();
+//       }
+//     } catch (e) {
+//       print('❌ Error loading initial data: $e');
+//     }
+//   }
+
+//   // FIXED: Smooth refresh with mounted checks
+//   Future<void> _handleRefresh() async {
+//     if (!_isMounted) return;
+    
+//     setState(() {
+//       _isRefreshing = true;
+//     });
+    
+//     try {
+//       final provider = Provider.of<ProductionOrdersProvider>(context, listen: false);
+//       await provider.refresh();
+//     } catch (e) {
+//       print('❌ Refresh error: $e');
+//     } finally {
+//       if (_isMounted) {
+//         setState(() {
+//           _isRefreshing = false;
+//           _isLoadingTimeout = false;
+//         });
+//       }
+//     }
+    
+//     if (_isMounted) {
+//       _setupLoadingTimeout();
+//     }
+//   }
+  
+//   @override
+//   void dispose() {
+//     _isMounted = false;
+//     _animationController.dispose();
+//     _selectedOrders.clear();
+//     super.dispose();
+//   }
+  
+//   @override
+//   Widget build(BuildContext context) {
+//     try {
+//       final ordersProvider = Provider.of<ProductionOrdersProvider>(context, listen: true);
+      
+//       // Check for timeout
+//       if (_isLoadingTimeout && ordersProvider.isLoading) {
+//         return _buildTimeoutScreen(ordersProvider);
+//       }
+      
+//       if (ordersProvider.error != null && ordersProvider.orders.isEmpty) {
+//         return _buildErrorState(ordersProvider);
+//       }
+
+//       return Scaffold(
+//         backgroundColor: GlobalColors.background,
+//         appBar: AppBar(
+//           title: Text(
+//             _isSelectionMode ? 'Select Orders' : 'Received Orders',
+//             style: GoogleFonts.poppins(
+//               fontWeight: FontWeight.w600,
+//               fontSize: 20,
+//             ),
+//           ),
+//           backgroundColor: _isSelectionMode ? GlobalColors.primaryBlue.withOpacity(0.9) : GlobalColors.primaryBlue,
+//           foregroundColor: Colors.white,
+//           elevation: 0,
+//           actions: _isSelectionMode
+//               ? [
+//                   IconButton(
+//                     icon: const Icon(Icons.close),
+//                     onPressed: () {
+//                       setState(() {
+//                         _isSelectionMode = false;
+//                         _selectedOrders.clear();
+//                         _selectAll = false;
+//                       });
+//                     },
+//                     tooltip: 'Cancel Selection',
+//                   ),
+//                 ]
+//               : [
+//                   IconButton(
+//                     icon: AnimatedRotation(
+//                       turns: _isRefreshing ? 1 : 0,
+//                       duration: const Duration(milliseconds: 500),
+//                       child: Icon(
+//                         _isRefreshing ? Icons.refresh : Icons.refresh,
+//                         color: Colors.white,
+//                       ),
+//                     ),
+//                     onPressed: _isRefreshing ? null : _handleRefresh,
+//                   ),
+//                 ],
+//         ),
+//         body: Consumer<ProductionOrdersProvider>(
+//           builder: (context, ordersProvider, child) {
+//             return Column(
+//               children: [
+//                 if (!_isSelectionMode && ordersProvider.orders.isNotEmpty) 
+//                   _buildStatistics(ordersProvider),
+                
+//                 if (!_isSelectionMode && ordersProvider.orders.isNotEmpty) 
+//                   _buildFilterTabs(ordersProvider),
+                
+//                 if (_isSelectionMode) 
+//                   _buildBulkSelectionToolbar(ordersProvider),
+                
+//                 Expanded(
+//                   child: _buildOrdersList(ordersProvider),
+//                 ),
+//               ],
+//             );
+//           },
+//         ),
+//         floatingActionButton: _isSelectionMode
+//             ? Builder(
+//                 builder: (context) {
+//                   final selectedCount = _selectedOrders.values.where((isSelected) => isSelected).length;
+//                   return FloatingActionButton.extended(
+//                     onPressed: selectedCount > 0 
+//                         ? () => _showBulkStatusUpdateDialog(context.read<ProductionOrdersProvider>())
+//                         : null,
+//                     backgroundColor: GlobalColors.primaryBlue,
+//                     foregroundColor: Colors.white,
+//                     icon: const Icon(Icons.check_circle),
+//                     label: Text(
+//                       'Update $selectedCount',
+//                       style: GoogleFonts.poppins(
+//                         fontWeight: FontWeight.w500,
+//                       ),
+//                     ),
+//                   );
+//                 },
+//               )
+//             : null,
+//       );
+//     } catch (e, stackTrace) {
+//       print('❌ Error in ProductionOrdersPage build: $e');
+//       print('❌ Stack trace: $stackTrace');
+//       return _buildErrorFallback();
+//     }
+//   }
+
+//   Widget _buildTimeoutScreen(ProductionOrdersProvider provider) {
+//     return Scaffold(
+//       backgroundColor: GlobalColors.background,
+//       appBar: AppBar(
+//         title: const Text('Received Orders'),
+//         backgroundColor: GlobalColors.primaryBlue,
+//         foregroundColor: Colors.white,
+//       ),
+//       body: Center(
+//         child: Padding(
+//           padding: const EdgeInsets.all(20.0),
+//           child: Column(
+//             mainAxisAlignment: MainAxisAlignment.center,
+//             children: [
+//               Icon(Icons.timer_off, size: 64, color: Colors.orange),
+//               const SizedBox(height: 16),
+//               Text(
+//                 'Loading is taking too long',
+//                 style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+//               ),
+//               const SizedBox(height: 8),
+//               Text(
+//                 'Please check your internet connection',
+//                 style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[600]),
+//               ),
+//               const SizedBox(height: 16),
+//               ElevatedButton(
+//                 onPressed: () {
+//                   if (!_isMounted) return;
+//                   setState(() {
+//                     _isLoadingTimeout = false;
+//                     _isRefreshing = true;
+//                   });
+//                   provider.refresh().then((_) {
+//                     if (_isMounted) {
+//                       setState(() {
+//                         _isRefreshing = false;
+//                       });
+//                     }
+//                   }).catchError((error) {
+//                     if (_isMounted) {
+//                       setState(() {
+//                         _isRefreshing = false;
+//                       });
+//                     }
+//                   });
+//                   if (_isMounted) {
+//                     _setupLoadingTimeout();
+//                   }
+//                 },
+//                 style: ElevatedButton.styleFrom(backgroundColor: GlobalColors.primaryBlue),
+//                 child: const Text('Retry', style: TextStyle(color: Colors.white)),
+//               ),
+//             ],
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildErrorState(ProductionOrdersProvider ordersProvider) {
+//     return Scaffold(
+//       backgroundColor: GlobalColors.background,
+//       appBar: AppBar(
+//         title: Text(
+//           'Received Orders',
+//           style: GoogleFonts.poppins(
+//             fontWeight: FontWeight.w600,
+//             fontSize: 20,
+//           ),
+//         ),
+//         backgroundColor: GlobalColors.primaryBlue,
+//         foregroundColor: Colors.white,
+//         centerTitle: true,
+//         elevation: 0,
+//         actions: [
+//           IconButton(
+//             icon: const Icon(Icons.refresh),
+//             onPressed: () {
+//               if (!_isMounted) return;
+//               setState(() {
+//                 _isRefreshing = true;
+//               });
+//               ordersProvider.refresh().then((_) {
+//                 if (_isMounted) {
+//                   setState(() {
+//                     _isRefreshing = false;
+//                   });
+//                 }
+//               }).catchError((error) {
+//                 if (_isMounted) {
+//                   setState(() {
+//                     _isRefreshing = false;
+//                   });
+//                 }
+//               });
+//             },
+//           ),
+//         ],
+//       ),
+//       body: Center(
+//         child: Padding(
+//           padding: const EdgeInsets.all(20.0),
+//           child: Column(
+//             mainAxisAlignment: MainAxisAlignment.center,
+//             children: [
+//               const Icon(
+//                 Icons.error_outline,
+//                 size: 64,
+//                 color: Colors.red,
+//               ),
+//               const SizedBox(height: 16),
+//               Text(
+//                 'Error Loading Orders',
+//                 style: GoogleFonts.poppins(
+//                   fontSize: 18,
+//                   fontWeight: FontWeight.w600,
+//                   color: Colors.red,
+//                 ),
+//               ),
+//               const SizedBox(height: 8),
+//               Text(
+//                 ordersProvider.error ?? 'Unknown error occurred',
+//                 textAlign: TextAlign.center,
+//                 style: GoogleFonts.poppins(
+//                   fontSize: 14,
+//                   color: Colors.grey[600],
+//                 ),
+//               ),
+//               const SizedBox(height: 16),
+//               ElevatedButton(
+//                 onPressed: () {
+//                   if (!_isMounted) return;
+//                   setState(() {
+//                     _isRefreshing = true;
+//                   });
+//                   ordersProvider.refresh().then((_) {
+//                     if (_isMounted) {
+//                       setState(() {
+//                         _isRefreshing = false;
+//                       });
+//                     }
+//                   }).catchError((error) {
+//                     if (_isMounted) {
+//                       setState(() {
+//                         _isRefreshing = false;
+//                       });
+//                     }
+//                   });
+//                 },
+//                 style: ElevatedButton.styleFrom(
+//                   backgroundColor: GlobalColors.primaryBlue,
+//                 ),
+//                 child: const Text(
+//                   'Retry',
+//                   style: TextStyle(color: Colors.white),
+//                 ),
+//               ),
+//             ],
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildErrorFallback() {
+//     return Scaffold(
+//       backgroundColor: GlobalColors.background,
+//       appBar: AppBar(
+//         title: const Text('Received Orders'),
+//         backgroundColor: GlobalColors.primaryBlue,
+//         foregroundColor: Colors.white,
+//       ),
+//       body: Center(
+//         child: Padding(
+//           padding: const EdgeInsets.all(20.0),
+//           child: Column(
+//             mainAxisAlignment: MainAxisAlignment.center,
+//             children: [
+//               const Icon(Icons.error_outline, size: 64, color: Colors.red),
+//               const SizedBox(height: 16),
+//               Text(
+//                 'Something went wrong',
+//                 style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+//               ),
+//               const SizedBox(height: 8),
+//               Text(
+//                 'Please try restarting the app',
+//                 style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[600]),
+//               ),
+//               const SizedBox(height: 16),
+//               ElevatedButton(
+//                 onPressed: () {
+//                   if (!_isMounted) return;
+//                   setState(() {
+//                     _isRefreshing = true;
+//                   });
+//                   Provider.of<ProductionOrdersProvider>(context, listen: false).refresh().then((_) {
+//                     if (_isMounted) {
+//                       setState(() {
+//                         _isRefreshing = false;
+//                       });
+//                     }
+//                   }).catchError((error) {
+//                     if (_isMounted) {
+//                       setState(() {
+//                         _isRefreshing = false;
+//                       });
+//                     }
+//                   });
+//                 },
+//                 style: ElevatedButton.styleFrom(backgroundColor: GlobalColors.primaryBlue),
+//                 child: const Text('Retry', style: TextStyle(color: Colors.white)),
+//               ),
+//             ],
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildStatistics(ProductionOrdersProvider ordersProvider) {
+//     final stats = ordersProvider.getStatistics();
+    
+//     return Container(
+//       padding: const EdgeInsets.all(16),
+//       decoration: BoxDecoration(
+//         color: Colors.white,
+//         boxShadow: [
+//           BoxShadow(
+//             color: Colors.grey.withOpacity(0.1),
+//             blurRadius: 10,
+//             spreadRadius: 1,
+//           ),
+//         ],
+//       ),
+//       child: SingleChildScrollView(
+//         scrollDirection: Axis.horizontal,
+//         child: Row(
+//           children: [
+//             _statCard('Total', stats['total']!, Colors.blue, Icons.receipt),
+//             const SizedBox(width: 12),
+//             _statCard('Pending', stats['pending']!, Colors.orange, Icons.pending),
+//             const SizedBox(width: 12),
+//             _statCard('Packing', stats['packing']!, Colors.blue, Icons.inventory),
+//             const SizedBox(width: 12),
+//             _statCard('Ready', stats['ready_for_dispatch']!, Colors.purple, Icons.local_shipping),
+//             const SizedBox(width: 12),
+//             _statCard('Dispatched', stats['dispatched']!, Colors.indigo, Icons.directions_car),
+//             const SizedBox(width: 12),
+//             _statCard('Delivered', stats['delivered']!, Colors.green, Icons.check_circle),
+//             const SizedBox(width: 12),
+//             _statCard('Completed', stats['completed']!, Colors.green, Icons.done_all),
+//             const SizedBox(width: 12),
+//             _statCard('Cancelled', stats['cancelled']!, Colors.red, Icons.cancel),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _statCard(String title, int count, Color color, IconData icon) {
+//     return Container(
+//       width: 110,
+//       padding: const EdgeInsets.all(12),
+//       decoration: BoxDecoration(
+//         color: color.withOpacity(0.1),
+//         borderRadius: BorderRadius.circular(12),
+//         border: Border.all(color: color.withOpacity(0.2)),
+//       ),
+//       child: Column(
+//         children: [
+//           Row(
+//             children: [
+//               Container(
+//                 padding: const EdgeInsets.all(4),
+//                 decoration: BoxDecoration(
+//                   color: color.withOpacity(0.2),
+//                   borderRadius: BorderRadius.circular(8),
+//                 ),
+//                 child: Icon(icon, size: 16, color: color),
+//               ),
+//               const Spacer(),
+//               Text(
+//                 count.toString(),
+//                 style: GoogleFonts.poppins(
+//                   fontSize: 18,
+//                   fontWeight: FontWeight.w600,
+//                   color: Colors.black,
+//                 ),
+//               ),
+//             ],
+//           ),
+//           const SizedBox(height: 8),
+//           Text(
+//             title,
+//             style: GoogleFonts.poppins(
+//               fontSize: 12,
+//               fontWeight: FontWeight.w500,
+//               color: Colors.grey[700],
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   Widget _buildFilterTabs(ProductionOrdersProvider ordersProvider) {
+//     final filters = [
+//       {'label': 'All', 'value': 'all'},
+//       {'label': 'Pending', 'value': 'pending'},
+//       {'label': 'Packing', 'value': 'packing'},
+//       {'label': 'Ready', 'value': 'ready_for_dispatch'},
+//       {'label': 'Dispatched', 'value': 'dispatched'},
+//       {'label': 'Delivered', 'value': 'delivered'},
+//       {'label': 'Completed', 'value': 'completed'},
+//       {'label': 'Cancelled', 'value': 'cancelled'},
+//     ];
+
+//     return Container(
+//       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+//       decoration: BoxDecoration(
+//         color: Colors.white,
+//         border: Border(
+//           bottom: BorderSide(color: Colors.grey[200]!),
+//         ),
+//       ),
+//       child: SingleChildScrollView(
+//         scrollDirection: Axis.horizontal,
+//         child: Row(
+//           children: filters.map((filter) {
+//             final isSelected = ordersProvider.filter == filter['value'];
+//             return Padding(
+//               padding: const EdgeInsets.only(right: 8),
+//               child: ChoiceChip(
+//                 label: Text(
+//                   filter['label']!,
+//                   style: GoogleFonts.poppins(
+//                     fontSize: 13,
+//                     fontWeight: FontWeight.w500,
+//                     color: isSelected ? Colors.white : Colors.grey[700],
+//                   ),
+//                 ),
+//                 selected: isSelected,
+//                 selectedColor: GlobalColors.primaryBlue,
+//                 backgroundColor: Colors.grey[100],
+//                 shape: RoundedRectangleBorder(
+//                   borderRadius: BorderRadius.circular(20),
+//                 ),
+//                 onSelected: (selected) {
+//                   if (selected) {
+//                     ordersProvider.setFilter(filter['value']!);
+//                   }
+//                 },
+//               ),
+//             );
+//           }).toList(),
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildBulkSelectionToolbar(ProductionOrdersProvider ordersProvider) {
+//     final selectedCount = _selectedOrders.values.where((isSelected) => isSelected).length;
+    
+//     return Container(
+//       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+//       decoration: BoxDecoration(
+//         color: GlobalColors.primaryBlue,
+//         boxShadow: [
+//           BoxShadow(
+//             color: Colors.black.withOpacity(0.1),
+//             blurRadius: 8,
+//             spreadRadius: 1,
+//           ),
+//         ],
+//       ),
+//       child: Row(
+//         children: [
+//           Checkbox(
+//             value: _selectAll,
+//             onChanged: (value) {
+//               setState(() {
+//                 _selectAll = value ?? false;
+//                 for (var order in ordersProvider.filteredOrders) {
+//                   _selectedOrders[order.id] = _selectAll;
+//                 }
+//               });
+//             },
+//             activeColor: Colors.white,
+//             checkColor: GlobalColors.primaryBlue,
+//           ),
+//           const SizedBox(width: 8),
+//           Expanded(
+//             child: Text(
+//               _selectAll 
+//                   ? 'All ${ordersProvider.filteredOrders.length} selected'
+//                   : '$selectedCount selected',
+//               style: GoogleFonts.poppins(
+//                 color: Colors.white,
+//                 fontSize: 16,
+//                 fontWeight: FontWeight.w500,
+//               ),
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   Widget _buildOrdersList(ProductionOrdersProvider ordersProvider) {
+//     // Show loading only if no orders and loading
+//     if (ordersProvider.orders.isEmpty) {
+//       if (ordersProvider.isLoading) {
+//         return _buildInitialLoading('Loading orders...');
+//       }
+//       return _buildEmptyState(ordersProvider);
+//     }
+
+//     // Show filtered orders
+//     if (ordersProvider.filteredOrders.isEmpty) {
+//       return _buildEmptyFilterState(ordersProvider);
+//     }
+
+//     return RefreshIndicator(
+//       color: GlobalColors.primaryBlue,
+//       onRefresh: _handleRefresh,
+//       child: ListView.builder(
+//         padding: const EdgeInsets.all(16),
+//         itemCount: ordersProvider.filteredOrders.length + (ordersProvider.hasMoreData ? 1 : 0),
+//         itemBuilder: (context, index) {
+//           if (index == ordersProvider.filteredOrders.length) {
+//             return _buildLoadMoreButton(ordersProvider);
+//           }
+          
+//           final order = ordersProvider.filteredOrders[index];
+//           return _buildOrderCard(order, context, ordersProvider);
+//         },
+//       ),
+//     );
+//   }
+
+//   Widget _buildInitialLoading(String message) {
+//     return Center(
+//       child: Column(
+//         mainAxisAlignment: MainAxisAlignment.center,
+//         children: [
+//           const CircularProgressIndicator(color: GlobalColors.primaryBlue),
+//           const SizedBox(height: 16),
+//           Text(
+//             message,
+//             style: GoogleFonts.poppins(
+//               fontSize: 14,
+//               color: Colors.grey[600],
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   Widget _buildLoadMoreButton(ProductionOrdersProvider ordersProvider) {
+//     return Padding(
+//       padding: const EdgeInsets.all(16.0),
+//       child: Center(
+//         child: ordersProvider.isLoading
+//             ? const CircularProgressIndicator(color: GlobalColors.primaryBlue)
+//             : ElevatedButton(
+//                 onPressed: ordersProvider.hasMoreData ? () {
+//                   ordersProvider.loadMore();
+//                 } : null,
+//                 style: ElevatedButton.styleFrom(
+//                   backgroundColor: GlobalColors.primaryBlue,
+//                   foregroundColor: Colors.white,
+//                 ),
+//                 child: Text(ordersProvider.hasMoreData ? 'Load More Orders' : 'No More Orders'),
+//               ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildEmptyState(ProductionOrdersProvider ordersProvider) {
+//     return Center(
+//       child: Column(
+//         mainAxisAlignment: MainAxisAlignment.center,
+//         children: [
+//           Icon(
+//             Icons.receipt_long_outlined,
+//             size: 80,
+//             color: Colors.grey[300],
+//           ),
+//           const SizedBox(height: 16),
+//           Text(
+//             'No orders found',
+//             style: GoogleFonts.poppins(
+//               fontSize: 18,
+//               fontWeight: FontWeight.w500,
+//               color: Colors.grey[600],
+//             ),
+//           ),
+//           const SizedBox(height: 8),
+//           Text(
+//             'Pull down to refresh',
+//             style: GoogleFonts.poppins(
+//               fontSize: 14,
+//               color: Colors.grey[500],
+//             ),
+//             textAlign: TextAlign.center,
+//           ),
+//           const SizedBox(height: 16),
+//           ElevatedButton(
+//             onPressed: () {
+//               if (!_isMounted) return;
+//               setState(() {
+//                 _isRefreshing = true;
+//               });
+//               ordersProvider.refresh().then((_) {
+//                 if (_isMounted) {
+//                   setState(() {
+//                     _isRefreshing = false;
+//                   });
+//                 }
+//               }).catchError((error) {
+//                 if (_isMounted) {
+//                   setState(() {
+//                     _isRefreshing = false;
+//                   });
+//                 }
+//               });
+//             },
+//             style: ElevatedButton.styleFrom(
+//               backgroundColor: GlobalColors.primaryBlue,
+//             ),
+//             child: const Text(
+//               'Refresh',
+//               style: TextStyle(color: Colors.white),
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   Widget _buildEmptyFilterState(ProductionOrdersProvider ordersProvider) {
+//     return Center(
+//       child: Column(
+//         mainAxisAlignment: MainAxisAlignment.center,
+//         children: [
+//           Icon(
+//             Icons.filter_list_off,
+//             size: 80,
+//             color: Colors.grey[300],
+//           ),
+//           const SizedBox(height: 16),
+//           Text(
+//             'No ${ordersProvider.filter.replaceAll('_', ' ')} orders',
+//             style: GoogleFonts.poppins(
+//               fontSize: 18,
+//               fontWeight: FontWeight.w500,
+//               color: Colors.grey[600],
+//             ),
+//           ),
+//           const SizedBox(height: 8),
+//           Text(
+//             'Try changing the filter',
+//             style: GoogleFonts.poppins(
+//               fontSize: 14,
+//               color: Colors.grey[500],
+//             ),
+//             textAlign: TextAlign.center,
+//           ),
+//           const SizedBox(height: 16),
+//           ElevatedButton(
+//             onPressed: () {
+//               ordersProvider.setFilter('all');
+//             },
+//             style: ElevatedButton.styleFrom(
+//               backgroundColor: GlobalColors.primaryBlue,
+//             ),
+//             child: const Text(
+//               'Show All Orders',
+//               style: TextStyle(color: Colors.white),
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   Widget _buildOrderCard(ProductionOrderItem order, BuildContext context, ProductionOrdersProvider ordersProvider) {
+//     final isSelected = _selectedOrders[order.id] ?? false;
+    
+//     return Container(
+//       margin: const EdgeInsets.only(bottom: 16),
+//       decoration: BoxDecoration(
+//         color: Colors.white,
+//         borderRadius: BorderRadius.circular(12),
+//         boxShadow: [
+//           BoxShadow(
+//             color: Colors.grey.withOpacity(0.1),
+//             blurRadius: 8,
+//             spreadRadius: 1,
+//           ),
+//         ],
+//         border: _isSelectionMode && isSelected
+//             ? Border.all(color: GlobalColors.primaryBlue, width: 2)
+//             : null,
+//       ),
+//       child: Material(
+//         color: Colors.transparent,
+//         child: InkWell(
+//           borderRadius: BorderRadius.circular(12),
+//           onTap: () {
+//             if (_isSelectionMode) {
+//               setState(() {
+//                 _selectedOrders[order.id] = !isSelected;
+//                 _updateSelectAllStatus(ordersProvider);
+//               });
+//             } else {
+//               _showOrderDetails(order, context, ordersProvider);
+//             }
+//           },
+//           onLongPress: () {
+//             setState(() {
+//               _isSelectionMode = true;
+//               _selectedOrders[order.id] = true;
+//               _updateSelectAllStatus(ordersProvider);
+//             });
+//           },
+//           child: Padding(
+//             padding: const EdgeInsets.all(16),
+//             child: Row(
+//               crossAxisAlignment: CrossAxisAlignment.start,
+//               children: [
+//                 if (_isSelectionMode)
+//                   Padding(
+//                     padding: const EdgeInsets.only(right: 12, top: 4),
+//                     child: Checkbox(
+//                       value: isSelected,
+//                       onChanged: (value) {
+//                         setState(() {
+//                           _selectedOrders[order.id] = value ?? false;
+//                           _updateSelectAllStatus(ordersProvider);
+//                         });
+//                       },
+//                       activeColor: GlobalColors.primaryBlue,
+//                     ),
+//                   ),
+                
+//                 Expanded(
+//                   child: Column(
+//                     crossAxisAlignment: CrossAxisAlignment.start,
+//                     children: [
+//                       Row(
+//                         children: [
+//                           Expanded(
+//                             child: Column(
+//                               crossAxisAlignment: CrossAxisAlignment.start,
+//                               children: [
+//                                 Text(
+//                                   'Order #${order.id.substring(0, 8)}',
+//                                   style: GoogleFonts.poppins(
+//                                     fontSize: 16,
+//                                     fontWeight: FontWeight.w600,
+//                                     color: Colors.black,
+//                                   ),
+//                                 ),
+//                                 const SizedBox(height: 4),
+//                                 Text(
+//                                   DateFormat('dd MMM yyyy, hh:mm a').format(order.createdAt),
+//                                   style: GoogleFonts.poppins(
+//                                     fontSize: 12,
+//                                     color: Colors.grey[600],
+//                                   ),
+//                                 ),
+//                               ],
+//                             ),
+//                           ),
+//                           Container(
+//                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+//                             decoration: BoxDecoration(
+//                               color: order.statusColor.withOpacity(0.1),
+//                               borderRadius: BorderRadius.circular(20),
+//                               border: Border.all(color: order.statusColor.withOpacity(0.3)),
+//                             ),
+//                             child: Row(
+//                               children: [
+//                                 Icon(order.statusIcon, size: 14, color: order.statusColor),
+//                                 const SizedBox(width: 6),
+//                                 Text(
+//                                   order.displayStatus,
+//                                   style: GoogleFonts.poppins(
+//                                     fontSize: 12,
+//                                     fontWeight: FontWeight.w500,
+//                                     color: order.statusColor,
+//                                   ),
+//                                 ),
+//                               ],
+//                             ),
+//                           ),
+//                         ],
+//                       ),
+
+//                       const SizedBox(height: 12),
+
+//                       _infoRow('Customer:', order.customerName),
+//                       _infoRow('Product:', order.productName),
+//                       _infoRow('District:', order.district.isNotEmpty ? order.district : 'Not specified'),
+//                       _infoRow('Bags:', order.displayQuantity),
+                      
+//                       if (order.customerMobile.isNotEmpty)
+//                         _infoRow('Mobile:', order.customerMobile),
+                      
+//                       if (order.customerAddress.isNotEmpty)
+//                         _infoRow('Address:', order.customerAddress),
+
+//                       const SizedBox(height: 12),
+
+//                       Row(
+//                         children: [
+//                           Expanded(
+//                             child: Container(
+//                               padding: const EdgeInsets.all(8),
+//                               decoration: BoxDecoration(
+//                                 color: Colors.blue[50],
+//                                 borderRadius: BorderRadius.circular(8),
+//                               ),
+//                               child: Column(
+//                                 crossAxisAlignment: CrossAxisAlignment.start,
+//                                 children: [
+//                                   Text(
+//                                     '₹${order.totalPrice}',
+//                                     style: GoogleFonts.poppins(
+//                                       fontSize: 14,
+//                                       fontWeight: FontWeight.w600,
+//                                       color: Colors.blue[700],
+//                                     ),
+//                                   ),
+//                                   Text(
+//                                     'Total Price',
+//                                     style: GoogleFonts.poppins(
+//                                       fontSize: 11,
+//                                       color: Colors.blue[600],
+//                                     ),
+//                                   ),
+//                                 ],
+//                               ),
+//                             ),
+//                           ),
+//                           const SizedBox(width: 8),
+//                           Expanded(
+//                             child: Container(
+//                               padding: const EdgeInsets.all(8),
+//                               decoration: BoxDecoration(
+//                                 color: Colors.green[50],
+//                                 borderRadius: BorderRadius.circular(8),
+//                               ),
+//                               child: Column(
+//                                 crossAxisAlignment: CrossAxisAlignment.start,
+//                                 children: [
+//                                   Text(
+//                                     '₹${order.pricePerBag}/bag',
+//                                     style: GoogleFonts.poppins(
+//                                       fontSize: 14,
+//                                       fontWeight: FontWeight.w600,
+//                                       color: Colors.green[700],
+//                                     ),
+//                                   ),
+//                                   Text(
+//                                     'Price per Bag',
+//                                     style: GoogleFonts.poppins(
+//                                       fontSize: 11,
+//                                       color: Colors.green[600],
+//                                     ),
+//                                   ),
+//                                 ],
+//                               ),
+//                             ),
+//                           ),
+//                         ],
+//                       ),
+
+//                       const SizedBox(height: 12),
+
+//                       if (!_isSelectionMode && 
+//                           order.status.toLowerCase() != 'completed' &&
+//                           order.status.toLowerCase() != 'cancelled')
+//                         SizedBox(
+//                           width: double.infinity,
+//                           child: ElevatedButton(
+//                             onPressed: () => _showStatusUpdateDialog(order, context, ordersProvider),
+//                             style: ElevatedButton.styleFrom(
+//                               backgroundColor: GlobalColors.primaryBlue,
+//                               shape: RoundedRectangleBorder(
+//                                 borderRadius: BorderRadius.circular(8),
+//                               ),
+//                             ),
+//                             child: Text(
+//                               'Update Status',
+//                               style: GoogleFonts.poppins(
+//                                 color: Colors.white,
+//                                 fontWeight: FontWeight.w500,
+//                               ),
+//                             ),
+//                           ),
+//                         ),
+//                     ],
+//                   ),
+//                 ),
+//               ],
+//             ),
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+
+//   void _updateSelectAllStatus(ProductionOrdersProvider ordersProvider) {
+//     if (!_isMounted) return;
+    
+//     if (ordersProvider.filteredOrders.isEmpty) {
+//       _selectAll = false;
+//       return;
+//     }
+    
+//     bool allSelected = true;
+//     for (var order in ordersProvider.filteredOrders) {
+//       if (!(_selectedOrders[order.id] ?? false)) {
+//         allSelected = false;
+//         break;
+//       }
+//     }
+//     _selectAll = allSelected;
+//   }
+
+//   Widget _infoRow(String label, String value) {
+//     return Padding(
+//       padding: const EdgeInsets.only(bottom: 6),
+//       child: Row(
+//         crossAxisAlignment: CrossAxisAlignment.start,
+//         children: [
+//           SizedBox(
+//             width: 80,
+//             child: Text(
+//               label,
+//               style: GoogleFonts.poppins(
+//                 fontSize: 13,
+//                 fontWeight: FontWeight.w500,
+//                 color: Colors.grey[700],
+//               ),
+//             ),
+//           ),
+//           Expanded(
+//             child: Text(
+//               value,
+//               style: GoogleFonts.poppins(
+//                 fontSize: 13,
+//                 color: Colors.black,
+//                 fontWeight: FontWeight.w500,
+//               ),
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   // FIXED: Status update with mounted checks
+//   Future<void> _showStatusUpdateDialog(
+//     ProductionOrderItem order, BuildContext context, ProductionOrdersProvider ordersProvider) async {
+    
+//     if (!_isMounted) return;
+    
+//     final statusOptions = [
+//       'pending', 
+//       'packing', 
+//       'ready_for_dispatch', 
+//       'dispatched', 
+//       'delivered', 
+//       'completed', 
+//       'cancelled'
+//     ].where((s) => s != order.status.toLowerCase()).toList();
+    
+//     final statusDisplayNames = {
+//       'pending': 'Pending',
+//       'packing': 'Packing',
+//       'ready_for_dispatch': 'Ready for Dispatch',
+//       'dispatched': 'Dispatched',
+//       'delivered': 'Delivered',
+//       'completed': 'Completed',
+//       'cancelled': 'Cancelled',
+//     };
+    
+//     if (statusOptions.isEmpty) {
+//       if (_isMounted) {
+//         ScaffoldMessenger.of(context).showSnackBar(
+//           const SnackBar(
+//             content: Text('No status updates available for this order'),
+//             backgroundColor: Colors.orange,
+//           ),
+//         );
+//       }
+//       return;
+//     }
+    
+//     await showModalBottomSheet(
+//       context: context,
+//       isScrollControlled: true,
+//       shape: const RoundedRectangleBorder(
+//         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+//       ),
+//       builder: (context) {
+//         return Container(
+//           constraints: BoxConstraints(
+//             maxHeight: MediaQuery.of(context).size.height * 0.8,
+//           ),
+//           child: SingleChildScrollView(
+//             child: Padding(
+//               padding: const EdgeInsets.all(24),
+//               child: Column(
+//                 mainAxisSize: MainAxisSize.min,
+//                 crossAxisAlignment: CrossAxisAlignment.start,
+//                 children: [
+//                   Center(
+//                     child: Container(
+//                       width: 60,
+//                       height: 4,
+//                       decoration: BoxDecoration(
+//                         color: Colors.grey[300],
+//                         borderRadius: BorderRadius.circular(2),
+//                       ),
+//                     ),
+//                   ),
+//                   const SizedBox(height: 20),
+//                   Text(
+//                     'Update Order Status',
+//                     style: GoogleFonts.poppins(
+//                       fontSize: 18,
+//                       fontWeight: FontWeight.w600,
+//                       color: Colors.black,
+//                     ),
+//                   ),
+//                   const SizedBox(height: 4),
+//                   Text(
+//                     'Order #${order.id.substring(0, 8)}',
+//                     style: GoogleFonts.poppins(
+//                       fontSize: 14,
+//                       color: Colors.grey[600],
+//                     ),
+//                   ),
+//                   const SizedBox(height: 4),
+//                   Text(
+//                     'Current: ${order.displayStatus}',
+//                     style: GoogleFonts.poppins(
+//                       fontSize: 14,
+//                       fontWeight: FontWeight.w500,
+//                       color: order.statusColor,
+//                     ),
+//                   ),
+//                   const SizedBox(height: 20),
+                  
+//                   ...statusOptions.map((status) {
+//                     final displayName = statusDisplayNames[status] ?? status;
+//                     return ListTile(
+//                       contentPadding: const EdgeInsets.symmetric(vertical: 4),
+//                       leading: Container(
+//                         width: 40,
+//                         height: 40,
+//                         decoration: BoxDecoration(
+//                           color: _getStatusColor(status).withOpacity(0.1),
+//                           borderRadius: BorderRadius.circular(10),
+//                         ),
+//                         child: Icon(
+//                           _getStatusIcon(status),
+//                           size: 20,
+//                           color: _getStatusColor(status),
+//                         ),
+//                       ),
+//                       title: Text(
+//                         displayName,
+//                         style: GoogleFonts.poppins(
+//                           fontWeight: FontWeight.w500,
+//                         ),
+//                       ),
+//                       trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+//                       onTap: () async {
+//                         Navigator.pop(context);
+//                         await _updateOrderStatus(
+//                           order,
+//                           status,
+//                           context,
+//                           ordersProvider,
+//                         );
+//                       },
+//                     );
+//                   }).toList(),
+                  
+//                   const SizedBox(height: 20),
+//                   SizedBox(
+//                     width: double.infinity,
+//                     child: OutlinedButton(
+//                       onPressed: () => Navigator.pop(context),
+//                       style: OutlinedButton.styleFrom(
+//                         minimumSize: const Size(double.infinity, 48),
+//                         shape: RoundedRectangleBorder(
+//                           borderRadius: BorderRadius.circular(8),
+//                         ),
+//                       ),
+//                       child: Text(
+//                         'Cancel',
+//                         style: GoogleFonts.poppins(
+//                           fontWeight: FontWeight.w500,
+//                         ),
+//                       ),
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//             ),
+//           ),
+//         );
+//       },
+//     );
+//   }
+
+//   // FIXED: Update order status with mounted checks
+//   Future<void> _updateOrderStatus(
+//   ProductionOrderItem order, String newStatus, BuildContext context, ProductionOrdersProvider ordersProvider) async {
+  
+//   if (!_isMounted) return;
+  
+//   // Show loading indicator
+//   final snackBar = SnackBar(
+//     content: Row(
+//       children: [
+//         const SizedBox(
+//           width: 20,
+//           height: 20,
+//           child: CircularProgressIndicator(
+//             strokeWidth: 2,
+//             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+//           ),
+//         ),
+//         const SizedBox(width: 16),
+//         Text('Updating order status...'),
+//       ],
+//     ),
+//     backgroundColor: GlobalColors.primaryBlue,
+//     duration: const Duration(seconds: 2),
+//   );
+  
+//   ScaffoldMessenger.of(context).showSnackBar(snackBar);
+  
+//   try {
+//     print('📝 Attempting to update order ${order.id} to status: $newStatus');
+    
+//     // THIS IS THE IMPORTANT LINE - Make sure this is calling the provider
+//     await ordersProvider.updateOrderStatus(order, newStatus);
+    
+//     if (!_isMounted) return;
+    
+//     ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    
+//     ScaffoldMessenger.of(context).showSnackBar(
+//       SnackBar(
+//         content: Text('✅ Order status updated to ${_getStatusDisplayName(newStatus)}'),
+//         backgroundColor: Colors.green,
+//         behavior: SnackBarBehavior.floating,
+//         duration: const Duration(seconds: 2),
+//       ),
+//     );
+    
+//   } catch (e) {
+//     print('❌ Error updating order status: $e');
+    
+//     if (!_isMounted) return;
+    
+//     ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    
+//     ScaffoldMessenger.of(context).showSnackBar(
+//       SnackBar(
+//         content: Text('❌ Error: ${e.toString()}'),
+//         backgroundColor: Colors.red,
+//         behavior: SnackBarBehavior.floating,
+//         duration: const Duration(seconds: 3),
+//       ),
+//     );
+//   }
+// }
+//   String _getStatusDisplayName(String status) {
+//     switch (status.toLowerCase()) {
+//       case 'pending': return 'Pending';
+//       case 'packing': return 'Packing';
+//       case 'ready_for_dispatch': return 'Ready for Dispatch';
+//       case 'dispatched': return 'Dispatched';
+//       case 'delivered': return 'Delivered';
+//       case 'completed': return 'Completed';
+//       case 'cancelled': return 'Cancelled';
+//       default: return status;
+//     }
+//   }
+
+//   // FIXED: Bulk update with mounted checks
+//   Future<void> _showBulkStatusUpdateDialog(ProductionOrdersProvider ordersProvider) async {
+//     if (!_isMounted) return;
+    
+//     final selectedOrderIds = _selectedOrders.entries
+//         .where((entry) => entry.value)
+//         .map((entry) => entry.key)
+//         .toList();
+    
+//     if (selectedOrderIds.isEmpty) return;
+    
+//     final statusDisplayNames = {
+//       'pending': 'Pending',
+//       'packing': 'Packing',
+//       'ready_for_dispatch': 'Ready for Dispatch',
+//       'dispatched': 'Dispatched',
+//       'delivered': 'Delivered',
+//       'completed': 'Completed',
+//       'cancelled': 'Cancelled',
+//     };
+    
+//     await showModalBottomSheet(
+//       context: context,
+//       isScrollControlled: true,
+//       shape: const RoundedRectangleBorder(
+//         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+//       ),
+//       builder: (context) {
+//         return Container(
+//           constraints: BoxConstraints(
+//             maxHeight: MediaQuery.of(context).size.height * 0.7,
+//           ),
+//           child: SingleChildScrollView(
+//             child: Padding(
+//               padding: const EdgeInsets.all(24),
+//               child: Column(
+//                 mainAxisSize: MainAxisSize.min,
+//                 crossAxisAlignment: CrossAxisAlignment.start,
+//                 children: [
+//                   Center(
+//                     child: Container(
+//                       width: 60,
+//                       height: 4,
+//                       decoration: BoxDecoration(
+//                         color: Colors.grey[300],
+//                         borderRadius: BorderRadius.circular(2),
+//                       ),
+//                     ),
+//                   ),
+//                   const SizedBox(height: 20),
+//                   Text(
+//                     'Bulk Update Status',
+//                     style: GoogleFonts.poppins(
+//                       fontSize: 18,
+//                       fontWeight: FontWeight.w600,
+//                       color: Colors.black,
+//                     ),
+//                   ),
+//                   const SizedBox(height: 4),
+//                   Text(
+//                     'Updating ${selectedOrderIds.length} orders',
+//                     style: GoogleFonts.poppins(
+//                       fontSize: 14,
+//                       color: Colors.grey[600],
+//                     ),
+//                   ),
+//                   const SizedBox(height: 20),
+                  
+//                   Text(
+//                     'Select New Status:',
+//                     style: GoogleFonts.poppins(
+//                       fontSize: 16,
+//                       fontWeight: FontWeight.w500,
+//                       color: Colors.black,
+//                     ),
+//                   ),
+//                   const SizedBox(height: 12),
+                  
+//                   Column(
+//                     children: ['pending', 'packing', 'ready_for_dispatch', 'dispatched', 'delivered', 'completed', 'cancelled']
+//                         .map((status) {
+//                       final displayName = statusDisplayNames[status] ?? status;
+//                       return ListTile(
+//                         contentPadding: const EdgeInsets.symmetric(vertical: 4),
+//                         leading: Container(
+//                           width: 40,
+//                           height: 40,
+//                           decoration: BoxDecoration(
+//                             color: _getStatusColor(status).withOpacity(0.1),
+//                             borderRadius: BorderRadius.circular(10),
+//                           ),
+//                           child: Icon(
+//                             _getStatusIcon(status),
+//                             size: 20,
+//                             color: _getStatusColor(status),
+//                           ),
+//                         ),
+//                         title: Text(
+//                           displayName,
+//                           style: GoogleFonts.poppins(
+//                             fontWeight: FontWeight.w500,
+//                           ),
+//                         ),
+//                         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+//                         onTap: () async {
+//                           Navigator.pop(context);
+//                           await _updateBulkOrderStatus(selectedOrderIds, status, ordersProvider);
+//                         },
+//                       );
+//                     }).toList(),
+//                   ),
+                  
+//                   const SizedBox(height: 20),
+//                   SizedBox(
+//                     width: double.infinity,
+//                     child: OutlinedButton(
+//                       onPressed: () => Navigator.pop(context),
+//                       style: OutlinedButton.styleFrom(
+//                         minimumSize: const Size(double.infinity, 48),
+//                         shape: RoundedRectangleBorder(
+//                           borderRadius: BorderRadius.circular(8),
+//                         ),
+//                       ),
+//                       child: Text(
+//                         'Cancel',
+//                         style: GoogleFonts.poppins(
+//                           fontWeight: FontWeight.w500,
+//                         ),
+//                       ),
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//             ),
+//           ),
+//         );
+//       },
+//     );
+//   }
+
+//   // FIXED: Bulk update without loading dialog and with mounted checks
+//   Future<void> _updateBulkOrderStatus(
+//     List<String> orderIds, 
+//     String newStatus, 
+//     ProductionOrdersProvider ordersProvider) async {
+    
+//     if (!_isMounted) return;
+    
+//     // Show a snackbar instead of loading dialog
+//     final snackBar = SnackBar(
+//       content: Row(
+//         children: [
+//           const SizedBox(
+//             width: 20,
+//             height: 20,
+//             child: CircularProgressIndicator(
+//               strokeWidth: 2,
+//               valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+//             ),
+//           ),
+//           const SizedBox(width: 16),
+//           Text('Updating ${orderIds.length} orders...'),
+//         ],
+//       ),
+//       backgroundColor: GlobalColors.primaryBlue,
+//       duration: const Duration(seconds: 1),
+//     );
+    
+//     ScaffoldMessenger.of(context).showSnackBar(snackBar);
+    
+//     try {
+//       print('📝 Bulk updating ${orderIds.length} orders to: $newStatus');
+      
+//       // Get the actual order objects from the provider
+//       final ordersToUpdate = ordersProvider.orders
+//           .where((order) => orderIds.contains(order.id))
+//           .toList();
+      
+//       await ordersProvider.updateBulkOrderStatus(ordersToUpdate.cast<String>(), newStatus);
+      
+//       if (!_isMounted) return;
+      
+//       // Close the progress snackbar
+//       ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      
+//       // Exit selection mode
+//       setState(() {
+//         _isSelectionMode = false;
+//         _selectedOrders.clear();
+//         _selectAll = false;
+//       });
+      
+//       // Show success message
+//       ScaffoldMessenger.of(context).showSnackBar(
+//         SnackBar(
+//           content: Text('✅ ${orderIds.length} orders updated to ${_getStatusDisplayName(newStatus)}'),
+//           backgroundColor: Colors.green,
+//           behavior: SnackBarBehavior.floating,
+//           duration: const Duration(seconds: 3),
+//         ),
+//       );
+      
+//     } catch (e) {
+//       print('❌ Bulk update error: $e');
+      
+//       if (!_isMounted) return;
+      
+//       // Close the progress snackbar
+//       ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      
+//       ScaffoldMessenger.of(context).showSnackBar(
+//         SnackBar(
+//           content: Text('❌ Error: ${e.toString()}'),
+//           backgroundColor: Colors.red,
+//           behavior: SnackBarBehavior.floating,
+//           duration: const Duration(seconds: 4),
+//           action: SnackBarAction(
+//             label: 'Retry',
+//             textColor: Colors.white,
+//             onPressed: () {
+//               _updateBulkOrderStatus(orderIds, newStatus, ordersProvider);
+//             },
+//           ),
+//         ),
+//       );
+//     }
+//   }
+
+//   void _showOrderDetails(ProductionOrderItem order, BuildContext context, ProductionOrdersProvider ordersProvider) {
+//     showModalBottomSheet(
+//       context: context,
+//       isScrollControlled: true,
+//       shape: const RoundedRectangleBorder(
+//         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+//       ),
+//       builder: (context) {
+//         return DraggableScrollableSheet(
+//           initialChildSize: 0.9,
+//           minChildSize: 0.5,
+//           maxChildSize: 0.95,
+//           expand: false,
+//           builder: (context, scrollController) {
+//             return Container(
+//               padding: const EdgeInsets.all(24),
+//               child: ListView(
+//                 controller: scrollController,
+//                 children: [
+//                   Center(
+//                     child: Container(
+//                       width: 60,
+//                       height: 4,
+//                       decoration: BoxDecoration(
+//                         color: Colors.grey[300],
+//                         borderRadius: BorderRadius.circular(2),
+//                       ),
+//                     ),
+//                   ),
+//                   const SizedBox(height: 20),
+//                   Row(
+//                     children: [
+//                       Container(
+//                         width: 50,
+//                         height: 50,
+//                         decoration: BoxDecoration(
+//                           color: GlobalColors.primaryBlue.withOpacity(0.1),
+//                           borderRadius: BorderRadius.circular(12),
+//                         ),
+//                         child: Icon(
+//                           Icons.receipt_long,
+//                           color: GlobalColors.primaryBlue,
+//                           size: 28,
+//                         ),
+//                       ),
+//                       const SizedBox(width: 16),
+//                       Expanded(
+//                         child: Column(
+//                           crossAxisAlignment: CrossAxisAlignment.start,
+//                           children: [
+//                             Text(
+//                               'Order Details',
+//                               style: GoogleFonts.poppins(
+//                                 fontSize: 18,
+//                                 fontWeight: FontWeight.w600,
+//                                 color: Colors.black,
+//                               ),
+//                             ),
+//                             Text(
+//                               '#${order.id.substring(0, 8)}',
+//                               style: GoogleFonts.poppins(
+//                                 fontSize: 14,
+//                                 color: Colors.grey[600],
+//                               ),
+//                             ),
+//                           ],
+//                         ),
+//                       ),
+//                       Container(
+//                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+//                         decoration: BoxDecoration(
+//                           color: order.statusColor.withOpacity(0.1),
+//                           borderRadius: BorderRadius.circular(20),
+//                           border: Border.all(color: order.statusColor.withOpacity(0.3)),
+//                         ),
+//                         child: Text(
+//                           order.displayStatus,
+//                           style: GoogleFonts.poppins(
+//                             fontSize: 12,
+//                             fontWeight: FontWeight.w500,
+//                             color: order.statusColor,
+//                           ),
+//                         ),
+//                       ),
+//                     ],
+//                   ),
+//                   const SizedBox(height: 24),
+                  
+//                   _detailRow('Customer Name', order.customerName, Icons.person),
+//                   _detailRow('Customer Mobile', order.customerMobile, Icons.phone),
+//                   _detailRow('Customer Address', order.customerAddress, Icons.location_on),
+//                   _detailRow('District', order.district.isNotEmpty ? order.district : 'Not specified', Icons.map),
+                  
+//                   _detailRow('Product', order.productName, Icons.inventory),
+//                   _detailRow('Bags', '${order.bags} Bags', Icons.shopping_bag),
+//                   _detailRow('Weight per Bag', '${order.weightPerBag} ${order.weightUnit}', Icons.scale),
+//                   _detailRow('Total Weight', '${order.totalWeight} ${order.weightUnit}', Icons.scale),
+//                   _detailRow('Price per Bag', '₹${order.pricePerBag}', Icons.currency_rupee),
+//                   _detailRow('Total Price', '₹${order.totalPrice}', Icons.currency_rupee),
+                  
+//                   if (order.remarks != null && order.remarks!.isNotEmpty)
+//                     _detailRow('Remarks', order.remarks!, Icons.note),
+                  
+//                   _detailRow('Created Date', 
+//                     DateFormat('dd MMM yyyy, hh:mm a').format(order.createdAt),
+//                     Icons.calendar_today,
+//                   ),
+//                   if (order.updatedAt != null)
+//                     _detailRow('Last Updated',
+//                       DateFormat('dd MMM yyyy, hh:mm a').format(order.updatedAt!),
+//                       Icons.update,
+//                     ),
+                  
+//                   const SizedBox(height: 24),
+                  
+//                   if (order.status.toLowerCase() != 'completed' &&
+//                       order.status.toLowerCase() != 'cancelled')
+//                     ElevatedButton(
+//                       onPressed: () {
+//                         Navigator.pop(context);
+//                         _showStatusUpdateDialog(order, context, ordersProvider);
+//                       },
+//                       style: ElevatedButton.styleFrom(
+//                         backgroundColor: GlobalColors.primaryBlue,
+//                         minimumSize: const Size(double.infinity, 48),
+//                         shape: RoundedRectangleBorder(
+//                           borderRadius: BorderRadius.circular(8),
+//                         ),
+//                       ),
+//                       child: Text(
+//                         'Update Status',
+//                         style: GoogleFonts.poppins(
+//                           fontWeight: FontWeight.w600,
+//                           color: Colors.white,
+//                         ),
+//                       ),
+//                     ),
+//                   const SizedBox(height: 8),
+//                   OutlinedButton(
+//                     onPressed: () => Navigator.pop(context),
+//                     style: OutlinedButton.styleFrom(
+//                       minimumSize: const Size(double.infinity, 48),
+//                       shape: RoundedRectangleBorder(
+//                         borderRadius: BorderRadius.circular(8),
+//                       ),
+//                     ),
+//                     child: Text(
+//                       'Close',
+//                       style: GoogleFonts.poppins(
+//                         fontWeight: FontWeight.w500,
+//                       ),
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//             );
+//           },
+//         );
+//       },
+//     );
+//   }
+
+//   Widget _detailRow(String label, String value, IconData icon) {
+//     return Padding(
+//       padding: const EdgeInsets.symmetric(vertical: 8),
+//       child: Row(
+//         crossAxisAlignment: CrossAxisAlignment.start,
+//         children: [
+//           Icon(icon, size: 18, color: Colors.grey[600]),
+//           const SizedBox(width: 12),
+//           Expanded(
+//             child: Text(
+//               label,
+//               style: GoogleFonts.poppins(
+//                 fontSize: 14,
+//                 color: Colors.grey[600],
+//                 fontWeight: FontWeight.w500,
+//               ),
+//             ),
+//           ),
+//           Expanded(
+//             flex: 2,
+//             child: Text(
+//               value,
+//               style: GoogleFonts.poppins(
+//                 fontSize: 14,
+//                 color: Colors.black,
+//               ),
+//               textAlign: TextAlign.right,
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   Color _getStatusColor(String status) {
+//     switch (status.toLowerCase()) {
+//       case 'pending':
+//         return Colors.orange;
+//       case 'packing':
+//         return Colors.blue;
+//       case 'ready_for_dispatch':
+//         return Colors.purple;
+//       case 'dispatched':
+//         return Colors.indigo;
+//       case 'delivered':
+//         return Colors.green;
+//       case 'completed':
+//         return Colors.green;
+//       case 'cancelled':
+//         return Colors.red;
+//       default:
+//         return Colors.grey;
+//     }
+//   }
+
+//   IconData _getStatusIcon(String status) {
+//     switch (status.toLowerCase()) {
+//       case 'pending':
+//         return Icons.pending_actions;
+//       case 'packing':
+//         return Icons.inventory;
+//       case 'ready_for_dispatch':
+//         return Icons.local_shipping;
+//       case 'dispatched':
+//         return Icons.directions_car;
+//       case 'delivered':
+//         return Icons.check_circle;
+//       case 'completed':
+//         return Icons.done_all;
+//       case 'cancelled':
+//         return Icons.cancel;
+//       default:
+//         return Icons.receipt;
+//     }
+//   }
+// }
 
 
 

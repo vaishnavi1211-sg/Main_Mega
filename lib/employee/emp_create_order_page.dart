@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:mega_pro/global/global_variables.dart';
 import 'package:mega_pro/providers/emp_order_provider.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; // Add this import
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class CattleFeedOrderScreen extends StatefulWidget {
   const CattleFeedOrderScreen({super.key});
@@ -13,7 +14,7 @@ class CattleFeedOrderScreen extends StatefulWidget {
 
 class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final supabase = Supabase.instance.client; // Add supabase instance
+  final supabase = Supabase.instance.client;
   int selectedBags = 1;
   String? selectedCategory;
   String? selectedDistrict;
@@ -24,81 +25,61 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
   final TextEditingController addressController = TextEditingController();
   final TextEditingController mobileController = TextEditingController();
   final TextEditingController remarksController = TextEditingController();
-  final TextEditingController emailController =
-      TextEditingController(); // Add email controller
+  final TextEditingController emailController = TextEditingController();
 
-  // District options
   final List<String> districtOptions = [
     'Select District',
-    'Ahmednagar',
-    'Akola',
-    'Amravati',
-    'Aurangabad',
-    'Beed',
-    'Bhandara',
-    'Buldhana',
-    'Chandrapur',
-    'Dhule',
-    'Gadchiroli',
-    'Gondia',
-    'Hingoli',
-    'Jalgaon',
-    'Jalna',
-    'Kolhapur',
-    'Latur',
-    'Mumbai City',
-    'Mumbai Suburban',
-    'Nagpur',
-    'Nanded',
-    'Nandurbar',
-    'Nashik',
-    'Osmanabad',
-    'Palghar',
-    'Parbhani',
-    'Pune',
-    'Raigad',
-    'Ratnagiri',
-    'Sangli',
-    'Satara',
-    'Sindhudurg',
-    'Solapur',
-    'Thane',
-    'Wardha',
-    'Washim',
-    'Yavatmal',
-    'Other',
+    'Ahmednagar', 'Akola', 'Amravati', 'Aurangabad', 'Beed', 'Bhandara',
+    'Buldhana', 'Chandrapur', 'Dhule', 'Gadchiroli', 'Gondia', 'Hingoli',
+    'Jalgaon', 'Jalna', 'Kolhapur', 'Latur', 'Mumbai City', 'Mumbai Suburban',
+    'Nagpur', 'Nanded', 'Nandurbar', 'Nashik', 'Osmanabad', 'Palghar',
+    'Parbhani', 'Pune', 'Raigad', 'Ratnagiri', 'Sangli', 'Satara',
+    'Sindhudurg', 'Solapur', 'Thane', 'Wardha', 'Washim', 'Yavatmal', 'Other',
   ];
 
-  // Category definitions with bag weights
   final Map<String, Map<String, dynamic>> categories = {
     "मिल्क पॉवर / Milk Power": {"weight": 20, "unit": "kg", "price": 350},
     "दुध सरिता / Dugdh Sarita": {"weight": 25, "unit": "kg", "price": 450},
     "दुग्धराज / Dugdh Raj": {"weight": 30, "unit": "kg", "price": 600},
     "डायमंड संतुलित पशु आहार / Diamond Balanced Animal Feed": {
-      "weight": 10,
-      "unit": "kg",
-      "price": 800,
+      "weight": 10, "unit": "kg", "price": 800,
     },
     "मिल्क पॉवर प्लस / Milk Power Plus": {
-      "weight": 5,
-      "unit": "kg",
-      "price": 1200,
+      "weight": 5, "unit": "kg", "price": 1200,
     },
     "संतुलित पशु आहार / Santulit Pashu Aahar": {
-      "weight": 5,
-      "unit": "kg",
-      "price": 1200,
+      "weight": 5, "unit": "kg", "price": 1200,
     },
     "जीवन धारा / Jeevan Dhara": {"weight": 5, "unit": "kg", "price": 1200},
     "Dairy Special संतुलित पशु आहार": {
-      "weight": 5,
-      "unit": "kg",
-      "price": 1200,
+      "weight": 5, "unit": "kg", "price": 1200,
     },
   };
 
-  // Bag quantity options
   final List<int> bagOptions = [1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 40, 50];
+
+  // Helper methods to calculate prices
+  int getCurrentPricePerBag() {
+    if (selectedCategory == null) return 0;
+    return categories[selectedCategory]!['price'] as int;
+  }
+
+  int getCurrentTotalPrice() {
+    if (selectedCategory == null) return 0;
+    final pricePerBag = categories[selectedCategory]!['price'] as int;
+    return selectedBags * pricePerBag;
+  }
+
+  int getCurrentTotalWeight() {
+    if (selectedCategory == null) return 0;
+    final weightPerBag = categories[selectedCategory]!['weight'] as int;
+    return selectedBags * weightPerBag;
+  }
+
+  String getCurrentWeightUnit() {
+    if (selectedCategory == null) return 'kg';
+    return categories[selectedCategory]!['unit'] as String;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -113,13 +94,10 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
       appBar: AppBar(
         backgroundColor: GlobalColors.primaryBlue,
         elevation: 0,
-        //centerTitle: true,
         iconTheme: const IconThemeData(color: GlobalColors.white),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: GlobalColors.white),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           "Cattle Feed Order",
@@ -142,465 +120,21 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header Section
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 20,
-                        horizontal: 24,
-                      ),
-                      decoration: BoxDecoration(
-                        color: GlobalColors.primaryBlue,
-                        borderRadius: const BorderRadius.only(
-                          bottomLeft: Radius.circular(20),
-                          bottomRight: Radius.circular(20),
-                        ),
-                      ),
-                      child: const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "New Feed Order",
-                            style: TextStyle(
-                              color: GlobalColors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(height: 6),
-                          Text(
-                            "Fill the details to place order",
-                            style: TextStyle(
-                              color: GlobalColors.white,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    _buildHeader(),
                     const SizedBox(height: 24),
-
-                    // Customer Details Section
                     _buildSectionHeader("Customer Information"),
-                    _buildCard(
-                      child: Column(
-                        children: [
-                          _buildTextField(
-                            controller: nameController,
-                            label: "Customer Name *",
-                            hintText: "Enter full name",
-                            icon: Icons.person_outline,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter customer name';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          _buildTextField(
-                            controller: mobileController,
-                            label: "Mobile Number *",
-                            hintText: "10 digit mobile number",
-                            icon: Icons.phone_outlined,
-                            keyboardType: TextInputType.phone,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter mobile number';
-                              }
-                              if (value.length != 10 ||
-                                  int.tryParse(value) == null) {
-                                return 'Enter valid 10-digit mobile number';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          _buildTextField(
-                            controller: emailController,
-                            label: "Email (Optional)",
-                            hintText: "customer@example.com",
-                            icon: Icons.email_outlined,
-                            keyboardType: TextInputType.emailAddress,
-                            validator: (value) {
-                              if (value != null && value.isNotEmpty) {
-                                if (!RegExp(
-                                  r'^[^@]+@[^@]+\.[^@]+',
-                                ).hasMatch(value)) {
-                                  return 'Enter valid email address';
-                                }
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          _buildTextField(
-                            controller: addressController,
-                            label: "Delivery Address *",
-                            hintText: "Enter complete delivery address",
-                            icon: Icons.location_on_outlined,
-                            maxLines: 2,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter delivery address';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          // District Dropdown
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel("District *"),
-                              const SizedBox(height: 8),
-                              Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: Colors.grey,
-                                    width: 1,
-                                  ),
-                                ),
-                                child: DropdownButtonFormField<String>(
-                                  value: selectedDistrict,
-                                  decoration: InputDecoration(
-                                    filled: true,
-                                    fillColor: Colors.white,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 14,
-                                    ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                    enabledBorder: InputBorder.none,
-                                    focusedBorder: InputBorder.none,
-                                    prefixIcon: Icon(
-                                      Icons.map_outlined,
-                                      color: GlobalColors.primaryBlue,
-                                    ),
-                                  ),
-                                  hint: const Text(
-                                    "Select district",
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  isExpanded: true,
-                                  items: districtOptions
-                                      .map(
-                                        (district) => DropdownMenuItem(
-                                          value: district == 'Select District'
-                                              ? null
-                                              : district,
-                                          child: Text(
-                                            district,
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      )
-                                      .toList(),
-                                  onChanged: (value) =>
-                                      setState(() => selectedDistrict = value),
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Please select a district';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
+                    _buildCustomerInfoCard(),
                     const SizedBox(height: 20),
-
-                    // Order Details Section
                     _buildSectionHeader("Order Details"),
-                    _buildCard(
-                      child: Column(
-                        children: [
-                          // Category Dropdown
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel("Feed Category *"),
-                              const SizedBox(height: 8),
-                              Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: Colors.grey,
-                                    width: 1,
-                                  ),
-                                ),
-                                child: DropdownButtonFormField<String>(
-                                  value: selectedCategory,
-                                  decoration: InputDecoration(
-                                    filled: true,
-                                    fillColor: Colors.white,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 14,
-                                    ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide.none,
-                                    ),
-                                    enabledBorder: InputBorder.none,
-                                    focusedBorder: InputBorder.none,
-                                    prefixIcon: Icon(
-                                      Icons.category_outlined,
-                                      color: GlobalColors.primaryBlue,
-                                    ),
-                                  ),
-                                  hint: const Text(
-                                    "Select feed category",
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  isExpanded: true,
-                                  items: categories.keys
-                                      .map(
-                                        (category) => DropdownMenuItem(
-                                          value: category,
-                                          child: Text(
-                                            category,
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                            maxLines: 2,
-                                          ),
-                                        ),
-                                      )
-                                      .toList(),
-                                  onChanged: (value) =>
-                                      setState(() => selectedCategory = value),
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Please select a category';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-
-                          // Quantity Selection (Bags)
-                          if (selectedCategory != null)
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildLabel("Number of Bags *"),
-                                const SizedBox(height: 8),
-                                SizedBox(
-                                  height: 60,
-                                  child: ListView.builder(
-                                    scrollDirection: Axis.horizontal,
-                                    itemCount: bagOptions.length,
-                                    itemBuilder: (context, index) {
-                                      final bags = bagOptions[index];
-                                      return Padding(
-                                        padding: const EdgeInsets.only(
-                                          right: 8,
-                                        ),
-                                        child: ChoiceChip(
-                                          label: Text(
-                                            '$bags Bag${bags > 1 ? 's' : ''}',
-                                          ),
-                                          selected: selectedBags == bags,
-                                          selectedColor:
-                                              GlobalColors.primaryBlue,
-                                          labelStyle: TextStyle(
-                                            color: selectedBags == bags
-                                                ? GlobalColors.white
-                                                : Colors.black,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                          onSelected: (selected) {
-                                            setState(() {
-                                              selectedBags = bags;
-                                            });
-                                          },
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              20,
-                                            ),
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: GlobalColors.primaryBlue.withOpacity(
-                                      0.1,
-                                    ),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: GlobalColors.primaryBlue
-                                          .withOpacity(0.3),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.info_outline,
-                                        color: GlobalColors.primaryBlue,
-                                        size: 20,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          "Each bag contains ${categories[selectedCategory]!['weight']} ${categories[selectedCategory]!['unit']}",
-                                          style: TextStyle(
-                                            color: GlobalColors.primaryBlue,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-
-                                // Total Weight Calculation
-                                Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: Colors.grey,
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            "Total Quantity",
-                                            style: TextStyle(
-                                              color: Colors.black,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            "Weight",
-                                            style: TextStyle(
-                                              color: Colors.black,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.end,
-                                        children: [
-                                          Text(
-                                            "$selectedBags Bags",
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: GlobalColors.primaryBlue,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            "${(selectedBags * categories[selectedCategory]!['weight'])} ${categories[selectedCategory]!['unit']}",
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color: Colors.black,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                        ],
-                      ),
-                    ),
-
+                    _buildOrderDetailsCard(),
                     const SizedBox(height: 20),
-
-                    // Remarks Section
+                    _buildSectionHeader("Price Details"),
+                    _buildPriceDetailsCard(),
+                    const SizedBox(height: 20),
                     _buildSectionHeader("Additional Information"),
-                    _buildCard(
-                      child: Column(
-                        children: [
-                          _buildTextField(
-                            controller: remarksController,
-                            label: "Remarks (Optional)",
-                            hintText: "Any special instructions or notes...",
-                            icon: Icons.note_outlined,
-                            maxLines: 3,
-                          ),
-                        ],
-                      ),
-                    ),
-
+                    _buildRemarksCard(),
                     const SizedBox(height: 30),
-
-                    // Place Order Button
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: GlobalColors.primaryBlue,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            minimumSize: const Size(double.infinity, 56),
-                          ),
-                          onPressed: () => _submitOrder(orderProvider),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.check_circle_outline,
-                                color: GlobalColors.white,
-                                size: 24,
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                "PLACE ORDER",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: GlobalColors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-
+                    _buildPlaceOrderButton(orderProvider),
                     const SizedBox(height: 40),
                   ],
                 ),
@@ -609,338 +143,716 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
     );
   }
 
-
-// Success Page
-// --------------------------------------------------------
-Widget _buildSuccessPage(OrderProvider orderProvider) {
-  final totalWeight =
-      selectedBags * categories[_orderDetails!['feed_category']]!['weight'];
-  final unit = categories[_orderDetails!['feed_category']]!['unit'];
-  final pricePerBag = categories[_orderDetails!['feed_category']]!['price'];
-  final totalPrice = selectedBags * pricePerBag;
-
-  return Scaffold(
-    backgroundColor: GlobalColors.primaryBlue,
-    appBar: AppBar(
-      backgroundColor: GlobalColors.primaryBlue,
-      elevation: 0,
-      automaticallyImplyLeading: false,
-      title: const Text(
-        "Order Confirmed",
-        style: TextStyle(
-          color: GlobalColors.white,
-          fontWeight: FontWeight.w600,
-          fontSize: 20,
+  Widget _buildHeader() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+      decoration: BoxDecoration(
+        color: GlobalColors.primaryBlue,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(20),
+          bottomRight: Radius.circular(20),
         ),
       ),
-    ),
-    body: SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Success Icon
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              color: GlobalColors.white,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: GlobalColors.primaryBlue.withOpacity(0.3),
-                  blurRadius: 20,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: Icon(
-              Icons.check_circle,
-              color: GlobalColors.primaryBlue,
-              size: 70,
-            ),
-          ),
-          const SizedBox(height: 32),
-
-          // Success Message
-          const Text(
-            "Order Placed Successfully!",
+          Text(
+            "New Feed Order",
             style: TextStyle(
               color: GlobalColors.white,
-              fontSize: 28,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
             ),
-            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 6),
+          Text(
+            "Fill the details to place order",
+            style: TextStyle(
+              color: GlobalColors.white,
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCustomerInfoCard() {
+    return _buildCard(
+      child: Column(
+        children: [
+          _buildTextField(
+            controller: nameController,
+            label: "Customer Name *",
+            hintText: "Enter full name",
+            icon: Icons.person_outline,
+            validator: (value) => value == null || value.isEmpty ? 'Please enter customer name' : null,
           ),
           const SizedBox(height: 16),
-          Text(
-            "Order will appear in production orders",
-            style: TextStyle(
-              color: GlobalColors.white.withOpacity(0.9),
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
+          _buildTextField(
+            controller: mobileController,
+            label: "Mobile Number *",
+            hintText: "10 digit mobile number",
+            icon: Icons.phone_outlined,
+            keyboardType: TextInputType.phone,
+            validator: (value) {
+              if (value == null || value.isEmpty) return 'Please enter mobile number';
+              if (value.length != 10 || int.tryParse(value) == null) {
+                return 'Enter valid 10-digit mobile number';
+              }
+              return null;
+            },
           ),
+          const SizedBox(height: 16),
+          _buildTextField(
+            controller: emailController,
+            label: "Email (Optional)",
+            hintText: "customer@example.com",
+            icon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress,
+            validator: (value) {
+              if (value != null && value.isNotEmpty) {
+                if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                  return 'Enter valid email address';
+                }
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+          _buildTextField(
+            controller: addressController,
+            label: "Delivery Address *",
+            hintText: "Enter complete delivery address",
+            icon: Icons.location_on_outlined,
+            maxLines: 2,
+            validator: (value) => value == null || value.isEmpty ? 'Please enter delivery address' : null,
+          ),
+          const SizedBox(height: 16),
+          _buildDistrictDropdown(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDistrictDropdown() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel("District *"),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey, width: 1),
+          ),
+          child: DropdownButtonFormField<String>(
+            value: selectedDistrict,
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              prefixIcon: Icon(Icons.map_outlined, color: GlobalColors.primaryBlue),
+            ),
+            hint: const Text("Select district", overflow: TextOverflow.ellipsis),
+            isExpanded: true,
+            items: districtOptions.map((district) => DropdownMenuItem(
+              value: district == 'Select District' ? null : district,
+              child: Text(district, style: const TextStyle(fontSize: 14), overflow: TextOverflow.ellipsis),
+            )).toList(),
+            onChanged: (value) => setState(() => selectedDistrict = value),
+            validator: (value) => value == null || value.isEmpty ? 'Please select a district' : null,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOrderDetailsCard() {
+    return _buildCard(
+      child: Column(
+        children: [
+          _buildCategoryDropdown(),
           const SizedBox(height: 20),
+          if (selectedCategory != null) _buildQuantitySection(),
+        ],
+      ),
+    );
+  }
 
-          // WhatsApp Button
-          if (_orderDetails!['customer_mobile'] != null &&
-              _orderDetails!['customer_mobile']!.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  await Provider.of<OrderProvider>(
-                    context,
-                    listen: false,
-                  ).sendOrderWhatsAppNotification(
-                    context: context,
-                    orderId: _orderDetails!['id'],
-                    order: _orderDetails,
-                  );
-                },
-                icon: const Icon(Icons.message, color: Colors.white),
-                label: const Text(
-                  'Send WhatsApp Confirmation',
-                  style: TextStyle(color: Colors.white),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+  Widget _buildCategoryDropdown() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel("Feed Category *"),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey, width: 1),
+          ),
+          child: DropdownButtonFormField<String>(
+            value: selectedCategory,
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              prefixIcon: Icon(Icons.category_outlined, color: GlobalColors.primaryBlue),
+            ),
+            hint: const Text("Select feed category", overflow: TextOverflow.ellipsis),
+            isExpanded: true,
+            items: categories.keys.map((category) => DropdownMenuItem(
+              value: category,
+              child: Text(category, style: const TextStyle(fontSize: 14), overflow: TextOverflow.ellipsis, maxLines: 2),
+            )).toList(),
+            onChanged: (value) => setState(() {
+              selectedCategory = value;
+              selectedBags = 1; // Reset bags when category changes
+            }),
+            validator: (value) => value == null || value.isEmpty ? 'Please select a category' : null,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuantitySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel("Number of Bags *"),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 60,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: bagOptions.length,
+            itemBuilder: (context, index) {
+              final bags = bagOptions[index];
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  label: Text('$bags Bag${bags > 1 ? 's' : ''}'),
+                  selected: selectedBags == bags,
+                  selectedColor: GlobalColors.primaryBlue,
+                  labelStyle: TextStyle(
+                    color: selectedBags == bags ? GlobalColors.white : Colors.black,
+                    fontWeight: FontWeight.w500,
                   ),
+                  onSelected: (selected) => setState(() => selectedBags = bags),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: GlobalColors.primaryBlue.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: GlobalColors.primaryBlue.withOpacity(0.3)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline, color: GlobalColors.primaryBlue, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  "Each bag contains ${categories[selectedCategory]!['weight']} ${categories[selectedCategory]!['unit']}",
+                  style: TextStyle(color: GlobalColors.primaryBlue, fontSize: 13),
                 ),
               ),
-            ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
-          const SizedBox(height: 10),
+  // NEW: Price Details Card with real-time calculation
+  Widget _buildPriceDetailsCard() {
+    if (selectedCategory == null) {
+      return _buildCard(
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          alignment: Alignment.center,
+          child: Text(
+            "Select a product to see price details",
+            style: TextStyle(color: Colors.grey[600], fontSize: 14),
+          ),
+        ),
+      );
+    }
 
-          // Email Button
-          if (_orderDetails!['customer_email'] != null &&
-              _orderDetails!['customer_email']!.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  await Provider.of<OrderProvider>(
-                    context,
-                    listen: false,
-                  ).sendOrderEmailNotification(
-                    context: context,
-                    orderId: _orderDetails!['id'],
-                    order: _orderDetails,
-                  );
-                },
-                icon: const Icon(Icons.email, color: Colors.white),
-                label: const Text(
-                  'Send Email Confirmation',
-                  style: TextStyle(color: Colors.white),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
-          
-          // Add notification message if email was provided
-          if (_orderDetails!['customer_email'] != null &&
-              _orderDetails!['customer_email']!.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 8.0),
-              child: Text(
-                "Tracking link sent to ${_orderDetails!['customer_email']}",
-                style: TextStyle(
-                  color: GlobalColors.white.withOpacity(0.8),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          const SizedBox(height: 40),
+    final pricePerBag = getCurrentPricePerBag();
+    final totalPrice = getCurrentTotalPrice();
+    final totalWeight = getCurrentTotalWeight();
+    final weightUnit = getCurrentWeightUnit();
 
-          // Order Details Card
+    return _buildCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Price per bag
           Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  spreadRadius: 2,
+              color: Colors.blue[50],
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.currency_rupee, color: Colors.blue[700], size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Price per Bag",
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.blue[700],
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  "₹${pricePerBag.toStringAsFixed(0)}",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue[700],
+                  ),
                 ),
               ],
-              border: Border.all(color: Colors.grey, width: 1),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Quantity and Weight
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.green[50],
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  "Order Summary",
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Customer Info
-                _successDetailRow(
-                  "Customer",
-                  _orderDetails!['customer_name'],
-                ),
-                const SizedBox(height: 12),
-                _successDetailRow(
-                  "Mobile",
-                  _orderDetails!['customer_mobile'],
-                ),
-                if (_orderDetails!['customer_email'] != null &&
-                    _orderDetails!['customer_email']!.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _successDetailRow(
-                      "Email",
-                      _orderDetails!['customer_email'],
-                    ),
-                  ),
-                const SizedBox(height: 12),
-                _successDetailRow(
-                  "Address",
-                  _orderDetails!['customer_address'],
-                ),
-                const SizedBox(height: 12),
-                _successDetailRow(
-                  "District",
-                  _orderDetails!['district'],
-                ),
-                const Divider(height: 24),
-
-                // Order Info
-                _successDetailRow(
-                  "Category",
-                  _orderDetails!['feed_category'],
-                ),
-                const SizedBox(height: 12),
-                _successDetailRow(
-                  "Bags",
-                  "${_orderDetails!['bags']} Bags",
-                ),
-                const SizedBox(height: 12),
-                _successDetailRow("Weight", "$totalWeight $unit"),
-                const SizedBox(height: 12),
-                _successDetailRow("Price per Bag", "₹$pricePerBag"),
-                const Divider(height: 24),
-
-                // Total Price
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      "Total Amount",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
+                      "Quantity",
+                      style: TextStyle(fontSize: 14, color: Colors.green[700]),
                     ),
                     Text(
-                      "₹$totalPrice",
+                      "$selectedBags Bags",
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.green[700]),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Total Weight",
+                      style: TextStyle(fontSize: 14, color: Colors.green[700]),
+                    ),
+                    Text(
+                      "$totalWeight $weightUnit",
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.green[700]),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Total Price
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: GlobalColors.primaryBlue.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: GlobalColors.primaryBlue.withOpacity(0.3)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.receipt, color: GlobalColors.primaryBlue, size: 24),
+                    const SizedBox(width: 12),
+                    Text(
+                      "Total Amount",
                       style: TextStyle(
-                        fontSize: 24,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: GlobalColors.primaryBlue,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
                 Text(
-                  "Payment: To be collected on delivery",
+                  "₹${totalPrice.toStringAsFixed(0)}",
                   style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 13,
-                    fontStyle: FontStyle.italic,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: GlobalColors.primaryBlue,
                   ),
-                ),
-                
-                const SizedBox(height: 30),
-                
-                // Action Buttons - Now inside the card at the bottom
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {
-                          setState(() {
-                            _orderPlaced = false;
-                            _resetForm();
-                          });
-                        },
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(
-                            color: GlobalColors.primaryBlue,
-                            width: 2,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                        child: Text(
-                          "NEW ORDER",
-                          style: TextStyle(
-                            color: GlobalColors.primaryBlue,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: GlobalColors.primaryBlue,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                        child: Text(
-                          "BACK TO HOME",
-                          style: TextStyle(
-                            color: GlobalColors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
           ),
-          
-          const SizedBox(height: 30),
         ],
       ),
-    ),
-  );
-}
+    );
+  }
+
+  Widget _buildRemarksCard() {
+    return _buildCard(
+      child: _buildTextField(
+        controller: remarksController,
+        label: "Remarks (Optional)",
+        hintText: "Any special instructions or notes...",
+        icon: Icons.note_outlined,
+        maxLines: 3,
+      ),
+    );
+  }
+
+  Widget _buildPlaceOrderButton(OrderProvider orderProvider) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: GlobalColors.primaryBlue,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            minimumSize: const Size(double.infinity, 56),
+          ),
+          onPressed: () => _submitOrder(orderProvider),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.check_circle_outline, color: GlobalColors.white, size: 24),
+              const SizedBox(width: 12),
+              Text("PLACE ORDER", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: GlobalColors.white)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSuccessPage(OrderProvider orderProvider) {
+    final totalWeight = selectedBags * categories[_orderDetails!['feed_category']]!['weight'];
+    final unit = categories[_orderDetails!['feed_category']]!['unit'];
+    final pricePerBag = categories[_orderDetails!['feed_category']]!['price'] as int;
+    final totalPrice = selectedBags * pricePerBag;
+
+    return Scaffold(
+      backgroundColor: GlobalColors.primaryBlue,
+      appBar: AppBar(
+        backgroundColor: GlobalColors.primaryBlue,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: const Text("Order Confirmed", style: TextStyle(color: GlobalColors.white, fontWeight: FontWeight.w600, fontSize: 20)),
+      ),
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: GlobalColors.white,
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: GlobalColors.primaryBlue.withOpacity(0.3), blurRadius: 20, spreadRadius: 2)],
+              ),
+              child: Icon(Icons.check_circle, color: GlobalColors.primaryBlue, size: 70),
+            ),
+            const SizedBox(height: 32),
+            const Text("Order Placed Successfully!", style: TextStyle(color: GlobalColors.white, fontSize: 28, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            Text("Order will appear in production orders", style: TextStyle(color: GlobalColors.white.withOpacity(0.9), fontSize: 16, fontWeight: FontWeight.w500)),
+            const SizedBox(height: 20),
+
+            // WhatsApp Button
+            if (_orderDetails!['customer_mobile'] != null && _orderDetails!['customer_mobile']!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: ElevatedButton.icon(
+                  onPressed: () => _sendWhatsAppMessage(),
+                  icon: const Icon(Icons.message, color: Colors.white),
+                  label: const Text('Send WhatsApp Confirmation', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+
+            const SizedBox(height: 10),
+
+            // Email Button
+            if (_orderDetails!['customer_email'] != null && _orderDetails!['customer_email']!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: ElevatedButton.icon(
+                  onPressed: () => _sendEmailMessage(),
+                  icon: const Icon(Icons.email, color: Colors.white),
+                  label: const Text('Send Email Confirmation', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+
+            const SizedBox(height: 40),
+            _buildOrderSummaryCard(totalWeight as int , unit, pricePerBag, totalPrice as int),
+            const SizedBox(height: 30),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // FIXED: Send WhatsApp Message
+  Future<void> _sendWhatsAppMessage() async {
+    final phoneNumber = _orderDetails!['customer_mobile'].toString();
+    final orderNumber = _orderDetails!['order_number']?.toString() ?? 'N/A';
+    final customerName = _orderDetails!['customer_name']?.toString() ?? 'Customer';
+    final product = _orderDetails!['feed_category']?.toString() ?? 'Cattle Feed';
+    final bags = _orderDetails!['bags']?.toString() ?? '1';
+    final weight = _orderDetails!['total_weight']?.toString() ?? '0';
+    final unit = _orderDetails!['weight_unit']?.toString() ?? 'kg';
+    final amount = _orderDetails!['total_price']?.toString() ?? '0';
+    final address = _orderDetails!['customer_address']?.toString() ?? '';
+    final district = _orderDetails!['district']?.toString() ?? '';
+
+    final message = '''
+*MEGA PRO CATTLE FEED*
+
+*ORDER CONFIRMED* 🎉
+
+*Order:* $orderNumber
+*Customer:* $customerName
+*Product:* $product
+*Qty:* $bags bags ($weight $unit)
+*Amount:* ₹$amount
+
+*TRACKING*
+⬇️ → ⬜ → ⬜ → ⬜ → ⬜
+Ordered → Packing → Ready → Shipped → Delivered
+
+✅ Your order has been confirmed and is being processed.
+
+*Delivery:* $address, $district
+*Support:* +91 98765 43210
+
+*Thank you!* 🙏
+''';
+
+    String cleanPhone = phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
+    if (cleanPhone.length == 10) {
+      cleanPhone = '91$cleanPhone';
+    } else if (cleanPhone.length == 11 && cleanPhone.startsWith('0')) {
+      cleanPhone = '91${cleanPhone.substring(1)}';
+    }
+
+    final encodedMessage = Uri.encodeComponent(message);
+    final whatsappUrl = 'https://wa.me/$cleanPhone?text=$encodedMessage';
+    
+    try {
+      final uri = Uri.parse(whatsappUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('WhatsApp opened successfully!'), backgroundColor: Colors.green, duration: Duration(seconds: 2)),
+        );
+      } else {
+        throw Exception('Could not launch WhatsApp');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error opening WhatsApp: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  // FIXED: Send Email Message
+  Future<void> _sendEmailMessage() async {
+    final email = _orderDetails!['customer_email'].toString();
+    final orderNumber = _orderDetails!['order_number']?.toString() ?? 'N/A';
+    final customerName = _orderDetails!['customer_name']?.toString() ?? 'Customer';
+    final product = _orderDetails!['feed_category']?.toString() ?? 'Cattle Feed';
+    final bags = _orderDetails!['bags']?.toString() ?? '1';
+    final weight = _orderDetails!['total_weight']?.toString() ?? '0';
+    final unit = _orderDetails!['weight_unit']?.toString() ?? 'kg';
+    final amount = _orderDetails!['total_price']?.toString() ?? '0';
+    final address = _orderDetails!['customer_address']?.toString() ?? '';
+    final district = _orderDetails!['district']?.toString() ?? '';
+
+    final subject = 'Order Confirmed: $orderNumber';
+    
+    final body = '''
+Dear $customerName,
+
+Your cattle feed order has been confirmed!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ORDER DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Order Number:  $orderNumber
+Product:       $product
+Quantity:      $bags bags ($weight $unit)
+Total Amount:  ₹$amount
+Delivery:      $address, $district
+
+TRACKING STATUS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⬇️ Ordered (In Progress)
+⬜ Packing
+⬜ Ready
+⬜ Shipped
+⬜ Delivered
+
+✅ Your order has been confirmed and is being processed.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Need help? Call +91 98765 43210
+
+Best regards,
+Mega Pro Cattle Feed Team
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+''';
+
+    final encodedSubject = Uri.encodeComponent(subject);
+    final encodedBody = Uri.encodeComponent(body);
+    final mailtoUrl = 'mailto:$email?subject=$encodedSubject&body=$encodedBody';
+    
+    try {
+      final uri = Uri.parse(mailtoUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Email app opened successfully!'), backgroundColor: Colors.green, duration: Duration(seconds: 2)),
+        );
+      } else {
+        throw Exception('Could not open email app');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error opening email: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Widget _buildOrderSummaryCard(int totalWeight, String unit, int pricePerBag, int totalPrice) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, spreadRadius: 2)],
+        border: Border.all(color: Colors.grey, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("Order Summary", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black)),
+          const SizedBox(height: 20),
+          _successDetailRow("Customer", _orderDetails!['customer_name']),
+          const SizedBox(height: 12),
+          _successDetailRow("Mobile", _orderDetails!['customer_mobile']),
+          if (_orderDetails!['customer_email'] != null && _orderDetails!['customer_email']!.isNotEmpty)
+            Padding(padding: const EdgeInsets.only(bottom: 12), child: _successDetailRow("Email", _orderDetails!['customer_email'])),
+          const SizedBox(height: 12),
+          _successDetailRow("Address", _orderDetails!['customer_address']),
+          const SizedBox(height: 12),
+          _successDetailRow("District", _orderDetails!['district']),
+          const Divider(height: 24),
+          _successDetailRow("Category", _orderDetails!['feed_category']),
+          const SizedBox(height: 12),
+          _successDetailRow("Bags", "${_orderDetails!['bags']} Bags"),
+          const SizedBox(height: 12),
+          _successDetailRow("Weight", "$totalWeight $unit"),
+          const SizedBox(height: 12),
+          _successDetailRow("Price per Bag", "₹$pricePerBag"),
+          const Divider(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text("Total Amount", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
+              Text("₹$totalPrice", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: GlobalColors.primaryBlue)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text("Payment: To be collected on delivery", style: TextStyle(color: Colors.grey, fontSize: 13, fontStyle: FontStyle.italic)),
+          const SizedBox(height: 30),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () {
+                    setState(() {
+                      _orderPlaced = false;
+                      _resetForm();
+                    });
+                  },
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: GlobalColors.primaryBlue, width: 2),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: Text("NEW ORDER", style: TextStyle(color: GlobalColors.primaryBlue, fontWeight: FontWeight.w600, fontSize: 16)),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: GlobalColors.primaryBlue,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: Text("BACK TO HOME", style: TextStyle(color: GlobalColors.white, fontWeight: FontWeight.w600, fontSize: 16)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _successDetailRow(String label, String value) {
     return Row(
@@ -951,11 +863,7 @@ Widget _buildSuccessPage(OrderProvider orderProvider) {
           child: Text(
             value,
             textAlign: TextAlign.right,
-            style: TextStyle(
-              color: Colors.black,
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-            ),
+            style: TextStyle(color: Colors.black, fontSize: 15, fontWeight: FontWeight.w500),
             overflow: TextOverflow.ellipsis,
             maxLines: 2,
           ),
@@ -964,21 +872,10 @@ Widget _buildSuccessPage(OrderProvider orderProvider) {
     );
   }
 
-  // --------------------------------------------------------
-  // Helper Methods
-  // --------------------------------------------------------
-
   Widget _buildSectionHeader(String title) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 17,
-          fontWeight: FontWeight.w600,
-          color: Colors.black,
-        ),
-      ),
+      child: Text(title, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.black)),
     );
   }
 
@@ -990,13 +887,7 @@ Widget _buildSuccessPage(OrderProvider orderProvider) {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              blurRadius: 15,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 15, offset: const Offset(0, 4))],
           border: Border.all(color: Colors.grey, width: 1),
         ),
         child: child,
@@ -1005,14 +896,7 @@ Widget _buildSuccessPage(OrderProvider orderProvider) {
   }
 
   Widget _buildLabel(String text) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w500,
-        color: Colors.black,
-      ),
-    );
+    return Text(text, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black));
   }
 
   Widget _buildTextField({
@@ -1039,35 +923,17 @@ Widget _buildSuccessPage(OrderProvider orderProvider) {
             filled: true,
             fillColor: Colors.white,
             prefixIcon: Icon(icon, color: GlobalColors.primaryBlue),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey, width: 1),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey, width: 1),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: GlobalColors.primaryBlue, width: 1),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.red, width: 1),
-            ),
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: maxLines > 1 ? 16 : 0,
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey, width: 1)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey, width: 1)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: GlobalColors.primaryBlue, width: 1)),
+            errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.red, width: 1)),
+            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: maxLines > 1 ? 16 : 0),
           ),
         ),
       ],
     );
   }
 
-  // --------------------------------------------------------
-  // Order Submission Logic - UPDATED
-  // --------------------------------------------------------
   Future<void> _submitOrder(OrderProvider orderProvider) async {
     if (!_formKey.currentState!.validate()) {
       _showError("Please fill all required fields");
@@ -1090,14 +956,11 @@ Widget _buildSuccessPage(OrderProvider orderProvider) {
       final pricePerBag = meta['price'] as int;
       final totalPrice = selectedBags * pricePerBag;
 
-      // Prepare order data
       final orderData = {
         'customer_name': nameController.text.trim(),
         'customer_mobile': mobileController.text.trim(),
         'customer_address': addressController.text.trim(),
-        'customer_email': emailController.text.trim().isNotEmpty
-            ? emailController.text.trim()
-            : null,
+        'customer_email': emailController.text.trim().isNotEmpty ? emailController.text.trim() : null,
         'district': selectedDistrict,
         'feed_category': category,
         'bags': selectedBags,
@@ -1106,18 +969,12 @@ Widget _buildSuccessPage(OrderProvider orderProvider) {
         'total_weight': selectedBags * meta['weight'],
         'price_per_bag': pricePerBag,
         'total_price': totalPrice,
-        'remarks': remarksController.text.trim().isEmpty
-            ? null
-            : remarksController.text.trim(),
+        'remarks': remarksController.text.trim().isEmpty ? null : remarksController.text.trim(),
         'status': 'pending',
       };
 
-      print('Submitting order to emp_mar_orders: $orderData');
-
-      // Create order using OrderProvider
       final createdOrder = await orderProvider.createOrder(orderData, context);
 
-      // Update order details for success page
       setState(() {
         _orderDetails = {
           ...orderData,
@@ -1159,7 +1016,6 @@ Widget _buildSuccessPage(OrderProvider orderProvider) {
     );
   }
 }
-
 
 
 

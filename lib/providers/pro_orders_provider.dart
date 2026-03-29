@@ -30,7 +30,7 @@ class ProductionOrdersProvider extends ChangeNotifier {
   bool _autoSendWhatsApp = true;
   bool _autoSendEmail = true;
   
-  // Callback for sending notifications (to be set by main app)
+  // Callback for sending notifications
   Function(Map<String, dynamic>, String, {String? notes})? _onSendWhatsAppNotification;
   Function(Map<String, dynamic>, String, {String? notes})? _onSendEmailNotification;
 
@@ -42,8 +42,6 @@ class ProductionOrdersProvider extends ChangeNotifier {
   String get filter => _filter;
   bool get hasMoreData => _hasMoreData;
   bool get initialLoadComplete => _initialLoadComplete;
-  
-  // Auto notification getters
   bool get autoSendWhatsApp => _autoSendWhatsApp;
   bool get autoSendEmail => _autoSendEmail;
 
@@ -66,9 +64,6 @@ class ProductionOrdersProvider extends ChangeNotifier {
     _setupRealtimeSubscription();
   }
 
-  // ========================
-  // AUTO NOTIFICATION SETTERS
-  // ========================
   void setAutoSendWhatsApp(bool value) {
     _autoSendWhatsApp = value;
     notifyListeners();
@@ -88,12 +83,8 @@ class ProductionOrdersProvider extends ChangeNotifier {
     _onSendWhatsAppNotification = onWhatsApp;
     _onSendEmailNotification = onEmail;
     print('✅ Notification callbacks registered');
-  }
-  
-  // Manual notification trigger
-  void sendNotificationManually(ProductionOrderItem order, String newStatus, {String? notes}) {
-    print('📨 Manual notification trigger for order ${order.orderNumber}');
-    _sendAutoStatusUpdateNotification(order, newStatus, notes: notes);
+    print('   WhatsApp callback exists: ${onWhatsApp != null}');
+    print('   Email callback exists: ${onEmail != null}');
   }
 
   @override
@@ -132,10 +123,9 @@ class ProductionOrdersProvider extends ChangeNotifier {
         notifyListeners();
       }
       
-    } catch (e, stackTrace) {
+    } catch (e) {
       _error = 'Failed to load orders: $e';
       print('❌ Quick load error: $e');
-      print('❌ Stack trace: $stackTrace');
     } finally {
       _isQuickLoading = false;
       notifyListeners();
@@ -177,20 +167,17 @@ class ProductionOrdersProvider extends ChangeNotifier {
         _hasMoreData = false;
       }
           
-    } catch (e, stackTrace) {
+    } catch (e) {
       _error = 'Failed to load orders: $e';
       print('❌ Error loading orders: $e');
-      print('❌ Stack trace: $stackTrace');
     } finally {
       _isLoading = false;
       notifyListeners();
-      print('🏁 _loadOrders completed. Total orders: ${_orders.length}');
     }
   }
 
   Future<void> loadMore() async {
     if (!_hasMoreData || _isLoading || _isLoadingMore) return;
-    
     _isLoadingMore = true;
     _page++;
     await _loadOrders();
@@ -205,7 +192,6 @@ class ProductionOrdersProvider extends ChangeNotifier {
     _orders.clear();
     _error = null;
     notifyListeners();
-    
     await _quickLoad();
     await _loadOrders();
   }
@@ -218,7 +204,6 @@ class ProductionOrdersProvider extends ChangeNotifier {
           .stream(primaryKey: ['id'])
           .listen(
             (List<Map<String, dynamic>> updates) {
-              print('🔄 Realtime update: ${updates.length} order(s) changed');
               _handleOrderUpdates(updates);
             },
             onError: (error) {
@@ -233,45 +218,43 @@ class ProductionOrdersProvider extends ChangeNotifier {
 
   void _handleOrderUpdates(List<Map<String, dynamic>> updates) {
     bool hasChanges = false;
-    
     for (final update in updates) {
       try {
         final updatedOrder = ProductionOrderItem.fromMap(update);
         final index = _orders.indexWhere((order) => order.id == updatedOrder.id);
-
         if (index != -1) {
           if (_pendingUpdates.contains(updatedOrder.id)) {
-            print('📝 Ignoring self-update for order: ${updatedOrder.id}');
             _pendingUpdates.remove(updatedOrder.id);
             continue;
           }
-          
-          print('📝 Updating existing order: ${updatedOrder.id}');
           _orders[index] = updatedOrder;
           hasChanges = true;
         } else {
-          print('➕ Adding new order: ${updatedOrder.id}');
           _orders.insert(0, updatedOrder);
           hasChanges = true;
         }
-      } catch (e, stackTrace) {
+      } catch (e) {
         print('❌ Error processing update: $e');
-        print('❌ Stack trace: $stackTrace');
       }
     }
-
     if (hasChanges) {
       notifyListeners();
     }
-    print('✅ Orders updated. Total: ${_orders.length}');
   }
 
-  // ========================
-  // SEND AUTO NOTIFICATION
-  // ========================
   Future<void> _sendAutoStatusUpdateNotification(ProductionOrderItem order, String newStatus, {String? notes}) async {
+    print('🔔 ========== AUTO NOTIFICATION TRIGGERED ==========');
+    print('📦 Order: ${order.orderNumber}');
+    print('📱 WhatsApp enabled: $_autoSendWhatsApp');
+    print('📧 Email enabled: $_autoSendEmail');
+    print('👤 Customer: ${order.customerName}');
+    print('📞 Mobile: ${order.customerMobile}');
+    print('✉️ Email: ${order.customerEmail}');
+    print('🔄 New Status: $newStatus');
+    print('📞 WhatsApp callback exists: ${_onSendWhatsAppNotification != null}');
+    print('✉️ Email callback exists: ${_onSendEmailNotification != null}');
+    
     try {
-      // Prepare order data for notification - matches OrderProvider's expected format
       final orderData = {
         'id': order.id,
         'order_number': order.orderNumber,
@@ -288,53 +271,46 @@ class ProductionOrdersProvider extends ChangeNotifier {
         'price_per_bag': order.pricePerBag,
         'total_price': order.totalPrice,
         'remarks': order.remarks,
-        'status': newStatus, // Use new status for the message
+        'status': newStatus,
         'tracking_id': order.trackingId,
         'tracking_token': order.trackingToken,
         'created_at': order.createdAt.toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
       };
       
-      print('📨 Auto-notification prepared for order ${order.orderNumber}');
-      print('   Customer: ${order.customerName}');
-      print('   Mobile: ${order.customerMobile}');
-      print('   Email: ${order.customerEmail}');
-      print('   WhatsApp: $_autoSendWhatsApp, Email: $_autoSendEmail');
-      print('   New Status: $newStatus');
-      
-      // Send WhatsApp if enabled and customer has mobile number
       if (_autoSendWhatsApp && _onSendWhatsAppNotification != null && order.customerMobile.isNotEmpty) {
         try {
           await _onSendWhatsAppNotification!(orderData, newStatus, notes: notes);
-          print('✅ Auto WhatsApp notification sent for order ${order.orderNumber}');
+          print('✅ WhatsApp notification sent successfully!');
         } catch (e) {
-          print('❌ Failed to send auto WhatsApp: $e');
+          print('❌ WhatsApp error: $e');
         }
-      } else if (_autoSendWhatsApp && order.customerMobile.isEmpty) {
-        print('⚠️ Cannot send WhatsApp - no mobile number for order ${order.orderNumber}');
+      } else {
+        print('⚠️ WhatsApp not sending: enabled=$_autoSendWhatsApp, callback=${_onSendWhatsAppNotification != null}, hasMobile=${order.customerMobile.isNotEmpty}');
       }
       
-      // Send Email if enabled and customer has email
       if (_autoSendEmail && _onSendEmailNotification != null && order.customerEmail.isNotEmpty) {
         try {
           await _onSendEmailNotification!(orderData, newStatus, notes: notes);
-          print('✅ Auto Email notification sent for order ${order.orderNumber}');
+          print('✅ Email notification sent successfully!');
         } catch (e) {
-          print('❌ Failed to send auto Email: $e');
+          print('❌ Email error: $e');
         }
-      } else if (_autoSendEmail && order.customerEmail.isEmpty) {
-        print('⚠️ Cannot send Email - no email address for order ${order.orderNumber}');
+      } else {
+        print('⚠️ Email not sending: enabled=$_autoSendEmail, callback=${_onSendEmailNotification != null}, hasEmail=${order.customerEmail.isNotEmpty}');
       }
       
+      print('🔔 ========== AUTO NOTIFICATION COMPLETE ==========');
     } catch (e) {
-      print('❌ Error preparing auto-notification: $e');
+      print('❌ Error in auto-notification: $e');
     }
   }
 
-  // ========================
-  // UPDATE SINGLE ORDER STATUS WITH AUTO-NOTIFICATIONS
-  // ========================
   Future<void> updateOrderStatus(ProductionOrderItem order, String newStatus, {String? notes}) async {
+    print('🔴🔴🔴 UPDATE ORDER STATUS CALLED! 🔴🔴🔴');
+    print('   Order ID: ${order.id}');
+    print('   New Status: $newStatus');
+    
     if (order.status.toLowerCase() == newStatus.toLowerCase()) {
       print('⚠️ Status is already $newStatus, skipping update');
       return;
@@ -345,19 +321,14 @@ class ProductionOrdersProvider extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      print('🔄 Updating order ${order.id} status from "${order.status}" to "$newStatus"');
-      
       String dbStatus = newStatus.toLowerCase().trim();
-      
       final allowedStatuses = ['pending', 'packing', 'ready_for_dispatch', 'dispatched', 'delivered', 'completed', 'cancelled'];
       if (!allowedStatuses.contains(dbStatus)) {
         throw Exception('Invalid status: $dbStatus');
       }
       
-      // Mark as pending update
       _pendingUpdates.add(order.id);
       
-      // Update in database
       final response = await _supabase
           .from('emp_mar_orders')
           .update({
@@ -369,11 +340,8 @@ class ProductionOrdersProvider extends ChangeNotifier {
 
       print('✅ Order status update successful');
       
-      // Verify the update
       if (response.isNotEmpty) {
         final verifiedOrder = ProductionOrderItem.fromMap(response.first);
-        
-        // Update local state with verified data
         final index = _orders.indexWhere((o) => o.id == order.id);
         if (index != -1) {
           _orders[index] = verifiedOrder;
@@ -381,14 +349,13 @@ class ProductionOrdersProvider extends ChangeNotifier {
           print('✅ Local order updated and verified');
         }
         
-        // AUTO-SEND NOTIFICATION
+        print('📢 Triggering auto-notification for status change...');
         await _sendAutoStatusUpdateNotification(verifiedOrder, newStatus, notes: notes);
       }
       
-    } catch (e, stackTrace) {
+    } catch (e) {
       _error = 'Failed to update order status: $e';
       print('❌ Error updating order status: $e');
-      print('❌ Stack trace: $stackTrace');
       rethrow;
     } finally {
       _pendingUpdates.remove(order.id);
@@ -397,9 +364,6 @@ class ProductionOrdersProvider extends ChangeNotifier {
     }
   }
 
-  // ========================
-  // BULK UPDATE WITH AUTO-NOTIFICATIONS
-  // ========================
   Future<void> updateBulkOrderStatus(List<String> orderIds, String newStatus, {String? notes}) async {
     if (orderIds.isEmpty) return;
     
@@ -411,24 +375,20 @@ class ProductionOrdersProvider extends ChangeNotifier {
       print('🔄 Bulk updating ${orderIds.length} orders to status: $newStatus');
       
       final validIds = orderIds.where((id) => id.isNotEmpty && id != 'null').toList();
-      
       if (validIds.isEmpty) {
         throw Exception('No valid order IDs provided');
       }
       
       String dbStatus = newStatus.toLowerCase().trim();
-      
       final allowedStatuses = ['pending', 'packing', 'ready_for_dispatch', 'dispatched', 'delivered', 'completed', 'cancelled'];
       if (!allowedStatuses.contains(dbStatus)) {
         throw Exception('Invalid status: $dbStatus');
       }
       
-      // Mark all as pending updates
       _pendingUpdates.addAll(validIds);
       
       int successCount = 0;
       List<String> failedIds = [];
-      List<Map<String, dynamic>> successfulUpdates = [];
       List<ProductionOrderItem> updatedOrders = [];
       
       for (final orderId in validIds) {
@@ -443,14 +403,12 @@ class ProductionOrdersProvider extends ChangeNotifier {
               .select();
           
           if (response.isNotEmpty) {
-            successfulUpdates.add(response.first);
             updatedOrders.add(ProductionOrderItem.fromMap(response.first));
             successCount++;
             print('✅ Updated order: $orderId');
           } else {
             failedIds.add(orderId);
           }
-          
         } catch (e) {
           failedIds.add(orderId);
           print('❌ Failed to update order $orderId: $e');
@@ -459,9 +417,7 @@ class ProductionOrdersProvider extends ChangeNotifier {
 
       print('✅ Bulk update complete: $successCount/${validIds.length} orders updated');
       
-      // Update local state with verified data
-      for (final update in successfulUpdates) {
-        final updatedOrder = ProductionOrderItem.fromMap(update);
+      for (final updatedOrder in updatedOrders) {
         final index = _orders.indexWhere((o) => o.id == updatedOrder.id);
         if (index != -1) {
           _orders[index] = updatedOrder;
@@ -470,23 +426,18 @@ class ProductionOrdersProvider extends ChangeNotifier {
       
       notifyListeners();
       
-      // AUTO-SEND NOTIFICATIONS for each successfully updated order
-      if (_autoSendWhatsApp || _autoSendEmail) {
-        print('📨 Auto-sending bulk status update notifications for $successCount orders');
-        
-        for (final updatedOrder in updatedOrders) {
-          await _sendAutoStatusUpdateNotification(updatedOrder, newStatus, notes: notes);
-        }
+      print('📢 Triggering auto-notifications for $successCount orders...');
+      for (final updatedOrder in updatedOrders) {
+        await _sendAutoStatusUpdateNotification(updatedOrder, newStatus, notes: notes);
       }
       
       if (failedIds.isNotEmpty) {
         throw Exception('Failed to update ${failedIds.length} orders: $failedIds');
       }
       
-    } catch (e, stackTrace) {
+    } catch (e) {
       _error = 'Failed to update bulk order status: $e';
       print('❌ Error updating bulk order status: $e');
-      print('❌ Stack trace: $stackTrace');
       rethrow;
     } finally {
       _pendingUpdates.clear();
@@ -508,7 +459,7 @@ class ProductionOrdersProvider extends ChangeNotifier {
   }
 
   Map<String, int> getStatistics() {
-    final stats = {
+    return {
       'total': _orders.length,
       'pending': _orders.where((order) => order.status.toLowerCase() == 'pending').length,
       'packing': _orders.where((order) => order.status.toLowerCase() == 'packing').length,
@@ -518,67 +469,50 @@ class ProductionOrdersProvider extends ChangeNotifier {
       'completed': _orders.where((order) => order.status.toLowerCase() == 'completed').length,
       'cancelled': _orders.where((order) => order.status.toLowerCase() == 'cancelled').length,
     };
-    
-    print('📊 Statistics calculated: $stats');
-    return stats;
   }
 
   double getMonthlyRevenue() {
     final today = DateTime.now();
     final monthStart = DateTime(today.year, today.month, 1);
     double revenue = 0.0;
-
     for (var order in completedOrders) {
       if (order.createdAt.isAfter(monthStart) && order.createdAt.isBefore(today.add(const Duration(days: 1)))) {
         revenue += order.totalPrice.toDouble();
       }
     }
-
     return revenue;
   }
 
   double getRevenueForDateRange(DateTime startDate, DateTime endDate) {
     double revenue = 0.0;
-
     for (var order in completedOrders) {
       if (order.createdAt.isAfter(startDate) && order.createdAt.isBefore(endDate.add(const Duration(days: 1)))) {
         revenue += order.totalPrice.toDouble();
       }
     }
-
     return revenue;
   }
 
-  List<ProductionOrderItem> getCompletedOrdersForDashboard() {
-    return completedOrders;
-  }
-
+  List<ProductionOrderItem> getCompletedOrdersForDashboard() => completedOrders;
+  List<ProductionOrderItem> getRecentCompletedOrders({int limit = 5}) => completedOrders.take(limit).toList();
+  
   Map<DateTime, double> getDailyRevenueSummary() {
     final Map<DateTime, double> dailyRevenue = {};
-    
     for (var order in completedOrders) {
       final date = DateTime(order.createdAt.year, order.createdAt.month, order.createdAt.day);
       dailyRevenue[date] = (dailyRevenue[date] ?? 0) + order.totalPrice.toDouble();
     }
-    
     return dailyRevenue;
   }
 
   Map<String, double> getProductRevenueSummary() {
     final Map<String, double> productRevenue = {};
-    
     for (var order in completedOrders) {
       productRevenue[order.productName] = (productRevenue[order.productName] ?? 0) + order.totalPrice.toDouble();
     }
-    
     return productRevenue;
   }
-
-  List<ProductionOrderItem> getRecentCompletedOrders({int limit = 5}) {
-    return completedOrders.take(limit).toList();
-  }
 }
-
 
 
 
