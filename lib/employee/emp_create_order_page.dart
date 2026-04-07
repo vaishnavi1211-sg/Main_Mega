@@ -635,7 +635,7 @@ class _CattleFeedOrderScreenState extends State<CattleFeedOrderScreen> {
               ),
 
             const SizedBox(height: 40),
-            _buildOrderSummaryCard(totalWeight as int , unit, pricePerBag, totalPrice as int),
+            _buildOrderSummaryCard(totalWeight as int , unit, pricePerBag, totalPrice),
             const SizedBox(height: 30),
           ],
         ),
